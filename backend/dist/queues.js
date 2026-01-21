@@ -1,0 +1,2523 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.startQueueProcess = exports.randomValue = exports.parseToMilliseconds = exports.agendamentoContato = exports.messageQueue = exports.lidRetryQueue = exports.queueMonitor = exports.campaignQueue = exports.sendScheduledMessages = exports.scheduleMonitor = exports.userMonitor = void 0;
+const Sentry = __importStar(require("@sentry/node"));
+const bull_1 = __importDefault(require("bull"));
+const SendMessage_1 = require("./helpers/SendMessage");
+const Whatsapp_1 = __importDefault(require("./models/Whatsapp"));
+const async_mutex_1 = require("async-mutex");
+const logger_1 = __importDefault(require("./utils/logger"));
+const moment_1 = __importDefault(require("moment"));
+const Schedule_1 = __importDefault(require("./models/Schedule"));
+const sequelize_1 = require("sequelize");
+const GetDefaultWhatsApp_1 = __importDefault(require("./helpers/GetDefaultWhatsApp"));
+const Campaign_1 = __importDefault(require("./models/Campaign"));
+const Queue_1 = __importDefault(require("./models/Queue"));
+const ContactList_1 = __importDefault(require("./models/ContactList"));
+const ContactListItem_1 = __importDefault(require("./models/ContactListItem"));
+const lodash_1 = require("lodash");
+const CampaignSetting_1 = __importDefault(require("./models/CampaignSetting"));
+const CampaignShipping_1 = __importDefault(require("./models/CampaignShipping"));
+const GetWhatsappWbot_1 = __importDefault(require("./helpers/GetWhatsappWbot"));
+const database_1 = __importDefault(require("./database"));
+const SendWhatsAppMedia_1 = require("./services/WbotServices/SendWhatsAppMedia");
+const socket_1 = require("./libs/socket");
+const path_1 = __importDefault(require("path"));
+const User_1 = __importDefault(require("./models/User"));
+const Company_1 = __importDefault(require("./models/Company"));
+const Contact_1 = __importDefault(require("./models/Contact"));
+const Queue_2 = __importDefault(require("./models/Queue"));
+const wbotClosedTickets_1 = require("./services/WbotServices/wbotClosedTickets");
+const Ticket_1 = __importDefault(require("./models/Ticket"));
+const UserQueue_1 = __importDefault(require("./models/UserQueue"));
+const ContactWallet_1 = __importDefault(require("./models/ContactWallet"));
+const ShowTicketService_1 = __importDefault(require("./services/TicketServices/ShowTicketService"));
+const SendWhatsAppMessage_1 = __importDefault(require("./services/WbotServices/SendWhatsAppMessage"));
+const SendWhatsAppMedia_2 = __importDefault(require("./services/WbotServices/SendWhatsAppMedia"));
+const UpdateTicketService_1 = __importDefault(require("./services/TicketServices/UpdateTicketService"));
+const date_fns_1 = require("date-fns");
+const CronJob = require("cron").CronJob;
+const CompaniesSettings_1 = __importDefault(require("./models/CompaniesSettings"));
+const wbotMessageListener_1 = require("./services/WbotServices/wbotMessageListener");
+const CreateLogTicketService_1 = __importDefault(require("./services/TicketServices/CreateLogTicketService"));
+const Mustache_1 = __importDefault(require("./helpers/Mustache"));
+const TicketTag_1 = __importDefault(require("./models/TicketTag"));
+const Tag_1 = __importDefault(require("./models/Tag"));
+const ContactTag_1 = __importDefault(require("./models/ContactTag"));
+const Plan_1 = __importDefault(require("./models/Plan"));
+const wbot_1 = require("./libs/wbot");
+const BirthdayJob_1 = require("./jobs/BirthdayJob");
+const getJidOf_1 = require("./services/WbotServices/getJidOf");
+const RecurrenceService_1 = __importDefault(require("./services/CampaignService/RecurrenceService"));
+const WhatsapplidMap_1 = __importDefault(require("./models/WhatsapplidMap"));
+const verifyContact_1 = require("./services/WbotServices/verifyContact");
+const SendWhatsAppOficialMessage_1 = __importDefault(require("./services/WhatsAppOficial/SendWhatsAppOficialMessage"));
+const MessageApi_1 = __importDefault(require("./models/MessageApi"));
+const CheckNumber_1 = __importDefault(require("./services/WbotServices/CheckNumber"));
+const CreateOrUpdateContactService_1 = __importDefault(require("./services/ContactServices/CreateOrUpdateContactService"));
+const FindOrCreateTicketService_1 = __importDefault(require("./services/TicketServices/FindOrCreateTicketService"));
+const fs_1 = __importDefault(require("fs"));
+const SendWhatsAppMessageAPI_1 = __importDefault(require("./services/WbotServices/SendWhatsAppMessageAPI"));
+const delay_1 = __importDefault(require("./utils/delay"));
+const connection = process.env.REDIS_URI || "";
+const limiterMax = process.env.REDIS_OPT_LIMITER_MAX || 1;
+const limiterDuration = process.env.REDIS_OPT_LIMITER_DURATION || 3000;
+exports.userMonitor = new bull_1.default("UserMonitor", connection);
+exports.scheduleMonitor = new bull_1.default("ScheduleMonitor", connection);
+exports.sendScheduledMessages = new bull_1.default("SendSacheduledMessages", connection);
+exports.campaignQueue = new bull_1.default("CampaignQueue", connection);
+exports.queueMonitor = new bull_1.default("QueueMonitor", connection);
+exports.lidRetryQueue = new bull_1.default("LidRetryQueue", connection);
+exports.messageQueue = new bull_1.default("MessageQueue", connection, {
+    limiter: {
+        max: limiterMax,
+        duration: limiterDuration
+    }
+});
+let isProcessing = false;
+async function apiMessageQueue() {
+    try {
+        const currentDate = new Date();
+        const mutex = new async_mutex_1.Mutex();
+        let quotedMsg;
+        let msdelay = 0;
+        //logger.info('Iniciando processamento de mensagens na fila...');
+        const companies = await Company_1.default.findAll({
+            attributes: ['id', 'name'],
+            where: {
+                status: true
+            },
+            include: [
+                {
+                    model: Whatsapp_1.default,
+                    attributes: ["id", "channel"],
+                    where: {
+                        status: 'CONNECTED'
+                    }
+                },
+            ]
+        });
+        //logger.info(`Encontradas ${companies.length} empresas ativas`);
+        // Usar Promise.all para melhor desempenho e captura de erros
+        await Promise.all(companies.map(async (company) => {
+            try {
+                //logger.info(`Processando empresa ${company.id} - ${company.name}`);
+                await Promise.all(company.whatsapps.map(async (whatsapp) => {
+                    // Ignorar conexões WhatsApp Oficial (usam webhook, não polling)
+                    if (whatsapp.channel === "whatsapp_oficial")
+                        return;
+                    try {
+                        //logger.info(`Processando whatsapp ${whatsapp.id} da empresa ${company.id}`);
+                        const pendingMessages = await MessageApi_1.default.findAll({
+                            where: {
+                                isSending: false,
+                                companyId: company.id,
+                                [sequelize_1.Op.or]: [
+                                    { schedule: { [sequelize_1.Op.lte]: currentDate } },
+                                    { schedule: null }
+                                ]
+                            },
+                            order: [['schedule', 'ASC']]
+                        });
+                        if (!pendingMessages?.length) {
+                            //logger.info(`Nenhuma mensagem pendente para whatsapp ${whatsapp.id}`);
+                            return;
+                        }
+                        //logger.info(`Encontradas ${pendingMessages.length} mensagens pendentes para whatsapp ${whatsapp.id}`);
+                        const companyId = company.id;
+                        const whatsappId = whatsapp.id;
+                        let wbot;
+                        const settings = await CompaniesSettings_1.default.findOne({
+                            where: { companyId }
+                        });
+                        for (const [index, message] of pendingMessages.entries()) {
+                            try {
+                                const conexao = await Whatsapp_1.default.findByPk(message.whatsappId);
+                                if (conexao.channel === 'whatsapp_oficial') {
+                                    wbot = await (0, wbot_1.getWbot)(conexao.id);
+                                }
+                                else {
+                                    wbot = await (0, wbot_1.getWbot)(whatsapp.id);
+                                }
+                                const CheckValidNumber = await (0, CheckNumber_1.default)(message.number, message.companyId);
+                                const validNumber = CheckValidNumber.jid.split("@")[0];
+                                const contactData = {
+                                    name: `${validNumber}`,
+                                    number: validNumber,
+                                    profilePicUrl: "",
+                                    isGroup: false,
+                                    companyId,
+                                    whatsappId,
+                                    remoteJid: validNumber.length > 17 ? `${validNumber}@g.us` : `${validNumber}@s.whatsapp.net`,
+                                    wbot
+                                };
+                                const contact = await (0, CreateOrUpdateContactService_1.default)(contactData);
+                                const createTicket = await (0, FindOrCreateTicketService_1.default)(contact, whatsapp, 0, companyId, message.queueId, message.userId, null, whatsapp.channel, null, false, settings, false, false);
+                                const whatsappInstance = await Whatsapp_1.default.findByPk(conexao.id);
+                                if (!whatsappInstance) {
+                                    logger_1.default.error(`Whatsapp não encontrado para o ID: ${whatsapp.id}`);
+                                    continue;
+                                }
+                                let sentMessage;
+                                if (message.mediaType) {
+                                    try {
+                                        //logger.info(`Preparando mídia para mensagem ${message.id}`);
+                                        let fileBuffer = Buffer.from('');
+                                        if (message.path) {
+                                            if (fs_1.default.existsSync(message.path)) {
+                                                fileBuffer = await fs_1.default.promises.readFile(message.path);
+                                            }
+                                            else {
+                                                logger_1.default.warn(`Arquivo de mídia não encontrado: ${message.path}`);
+                                            }
+                                        }
+                                        const mediaFile = {
+                                            fieldname: 'media',
+                                            originalname: message.originalName || 'file',
+                                            encoding: '7bit',
+                                            mimetype: message.mimeType || 'application/octet-stream',
+                                            size: parseInt(message.size?.toString() || '0', 10),
+                                            destination: message.destination || '',
+                                            filename: message.filename || '',
+                                            path: message.path || '',
+                                            buffer: fileBuffer,
+                                            stream: null
+                                        };
+                                        if (whatsappInstance.channel === 'whatsapp_oficial') {
+                                            await (0, SendWhatsAppOficialMessage_1.default)({
+                                                body: `${message.body}`,
+                                                ticket: createTicket,
+                                                quotedMsg: null,
+                                                type: undefined,
+                                                media: mediaFile,
+                                                vCard: null
+                                            });
+                                        }
+                                        else {
+                                            sentMessage = await (0, SendWhatsAppMedia_2.default)({
+                                                body: `${message.body}`,
+                                                media: mediaFile,
+                                                ticket: createTicket,
+                                                isForwarded: false
+                                            });
+                                            await (0, wbotMessageListener_1.verifyMediaMessage)(sentMessage, createTicket, createTicket.contact, null, false, false, wbot);
+                                        }
+                                        if (fs_1.default.existsSync(message.path)) {
+                                            fs_1.default.unlinkSync(message.path);
+                                        }
+                                    }
+                                    catch (mediaError) {
+                                        logger_1.default.error(`Erro ao processar mídia da mensagem ${message.id}:`, {
+                                            error: mediaError,
+                                            message: mediaError.message,
+                                            stack: mediaError.stack
+                                        });
+                                        throw mediaError;
+                                    }
+                                }
+                                else {
+                                    if (whatsappInstance.channel === 'whatsapp_oficial') {
+                                        await (0, SendWhatsAppOficialMessage_1.default)({
+                                            body: `${message.body}`,
+                                            ticket: createTicket,
+                                            quotedMsg,
+                                            type: 'text',
+                                            media: null,
+                                            vCard: null
+                                        });
+                                    }
+                                    else {
+                                        sentMessage = await (0, SendWhatsAppMessageAPI_1.default)({
+                                            body: `${message.body}`,
+                                            whatsappId: whatsapp.id,
+                                            contact: createTicket.contact,
+                                            quotedMsg,
+                                            msdelay
+                                        });
+                                        await (0, wbotMessageListener_1.verifyMessage)(sentMessage, createTicket, createTicket.contact);
+                                    }
+                                }
+                                //console.log(`Tickett ${createTicket.id} enviado para o contato ${createTicket.contact.name} (${createTicket.contact.number})`);
+                                await MessageApi_1.default.update({
+                                    isSending: true,
+                                    sentAt: new Date(),
+                                    ticketId: createTicket.id
+                                }, {
+                                    where: { id: message.id }
+                                });
+                                if (message.closeTicket === true) {
+                                    //logger.info(`Ticket ${createTicket.id} aberto após envio da mensagem ${message.id}`);
+                                    setTimeout(async () => {
+                                        await Ticket_1.default.update({
+                                            status: "closed",
+                                            sendFarewellMessage: false,
+                                            amountUsedBotQueues: 0,
+                                            lastMessage: message.body
+                                        }, {
+                                            where: { id: createTicket.id, companyId: companyId }
+                                        });
+                                        //logger.info(`Ticket ${createTicket.id} fechado após envio da mensagem ${message.id}`);
+                                    }, 1000);
+                                }
+                                if (pendingMessages.length > 1 && index < pendingMessages.length - 1) {
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                }
+                            }
+                            catch (messageError) {
+                                logger_1.default.error(`Erro ao processar mensagem ${message?.id}:`, {
+                                    error: messageError,
+                                    message: messageError.message,
+                                    stack: messageError.stack,
+                                    messageData: message?.get ? message.get({ plain: true }) : message
+                                });
+                            }
+                        }
+                    }
+                    catch (whatsappError) {
+                        logger_1.default.error(`Erro ao processar whatsapp ${whatsapp?.id}:`, {
+                            error: whatsappError,
+                            message: whatsappError.message,
+                            stack: whatsappError.stack
+                        });
+                    }
+                }));
+            }
+            catch (companyError) {
+                logger_1.default.error(`Erro ao processar empresa ${company?.id}:`, {
+                    error: companyError,
+                    message: companyError.message,
+                    stack: companyError.stack
+                });
+            }
+        }));
+    }
+    catch (globalError) {
+        logger_1.default.error("Erro global no MessageAPI:", {
+            error: globalError,
+            message: globalError.message,
+            stack: globalError.stack
+        });
+    }
+}
+async function workerContinuo() {
+    while (true) {
+        try {
+            await apiMessageQueue(); // Processa tudo
+            await (0, delay_1.default)(5000); // Você pode ajustar esse tempo, ex: 2 segundos entre os ciclos
+        }
+        catch (error) {
+            console.error('Erro no processamento:', error);
+            await (0, delay_1.default)(5000); // Espera 5 segundos antes de tentar novamente em caso de erro
+        }
+    }
+}
+async function handleSendMessage(job) {
+    try {
+        const { data } = job;
+        const whatsapp = await Whatsapp_1.default.findByPk(data.whatsappId);
+        if (whatsapp === null) {
+            throw Error("Whatsapp não identificado");
+        }
+        const messageData = data.data;
+        console.log('messageData', messageData);
+        await (0, SendMessage_1.SendMessage)(whatsapp, messageData);
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("MessageQueue -> SendMessage: error", e.message);
+        throw e;
+    }
+}
+// ✅ Nova função para verificar lembretes
+async function handleVerifyReminders(job) {
+    try {
+        const { count, rows: schedules } = await Schedule_1.default.findAndCountAll({
+            where: {
+                reminderStatus: "PENDENTE",
+                reminderSentAt: null,
+                reminderDate: {
+                    [sequelize_1.Op.gte]: (0, moment_1.default)().format("YYYY-MM-DD HH:mm:ss"),
+                    [sequelize_1.Op.lte]: (0, moment_1.default)().add("30", "seconds").format("YYYY-MM-DD HH:mm:ss")
+                }
+            },
+            include: [
+                { model: Contact_1.default, as: "contact" },
+                { model: User_1.default, as: "user", attributes: ["name"] }
+            ],
+            distinct: true,
+            subQuery: false
+        });
+        if (count > 0) {
+            schedules.map(async (schedule) => {
+                await schedule.update({
+                    reminderStatus: "AGENDADA"
+                });
+                exports.sendScheduledMessages.add("SendReminder", { schedule }, { delay: 40000 });
+                logger_1.default.info(`Lembrete agendado para: ${schedule.contact.name}`);
+            });
+        }
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("SendReminder -> Verify: error", e.message);
+        throw e;
+    }
+}
+async function handleVerifySchedules(job) {
+    try {
+        const { count, rows: schedules } = await Schedule_1.default.findAndCountAll({
+            where: {
+                status: "PENDENTE",
+                sentAt: null,
+                sendAt: {
+                    [sequelize_1.Op.gte]: (0, moment_1.default)().format("YYYY-MM-DD HH:mm:ss"),
+                    [sequelize_1.Op.lte]: (0, moment_1.default)().add("30", "seconds").format("YYYY-MM-DD HH:mm:ss")
+                }
+            },
+            include: [
+                { model: Contact_1.default, as: "contact" },
+                { model: User_1.default, as: "user", attributes: ["name"] }
+            ],
+            distinct: true,
+            subQuery: false
+        });
+        if (count > 0) {
+            schedules.map(async (schedule) => {
+                await schedule.update({
+                    status: "AGENDADA"
+                });
+                exports.sendScheduledMessages.add("SendMessage", { schedule }, { delay: 40000 });
+                logger_1.default.info(`Disparo agendado para: ${schedule.contact.name}`);
+            });
+        }
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("SendScheduledMessage -> Verify: error", e.message);
+        throw e;
+    }
+}
+async function handleSendScheduledMessage(job) {
+    const { data: { schedule } } = job;
+    let scheduleRecord = null;
+    try {
+        scheduleRecord = await Schedule_1.default.findByPk(schedule.id);
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.info(`Erro ao tentar consultar agendamento: ${schedule.id}`);
+    }
+    try {
+        // ✅ Verificar se há lembrete configurado
+        if (schedule.reminderDate && schedule.reminderStatus === "PENDENTE") {
+            logger_1.default.info(`Agendamento ${schedule.id} tem lembrete configurado - não enviando mensagem no horário original`);
+            // Atualizar status para indicar que não será enviado no horário original
+            await scheduleRecord?.update({
+                status: "CANCELADO_POR_LEMBRETE"
+            });
+            return; // Não enviar a mensagem no horário original
+        }
+        let whatsapp;
+        if (!(0, lodash_1.isNil)(schedule.whatsappId)) {
+            whatsapp = await Whatsapp_1.default.findByPk(schedule.whatsappId);
+        }
+        if (!whatsapp)
+            whatsapp = await (0, GetDefaultWhatsApp_1.default)(schedule.companyId);
+        // const settings = await CompaniesSettings.findOne({
+        //   where: {
+        //     companyId: schedule.companyId
+        //   }
+        // })
+        let filePath = null;
+        if (schedule.mediaPath) {
+            filePath = path_1.default.resolve("public", `company${schedule.companyId}`, schedule.mediaPath);
+        }
+        if (schedule.openTicket === "enabled") {
+            let ticket = await Ticket_1.default.findOne({
+                where: {
+                    contactId: schedule.contact.id,
+                    companyId: schedule.companyId,
+                    whatsappId: whatsapp.id,
+                    status: ["open", "pending"]
+                }
+            });
+            if (!ticket)
+                ticket = await Ticket_1.default.create({
+                    companyId: schedule.companyId,
+                    contactId: schedule.contactId,
+                    whatsappId: whatsapp.id,
+                    queueId: schedule.queueId,
+                    userId: schedule.ticketUserId,
+                    status: schedule.statusTicket
+                });
+            ticket = await (0, ShowTicketService_1.default)(ticket.id, schedule.companyId);
+            let bodyMessage;
+            // @ts-ignore: Unreachable code error
+            if (schedule.assinar && !(0, lodash_1.isNil)(schedule.userId)) {
+                bodyMessage = `*${schedule?.user?.name}:*\n${schedule.body.trim()}`;
+            }
+            else {
+                bodyMessage = schedule.body.trim();
+            }
+            const dataAgendamento = await (0, exports.agendamentoContato)(schedule);
+            let bodySchedule = bodyMessage.replace("{{dataAgendamento}}", dataAgendamento);
+            bodySchedule = `${(0, Mustache_1.default)(bodySchedule, ticket)}`;
+            const sentMessage = await (0, SendMessage_1.SendMessage)(whatsapp, {
+                number: schedule.contact.number,
+                body: bodySchedule,
+                mediaPath: filePath,
+                companyId: schedule.companyId
+            }, schedule.contact.isGroup);
+            if (schedule.mediaPath) {
+                await (0, wbotMessageListener_1.verifyMediaMessage)(sentMessage, ticket, ticket.contact, null, true, false, whatsapp);
+            }
+            else {
+                await (0, wbotMessageListener_1.verifyMessage)(sentMessage, ticket, ticket.contact, null, true, false);
+            }
+            // if (ticket) {
+            //   await UpdateTicketService({
+            //     ticketData: {
+            //       sendFarewellMessage: false,
+            //       status: schedule.statusTicket,
+            //       userId: schedule.ticketUserId || null,
+            //       queueId: schedule.queueId || null
+            //     },
+            //     ticketId: ticket.id,
+            //     companyId: ticket.companyId
+            //   })
+            // }
+        }
+        else {
+            const dataAgendamento = await (0, exports.agendamentoContato)(schedule);
+            let bodySchedule = schedule.body.replace("{{dataAgendamento}}", dataAgendamento);
+            bodySchedule = `${(0, Mustache_1.default)(bodySchedule, null)}`;
+            await (0, SendMessage_1.SendMessage)(whatsapp, {
+                number: schedule.contact.number,
+                body: bodySchedule,
+                mediaPath: filePath,
+                companyId: schedule.companyId
+            }, schedule.contact.isGroup);
+        }
+        if (schedule.valorIntervalo > 0 &&
+            ((0, lodash_1.isNil)(schedule.contadorEnvio) ||
+                schedule.contadorEnvio < schedule.enviarQuantasVezes)) {
+            let unidadeIntervalo;
+            switch (schedule.intervalo) {
+                case 1:
+                    unidadeIntervalo = "days";
+                    break;
+                case 2:
+                    unidadeIntervalo = "weeks";
+                    break;
+                case 3:
+                    unidadeIntervalo = "months";
+                    break;
+                case 4:
+                    unidadeIntervalo = "minuts";
+                    break;
+                default:
+                    throw new Error("Intervalo inválido");
+            }
+            function isDiaUtil(date) {
+                const dayOfWeek = date.day();
+                return dayOfWeek >= 1 && dayOfWeek <= 5; // 1 é segunda-feira, 5 é sexta-feira
+            }
+            function proximoDiaUtil(date) {
+                let proximoDia = date.clone();
+                do {
+                    proximoDia.add(1, "day");
+                } while (!isDiaUtil(proximoDia));
+                return proximoDia;
+            }
+            // Função para encontrar o dia útil anterior
+            function diaUtilAnterior(date) {
+                let diaAnterior = date.clone();
+                do {
+                    diaAnterior.subtract(1, "day");
+                } while (!isDiaUtil(diaAnterior));
+                return diaAnterior;
+            }
+            const dataExistente = new Date(schedule.sendAt);
+            const hora = dataExistente.getHours();
+            const fusoHorario = dataExistente.getTimezoneOffset();
+            // Realizar a soma da data com base no intervalo e valor do intervalo
+            let novaData = new Date(dataExistente); // Clone da data existente para não modificar a original
+            if (unidadeIntervalo !== "minuts") {
+                novaData.setDate(novaData.getDate() +
+                    schedule.valorIntervalo *
+                        (unidadeIntervalo === "days"
+                            ? 1
+                            : unidadeIntervalo === "weeks"
+                                ? 7
+                                : 30));
+            }
+            else {
+                novaData.setMinutes(novaData.getMinutes() + Number(schedule.valorIntervalo));
+            }
+            if (schedule.tipoDias === 5 && !isDiaUtil(novaData)) {
+                novaData = diaUtilAnterior(novaData);
+            }
+            else if (schedule.tipoDias === 6 && !isDiaUtil(novaData)) {
+                novaData = proximoDiaUtil(novaData);
+            }
+            novaData.setHours(hora);
+            novaData.setMinutes(novaData.getMinutes() - fusoHorario);
+            await scheduleRecord?.update({
+                status: "PENDENTE",
+                contadorEnvio: schedule.contadorEnvio + 1,
+                sendAt: new Date(novaData.toISOString().slice(0, 19).replace("T", " ")) // Mantendo o formato de hora
+            });
+        }
+        else {
+            await scheduleRecord?.update({
+                sentAt: new Date((0, moment_1.default)().format("YYYY-MM-DD HH:mm")),
+                status: "ENVIADA"
+            });
+        }
+        logger_1.default.info(`Mensagem agendada enviada para: ${schedule.contact.name}`);
+        exports.sendScheduledMessages.clean(15000, "completed");
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        await scheduleRecord?.update({
+            status: "ERRO"
+        });
+        logger_1.default.error("SendScheduledMessage -> SendMessage: error", e.message);
+        throw e;
+    }
+}
+// Função para buscar o agendamento de um contato e retornar a data/hora no formato brasileiro
+const agendamentoContato = async (schedule) => {
+    try {
+        const sendAt = schedule?.sendAt;
+        if (!sendAt)
+            return null;
+        // Cria um objeto Date a partir do sendAt
+        const dateObj = new Date(sendAt);
+        // Converte para o fuso horário de Brasília (UTC-3)
+        const brasiliaDate = new Date(dateObj.getTime() - (3 * 60 * 60 * 1000));
+        // Extrai os componentes da data de Brasília
+        const dia = String(brasiliaDate.getUTCDate()).padStart(2, '0');
+        const mes = String(brasiliaDate.getUTCMonth() + 1).padStart(2, '0');
+        const ano = brasiliaDate.getUTCFullYear();
+        const hora = String(brasiliaDate.getUTCHours()).padStart(2, '0');
+        const minuto = String(brasiliaDate.getUTCMinutes()).padStart(2, '0');
+        return `${dia}/${mes}/${ano} às ${hora}:${minuto}hs`;
+    }
+    catch (error) {
+        console.error("Erro ao buscar agendamento do contato:", error);
+        return null;
+    }
+};
+exports.agendamentoContato = agendamentoContato;
+// ✅ Nova função para enviar lembretes
+async function handleSendReminder(job) {
+    const { data: { schedule } } = job;
+    let scheduleRecord = null;
+    try {
+        scheduleRecord = await Schedule_1.default.findByPk(schedule.id);
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.info(`Erro ao tentar consultar agendamento: ${schedule.id}`);
+    }
+    try {
+        let whatsapp;
+        if (!(0, lodash_1.isNil)(schedule.whatsappId)) {
+            whatsapp = await Whatsapp_1.default.findByPk(schedule.whatsappId);
+        }
+        if (!whatsapp)
+            whatsapp = await (0, GetDefaultWhatsApp_1.default)(schedule.companyId);
+        let filePath = null;
+        if (schedule.mediaPath) {
+            filePath = path_1.default.resolve("public", `company${schedule.companyId}`, schedule.mediaPath);
+        }
+        if (schedule.openTicket === "enabled") {
+            let ticket = await Ticket_1.default.findOne({
+                where: {
+                    contactId: schedule.contact.id,
+                    companyId: schedule.companyId,
+                    whatsappId: whatsapp.id,
+                    status: ["open", "pending"]
+                }
+            });
+            if (!ticket)
+                ticket = await Ticket_1.default.create({
+                    companyId: schedule.companyId,
+                    contactId: schedule.contactId,
+                    whatsappId: whatsapp.id,
+                    queueId: schedule.queueId,
+                    userId: schedule.ticketUserId,
+                    status: schedule.statusTicket
+                });
+            ticket = await (0, ShowTicketService_1.default)(ticket.id, schedule.companyId);
+            let bodyMessage;
+            // @ts-ignore: Unreachable code error
+            if (schedule.assinar && !(0, lodash_1.isNil)(schedule.userId)) {
+                bodyMessage = `*${schedule?.user?.name}:*\n${schedule.body.trim()}`;
+            }
+            else {
+                bodyMessage = schedule.body.trim();
+            }
+            const dataAgendamento = await (0, exports.agendamentoContato)(schedule);
+            let bodySchedule = bodyMessage.replace("{{dataAgendamento}}", dataAgendamento);
+            bodySchedule = `${(0, Mustache_1.default)(bodySchedule, ticket)}`;
+            const sentMessage = await (0, SendMessage_1.SendMessage)(whatsapp, {
+                number: schedule.contact.number,
+                body: bodySchedule,
+                mediaPath: filePath,
+                companyId: schedule.companyId
+            }, schedule.contact.isGroup);
+            if (schedule.mediaPath) {
+                await (0, wbotMessageListener_1.verifyMediaMessage)(sentMessage, ticket, ticket.contact, null, true, false, whatsapp);
+            }
+            else {
+                await (0, wbotMessageListener_1.verifyMessage)(sentMessage, ticket, ticket.contact, null, true, false);
+            }
+            // if (ticket) {
+            //   await UpdateTicketService({
+            //     ticketData: {
+            //       sendFarewellMessage: false,
+            //       status: schedule.statusTicket,
+            //       userId: schedule.ticketUserId || null,
+            //       queueId: schedule.queueId || null
+            //     },
+            //     ticketId: ticket.id,
+            //     companyId: ticket.companyId
+            //   })
+            // }
+        }
+        else {
+            const dataAgendamento = await (0, exports.agendamentoContato)(schedule);
+            let bodySchedule = schedule.body.replace("{{dataAgendamento}}", dataAgendamento);
+            bodySchedule = `${(0, Mustache_1.default)(bodySchedule, null)}`;
+            await (0, SendMessage_1.SendMessage)(whatsapp, {
+                number: schedule.contact.number,
+                body: bodySchedule,
+                mediaPath: filePath,
+                companyId: schedule.companyId
+            }, schedule.contact.isGroup);
+        }
+        // Atualizar status do lembrete
+        await scheduleRecord?.update({
+            reminderSentAt: new Date((0, moment_1.default)().format("YYYY-MM-DD HH:mm")),
+            reminderStatus: "ENVIADA"
+        });
+        logger_1.default.info(`Lembrete enviado para: ${schedule.contact.name}`);
+        exports.sendScheduledMessages.clean(15000, "completed");
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        await scheduleRecord?.update({
+            reminderStatus: "ERRO"
+        });
+        logger_1.default.error("SendReminder -> SendMessage: error", e.message);
+        throw e;
+    }
+}
+async function handleVerifyCampaigns(job) {
+    if (isProcessing) {
+        return;
+    }
+    isProcessing = true;
+    try {
+        await new Promise(r => setTimeout(r, 1500));
+        const campaigns = await database_1.default.query(`SELECT id, "scheduledAt", "nextScheduledAt"
+         FROM "Campaigns" c
+         WHERE (
+           ("scheduledAt" <= NOW() + INTERVAL '1 minute' AND "scheduledAt" >= NOW() - INTERVAL '1 minute' AND status = 'PROGRAMADA' AND "executionCount" = 0)
+           OR
+           ("nextScheduledAt" <= NOW() + INTERVAL '1 minute' AND "nextScheduledAt" >= NOW() - INTERVAL '1 minute' AND status IN ('PROGRAMADA', 'EM_ANDAMENTO') AND "isRecurring" = true)
+         )`, { type: sequelize_1.QueryTypes.SELECT });
+        if (campaigns.length > 0) {
+            logger_1.default.info(`Campanhas encontradas: ${campaigns.length}`);
+            const promises = campaigns.map(async (campaign) => {
+                try {
+                    const result = await database_1.default.query(`UPDATE "Campaigns" SET status = 'EM_ANDAMENTO'
+             WHERE id = ${campaign.id} AND status IN ('PROGRAMADA', 'EM_ANDAMENTO')
+             RETURNING id`, { type: sequelize_1.QueryTypes.SELECT });
+                    if (!result || result.length === 0) {
+                        logger_1.default.info(`Campanha ${campaign.id} não está mais disponível para processamento`);
+                        return null;
+                    }
+                    const now = (0, moment_1.default)();
+                    const executeAt = campaign.nextScheduledAt || campaign.scheduledAt;
+                    const scheduledAt = (0, moment_1.default)(executeAt);
+                    const delay = Math.max(0, scheduledAt.diff(now, "milliseconds"));
+                    logger_1.default.info(`Campanha enviada para a fila: Campanha=${campaign.id}, Delay=${delay}ms`);
+                    // Se o delay for muito pequeno (menos de 1 segundo), executar imediatamente
+                    if (delay < 1000) {
+                        logger_1.default.info(`Campanha ${campaign.id} deve executar imediatamente (delay muito pequeno)`);
+                        return exports.campaignQueue.add("ProcessCampaign", { id: campaign.id }, {
+                            priority: 3,
+                            removeOnComplete: { age: 60 * 60, count: 10 },
+                            removeOnFail: { age: 60 * 60, count: 10 }
+                        });
+                    }
+                    // Para delays maiores, usar delay na opção do job
+                    return exports.campaignQueue.add("ProcessCampaign", { id: campaign.id }, {
+                        priority: 3,
+                        delay: delay,
+                        removeOnComplete: { age: 60 * 60, count: 10 },
+                        removeOnFail: { age: 60 * 60, count: 10 }
+                    });
+                }
+                catch (err) {
+                    Sentry.captureException(err);
+                }
+            });
+            const validPromises = (await Promise.all(promises)).filter(p => p !== null);
+            logger_1.default.info(`${validPromises.length} campanhas processadas efetivamente`);
+        }
+    }
+    catch (err) {
+        Sentry.captureException(err);
+        logger_1.default.error(`Error processing campaigns: ${err.message}`);
+    }
+    finally {
+        isProcessing = false;
+    }
+}
+async function getCampaign(id) {
+    const campaign = await Campaign_1.default.findOne({
+        where: { id },
+        include: [
+            {
+                model: ContactList_1.default,
+                as: "contactList",
+                attributes: ["id", "name"],
+                required: false,
+                include: [
+                    {
+                        model: ContactListItem_1.default,
+                        as: "contacts",
+                        attributes: [
+                            "id",
+                            "name",
+                            "number",
+                            "email",
+                            "isWhatsappValid",
+                            "isGroup"
+                        ],
+                        where: { isWhatsappValid: true },
+                        required: false
+                    }
+                ]
+            },
+            {
+                model: Whatsapp_1.default,
+                as: "whatsapp",
+                attributes: ["id", "name"]
+            }
+        ]
+    });
+    if (!campaign) {
+        return null;
+    }
+    // Se a campanha usa tagListId em vez de contactListId, buscar contatos por tag
+    if (campaign.tagListId && !campaign.contactListId) {
+        logger_1.default.info(`[TAG-DEBUG] Buscando contatos por tagId: ${campaign.tagListId} para campanha: ${id}, companyId: ${campaign.companyId}`);
+        // Primeiro, vamos verificar quais contatos realmente têm essa tag
+        const contactTags = await ContactTag_1.default.findAll({
+            where: { tagId: campaign.tagListId },
+            attributes: ["contactId", "tagId"],
+            include: [
+                {
+                    model: Contact_1.default,
+                    as: "contact",
+                    attributes: ["id", "name", "number", "companyId", "active"]
+                }
+            ]
+        });
+        logger_1.default.info(`[TAG-DEBUG] ContactTags encontrados para tagId ${campaign.tagListId}:`, contactTags.map(ct => ({
+            contactId: ct.contactId,
+            tagId: ct.tagId,
+            contactName: ct.contact?.name,
+            contactNumber: ct.contact?.number,
+            contactCompanyId: ct.contact?.companyId,
+            contactActive: ct.contact?.active
+        })));
+        // Buscar contatos usando uma abordagem mais robusta
+        const contactIds = await ContactTag_1.default.findAll({
+            where: { tagId: campaign.tagListId },
+            attributes: ["contactId"]
+        });
+        const contactIdList = contactIds.map(ct => ct.contactId);
+        logger_1.default.info(`[TAG-DEBUG] ContactIds encontrados para tagId ${campaign.tagListId}:`, contactIdList);
+        const contacts = await Contact_1.default.findAll({
+            attributes: [
+                "id",
+                "name",
+                "number",
+                "email",
+                "isGroup"
+            ],
+            where: {
+                id: { [sequelize_1.Op.in]: contactIdList },
+                companyId: campaign.companyId,
+                active: true // Apenas contatos ativos
+            }
+        });
+        logger_1.default.info(`[TAG-DEBUG] Contatos encontrados via Contact.findAll:`, contacts.map(c => ({
+            id: c.id,
+            name: c.name,
+            number: c.number,
+            companyId: c.companyId
+        })));
+        // Verificação adicional: confirmar que os contatos realmente têm a tag correta
+        for (const contact of contacts) {
+            const contactTags = await ContactTag_1.default.findAll({
+                where: { contactId: contact.id },
+                attributes: ["tagId"]
+            });
+            const tagIds = contactTags.map(ct => ct.tagId);
+            logger_1.default.info(`[TAG-DEBUG] Contato ${contact.id} (${contact.name}) tem as tags:`, tagIds);
+            if (!tagIds.includes(Number(campaign.tagListId))) {
+                logger_1.default.error(`[TAG-DEBUG] ERRO: Contato ${contact.id} (${contact.name}) não deveria estar na tag ${campaign.tagListId}!`);
+            }
+        }
+        logger_1.default.info(`[TAG-DEBUG] Total de ${contacts.length} contatos encontrados para tag ${campaign.tagListId}`);
+        // Estruturar os dados no mesmo formato que ContactListItem para compatibilidade
+        const formattedContacts = contacts.map(contact => ({
+            id: contact.id,
+            name: contact.name,
+            number: contact.number,
+            email: contact.email,
+            isWhatsappValid: true,
+            isGroup: contact.isGroup || false
+        }));
+        // Criar uma estrutura similar à contactList para compatibilidade
+        // Usando any para contornar a tipagem rígida do Sequelize
+        campaign.contactList = {
+            id: null,
+            name: `Tag ${campaign.tagListId}`,
+            contacts: formattedContacts
+        };
+    }
+    return campaign;
+}
+async function getContact(id, campaignId = null) {
+    logger_1.default.info(`[RDS-CAMPAIGN-DEBUG] Buscando contato com ID: ${id}, Campaign ID: ${campaignId}`);
+    // Se temos campaignId, buscar informações da campanha para determinar o tipo
+    let companyId = null;
+    let isTagCampaign = false;
+    if (campaignId) {
+        const campaign = await Campaign_1.default.findByPk(campaignId, { attributes: ["companyId", "tagListId", "contactListId"] });
+        if (campaign) {
+            companyId = campaign.companyId;
+            isTagCampaign = campaign.tagListId && !campaign.contactListId;
+        }
+    }
+    // Para campanhas por tag, buscar diretamente na tabela Contact
+    if (isTagCampaign) {
+        const whereClause = companyId ? { id, companyId } : { id };
+        const contact = await Contact_1.default.findOne({
+            where: whereClause,
+            attributes: ["id", "name", "number", "email", "isGroup"]
+        });
+        if (contact) {
+            logger_1.default.info(`[RDS-CAMPAIGN-DEBUG] Contato encontrado em Contact (campanha por tag): ${contact.name} (Company: ${contact.companyId || 'N/A'})`);
+            return contact;
+        }
+        logger_1.default.error(`[RDS-CAMPAIGN-DEBUG] ERRO: Contato com ID ${id} não encontrado na tabela Contact para campanha por tag (Company filter: ${companyId || 'none'})`);
+        return null;
+    }
+    // Para campanhas por lista de contatos, buscar primeiro em ContactListItem
+    const contactListItem = await ContactListItem_1.default.findByPk(id, {
+        attributes: ["id", "name", "number", "email", "isGroup"]
+    });
+    if (contactListItem) {
+        logger_1.default.info(`[RDS-CAMPAIGN-DEBUG] Contato encontrado em ContactListItem: ${contactListItem.name}`);
+        return contactListItem;
+    }
+    // Fallback: buscar na tabela Contact
+    const whereClause = companyId ? { id, companyId } : { id };
+    const contact = await Contact_1.default.findOne({
+        where: whereClause,
+        attributes: ["id", "name", "number", "email", "isGroup"]
+    });
+    if (contact) {
+        logger_1.default.info(`[RDS-CAMPAIGN-DEBUG] Contato encontrado em Contact (fallback): ${contact.name} (Company: ${contact.companyId || 'N/A'})`);
+        return contact;
+    }
+    logger_1.default.error(`[RDS-CAMPAIGN-DEBUG] ERRO: Contato com ID ${id} não encontrado em nenhuma tabela (Company filter: ${companyId || 'none'})`);
+    return null;
+}
+async function getSettings(campaign) {
+    try {
+        const settings = await CampaignSetting_1.default.findAll({
+            where: { companyId: campaign.companyId },
+            attributes: ["key", "value"]
+        });
+        let messageInterval = 20;
+        let longerIntervalAfter = 20;
+        let greaterInterval = 60;
+        let variables = [];
+        settings.forEach(setting => {
+            if (setting.key === "messageInterval") {
+                messageInterval = JSON.parse(setting.value);
+            }
+            if (setting.key === "longerIntervalAfter") {
+                longerIntervalAfter = JSON.parse(setting.value);
+            }
+            if (setting.key === "greaterInterval") {
+                greaterInterval = JSON.parse(setting.value);
+            }
+            if (setting.key === "variables") {
+                variables = JSON.parse(setting.value);
+            }
+        });
+        return {
+            messageInterval,
+            longerIntervalAfter,
+            greaterInterval,
+            variables
+        };
+    }
+    catch (error) {
+        console.log(error);
+        throw error; // rejeita a Promise com o erro original
+    }
+}
+function parseToMilliseconds(seconds) {
+    return seconds * 1000;
+}
+exports.parseToMilliseconds = parseToMilliseconds;
+async function sleep(seconds) {
+    logger_1.default.info(`Sleep de ${seconds} segundos iniciado: ${(0, moment_1.default)().format("HH:mm:ss")}`);
+    return new Promise(resolve => {
+        setTimeout(() => {
+            logger_1.default.info(`Sleep de ${seconds} segundos finalizado: ${(0, moment_1.default)().format("HH:mm:ss")}`);
+            resolve(true);
+        }, parseToMilliseconds(seconds));
+    });
+}
+function getCampaignValidMessages(campaign) {
+    const messages = [];
+    if (!(0, lodash_1.isEmpty)(campaign.message1) && !(0, lodash_1.isNil)(campaign.message1)) {
+        messages.push(campaign.message1);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.message2) && !(0, lodash_1.isNil)(campaign.message2)) {
+        messages.push(campaign.message2);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.message3) && !(0, lodash_1.isNil)(campaign.message3)) {
+        messages.push(campaign.message3);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.message4) && !(0, lodash_1.isNil)(campaign.message4)) {
+        messages.push(campaign.message4);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.message5) && !(0, lodash_1.isNil)(campaign.message5)) {
+        messages.push(campaign.message5);
+    }
+    return messages;
+}
+function getCampaignValidConfirmationMessages(campaign) {
+    const messages = [];
+    if (!(0, lodash_1.isEmpty)(campaign.confirmationMessage1) &&
+        !(0, lodash_1.isNil)(campaign.confirmationMessage1)) {
+        messages.push(campaign.confirmationMessage1);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.confirmationMessage2) &&
+        !(0, lodash_1.isNil)(campaign.confirmationMessage2)) {
+        messages.push(campaign.confirmationMessage2);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.confirmationMessage3) &&
+        !(0, lodash_1.isNil)(campaign.confirmationMessage3)) {
+        messages.push(campaign.confirmationMessage3);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.confirmationMessage4) &&
+        !(0, lodash_1.isNil)(campaign.confirmationMessage4)) {
+        messages.push(campaign.confirmationMessage4);
+    }
+    if (!(0, lodash_1.isEmpty)(campaign.confirmationMessage5) &&
+        !(0, lodash_1.isNil)(campaign.confirmationMessage5)) {
+        messages.push(campaign.confirmationMessage5);
+    }
+    return messages;
+}
+function getProcessedMessage(msg, variables, contact) {
+    let finalMessage = msg;
+    if (finalMessage.includes("{nome}")) {
+        finalMessage = finalMessage.replace(/{nome}/g, contact.name);
+    }
+    if (finalMessage.includes("{email}")) {
+        finalMessage = finalMessage.replace(/{email}/g, contact.email);
+    }
+    if (finalMessage.includes("{numero}")) {
+        finalMessage = finalMessage.replace(/{numero}/g, contact.number);
+    }
+    if (variables[0]?.value !== "[]") {
+        variables.forEach(variable => {
+            if (finalMessage.includes(`{${variable.key}}`)) {
+                const regex = new RegExp(`{${variable.key}}`, "g");
+                finalMessage = finalMessage.replace(regex, variable.value);
+            }
+        });
+    }
+    return finalMessage;
+}
+const checkerWeek = async () => {
+    const sab = (0, moment_1.default)().day() === 6;
+    const dom = (0, moment_1.default)().day() === 0;
+    const sabado = await CampaignSetting_1.default.findOne({
+        where: { key: "sabado" }
+    });
+    const domingo = await CampaignSetting_1.default.findOne({
+        where: { key: "domingo" }
+    });
+    if (sabado?.value === "false" && sab) {
+        exports.messageQueue.pause();
+        return true;
+    }
+    if (domingo?.value === "false" && dom) {
+        exports.messageQueue.pause();
+        return true;
+    }
+    exports.messageQueue.resume();
+    return false;
+};
+const checkTime = async () => {
+    const startHour = await CampaignSetting_1.default.findOne({
+        where: {
+            key: "startHour"
+        }
+    });
+    const endHour = await CampaignSetting_1.default.findOne({
+        where: {
+            key: "endHour"
+        }
+    });
+    const hour = startHour.value;
+    const endHours = endHour.value;
+    const timeNow = (0, moment_1.default)().format("HH:mm");
+    if (timeNow <= endHours && timeNow >= hour) {
+        exports.messageQueue.resume();
+        return true;
+    }
+    logger_1.default.info(`Envio inicia as ${hour} e termina as ${endHours}, hora atual ${timeNow} não está dentro do horário`);
+    exports.messageQueue.clean(0, "delayed");
+    exports.messageQueue.clean(0, "wait");
+    exports.messageQueue.clean(0, "active");
+    exports.messageQueue.clean(0, "completed");
+    exports.messageQueue.clean(0, "failed");
+    exports.messageQueue.pause();
+    return false;
+};
+// const checkerLimitToday = async (whatsappId: number) => {
+//   try {
+//     const setting = await SettingMessage.findOne({
+//       where: { whatsappId: whatsappId }
+//     });
+//     const lastUpdate = moment(setting.dateStart);
+//     const now = moment();
+//     const passou = now.isAfter(lastUpdate, "day");
+//     if (setting.sendToday <= setting.limit) {
+//       await setting.update({
+//         dateStart: moment().format()
+//       });
+//       return true;
+//     }
+//     const zerar = true
+//     if(passou) {
+//       await setting.update({
+//         sendToday: 0,
+//         dateStart: moment().format()
+//       });
+//       setting.reload();
+//     }
+//     setting.reload();
+//     logger.info(`Enviada hoje ${setting.sendToday} limite ${setting.limit}`);
+//     // sendMassMessage.clean(0, "delayed");
+//     // sendMassMessage.clean(0, "wait");
+//     // sendMassMessage.clean(0, "active");
+//     // sendMassMessage.clean(0, "completed");
+//     // sendMassMessage.clean(0, "failed");
+//     // sendMassMessage.pause();
+//     return false;
+//   } catch (error) {
+//     logger.error("conexão não tem configuração de envio.");
+//   }
+// };
+function randomValue(min, max) {
+    return Math.floor(Math.random() * max) + min;
+}
+exports.randomValue = randomValue;
+async function verifyAndFinalizeCampaign(campaign) {
+    // Garantir que a campanha tenha os contatos carregados
+    const campaignWithContacts = await getCampaign(campaign.id);
+    const { companyId, contacts } = campaignWithContacts.contactList;
+    const deliveredCount = await CampaignShipping_1.default.count({
+        where: {
+            campaignId: campaign.id,
+            deliveredAt: {
+                [sequelize_1.Op.ne]: null
+            }
+            // ✅ Remover condição de confirmação que pode estar impedindo a contagem
+        }
+    });
+    const realExecutionCount = Math.floor(deliveredCount / contacts.length);
+    logger_1.default.info(`[VERIFY CAMPAIGN] Campanha ${campaign.id}: ${deliveredCount} mensagens entregues de ${contacts.length} contatos, ${realExecutionCount} execuções reais vs ${campaign.executionCount} registradas`);
+    logger_1.default.info(`[VERIFY CAMPAIGN] Campanha ${campaign.id}: isRecurring=${campaign.isRecurring}, maxExecutions=${campaign.maxExecutions}, status=${campaign.status}`);
+    if (realExecutionCount > campaign.executionCount) {
+        logger_1.default.info(`[VERIFY CAMPAIGN] Corrigindo executionCount da campanha ${campaign.id} de ${campaign.executionCount} para ${realExecutionCount}`);
+        await campaign.update({
+            executionCount: realExecutionCount,
+            lastExecutedAt: new Date()
+        });
+        if (campaign.isRecurring && campaign.maxExecutions && realExecutionCount >= campaign.maxExecutions) {
+            logger_1.default.info(`[VERIFY CAMPAIGN] Campanha ${campaign.id} atingiu limite de ${campaign.maxExecutions} execuções após correção - finalizando`);
+            await campaign.update({
+                status: "FINALIZADA",
+                completedAt: (0, moment_1.default)()
+            });
+            return;
+        }
+    }
+    // ✅ Lógica simplificada de finalização
+    const currentExecutionCount = Math.floor(deliveredCount / contacts.length);
+    // Atualizar executionCount se necessário
+    if (currentExecutionCount > campaign.executionCount) {
+        await campaign.update({
+            executionCount: currentExecutionCount,
+            lastExecutedAt: new Date()
+        });
+        logger_1.default.info(`[RDS-VERIFY CAMPAIGN] Campanha ${campaign.id} executionCount atualizado para: ${currentExecutionCount}`);
+    }
+    // Verificar se deve finalizar a campanha
+    if (campaign.isRecurring) {
+        // Campanha recorrente: finalizar apenas se atingiu limite de execuções
+        if (campaign.maxExecutions && currentExecutionCount >= campaign.maxExecutions) {
+            logger_1.default.info(`[RDS-VERIFY CAMPAIGN] Campanha ${campaign.id} atingiu limite de ${campaign.maxExecutions} execuções - finalizando`);
+            await campaign.update({
+                status: "FINALIZADA",
+                completedAt: (0, moment_1.default)()
+            });
+        }
+        else if (currentExecutionCount > 0) {
+            logger_1.default.info(`[RDS-VERIFY CAMPAIGN] Campanha ${campaign.id} é recorrente - agendando próxima execução (${currentExecutionCount}/${campaign.maxExecutions || 'ilimitado'})`);
+            await RecurrenceService_1.default.scheduleNextExecution(campaign.id);
+        }
+    }
+    else {
+        // Campanha não recorrente: finalizar quando todas as mensagens foram entregues
+        if (deliveredCount >= contacts.length) {
+            logger_1.default.info(`[RDS-VERIFY CAMPAIGN] Campanha ${campaign.id} não é recorrente - todas as ${deliveredCount} mensagens foram entregues - finalizando`);
+            await campaign.update({
+                status: "FINALIZADA",
+                completedAt: (0, moment_1.default)()
+            });
+        }
+    }
+    const io = (0, socket_1.getIO)();
+    io.of(String(companyId)).emit(`company-${campaign.companyId}-campaign`, {
+        action: "update",
+        record: campaign
+    });
+}
+async function handleProcessCampaign(job) {
+    try {
+        const { id, restartMode, messageInterval: customMessageInterval, longerIntervalAfter: customLongerIntervalAfter, greaterInterval: customGreaterInterval } = job.data;
+        const campaign = await getCampaign(id);
+        const settings = await getSettings(campaign);
+        if (campaign) {
+            const { contacts } = campaign.contactList;
+            if ((0, lodash_1.isArray)(contacts)) {
+                let contactData = contacts.map(contact => ({
+                    contactId: contact.id,
+                    campaignId: campaign.id,
+                    variables: settings.variables,
+                    isGroup: contact.isGroup
+                }));
+                // Se for restart, filtrar apenas contatos pendentes
+                if (restartMode) {
+                    // Buscar contatos já entregues
+                    const deliveredNumbers = await CampaignShipping_1.default.findAll({
+                        where: {
+                            campaignId: campaign.id,
+                            deliveredAt: { [sequelize_1.Op.ne]: null }
+                        },
+                        attributes: ['number'],
+                        raw: true
+                    });
+                    const deliveredNumbersSet = new Set(deliveredNumbers.map(d => d.number));
+                    // Filtrar apenas contatos pendentes
+                    const pendingContacts = contacts.filter(contact => !deliveredNumbersSet.has(contact.number));
+                    contactData = pendingContacts.map(contact => ({
+                        contactId: contact.id,
+                        campaignId: campaign.id,
+                        variables: settings.variables,
+                        isGroup: contact.isGroup
+                    }));
+                    console.log(`[RESTART] Campanha ${campaign.id}: ${contactData.length} contatos pendentes de ${contacts.length} total`);
+                }
+                // Usar configurações customizadas se for restart, senão usar configurações padrão
+                const messageInterval = restartMode ? (customMessageInterval || 20) : settings.messageInterval;
+                const longerIntervalAfter = restartMode ? (customLongerIntervalAfter || 20) : settings.longerIntervalAfter;
+                const greaterInterval = restartMode ? (customGreaterInterval || 60) : settings.greaterInterval;
+                if (contactData.length === 0) {
+                    console.log(`[PROCESS-CAMPAIGN] Nenhum contato pendente encontrado para campanha ${campaign.id}`);
+                    return;
+                }
+                const queuePromises = [];
+                let currentDelay = 0; // Começar com delay 0 para restart
+                for (let i = 0; i < contactData.length; i++) {
+                    const { contactId, campaignId, variables } = contactData[i];
+                    // Calcular delay progressivo
+                    if (i > longerIntervalAfter) {
+                        currentDelay += greaterInterval * 1000; // Usar intervalo maior
+                    }
+                    else {
+                        currentDelay += messageInterval * 1000; // Usar intervalo normal
+                    }
+                    const queuePromise = exports.campaignQueue.add("PrepareContact", { contactId, campaignId, variables }, {
+                        removeOnComplete: true,
+                        delay: currentDelay
+                    });
+                    queuePromises.push(queuePromise);
+                }
+                console.log(`[CAMPAIGN] ${queuePromises.length} jobs adicionados à fila para campanha ${campaign.id}`);
+                await Promise.all(queuePromises);
+            }
+            else {
+                console.log(`[PROCESS-CAMPAIGN] ERRO: Lista de contatos não é um array para campanha ${campaign.id}`);
+            }
+        }
+    }
+    catch (err) {
+        Sentry.captureException(err);
+    }
+}
+function calculateDelay(index, baseDelay, longerIntervalAfter, greaterInterval, messageInterval) {
+    const diffSeconds = (0, date_fns_1.differenceInSeconds)(baseDelay, new Date());
+    let finalDelay;
+    if (index > longerIntervalAfter) {
+        finalDelay = diffSeconds * 1000 + greaterInterval;
+    }
+    else {
+        finalDelay = diffSeconds * 1000 + messageInterval;
+    }
+    console.log(`[CALCULATE-DELAY] Index: ${index}, DiffSeconds: ${diffSeconds}, FinalDelay: ${finalDelay}ms`);
+    return finalDelay;
+}
+async function handlePrepareContact(job) {
+    try {
+        const { contactId, campaignId, variables } = job.data;
+        const campaign = await getCampaign(campaignId);
+        if (!campaign) {
+            return;
+        }
+        // Verificar se a campanha não está cancelada
+        if (campaign.status === "CANCELADA") {
+            return;
+        }
+        const contact = await getContact(contactId, campaignId);
+        if (!contact) {
+            logger_1.default.error(`[CAMPAIGN] Contato ${contactId} não encontrado para campanha ${campaignId}`);
+            return;
+        }
+        if (!contact.number) {
+            logger_1.default.error(`[CAMPAIGN] Contato ${contactId} (${contact.name || 'sem nome'}) não possui número de telefone`);
+            return;
+        }
+        const campaignShipping = {};
+        campaignShipping.number = contact.number;
+        if (campaign.tagListId && !campaign.contactListId) {
+            campaignShipping.contactId = null;
+        }
+        else {
+            campaignShipping.contactId = contactId;
+        }
+        campaignShipping.campaignId = campaignId;
+        const messages = getCampaignValidMessages(campaign);
+        if (messages.length >= 0) {
+            const radomIndex = randomValue(0, messages.length);
+            const message = getProcessedMessage(messages[radomIndex] || "", variables, contact);
+            campaignShipping.message = message === null ? "" : `\u200c ${message}`;
+        }
+        if (campaign.confirmation) {
+            const confirmationMessages = getCampaignValidConfirmationMessages(campaign);
+            if (confirmationMessages.length) {
+                const radomIndex = randomValue(0, confirmationMessages.length);
+                const message = getProcessedMessage(confirmationMessages[radomIndex] || "", variables, contact);
+                campaignShipping.confirmationMessage = `\u200c ${message}`;
+            }
+        }
+        let record, created;
+        if (campaign.isRecurring && campaign.executionCount > 0) {
+            record = await CampaignShipping_1.default.create(campaignShipping);
+            created = true;
+        }
+        else {
+            let whereClause;
+            if (campaign.tagListId && !campaign.contactListId) {
+                whereClause = {
+                    campaignId: campaignShipping.campaignId,
+                    number: campaignShipping.number
+                };
+            }
+            else {
+                whereClause = {
+                    campaignId: campaignShipping.campaignId,
+                    contactId: campaignShipping.contactId
+                };
+            }
+            [record, created] = await CampaignShipping_1.default.findOrCreate({
+                where: whereClause,
+                defaults: campaignShipping
+            });
+        }
+        // Verificar se o record já foi entregue (para campanhas reiniciadas)
+        if (!created && record.deliveredAt !== null) {
+            return;
+        }
+        if (!created &&
+            record.deliveredAt === null &&
+            record.confirmationRequestedAt === null) {
+            record.set(campaignShipping);
+            await record.save();
+        }
+        if (record.deliveredAt === null &&
+            record.confirmationRequestedAt === null) {
+            const nextJob = await exports.campaignQueue.add("DispatchCampaign", {
+                campaignId: campaign.id,
+                campaignShippingId: record.id,
+                contactListItemId: contactId
+            });
+            await record.update({ jobId: String(nextJob.id) });
+        }
+    }
+    catch (err) {
+        console.log(`[PREPARE-CONTACT] ERRO no job ${job.id}:`, err.message);
+        console.log(`[PREPARE-CONTACT] Stack trace:`, err.stack);
+        Sentry.captureException(err);
+        logger_1.default.error(`campaignQueue -> PrepareContact -> error: ${err.message}`);
+    }
+}
+async function handleDispatchCampaign(job) {
+    try {
+        const { data } = job;
+        const { campaignShippingId, campaignId } = data;
+        const campaign = await getCampaign(campaignId);
+        if (!campaign) {
+            logger_1.default.error(`[CAMPAIGN] Campanha ${campaignId} não encontrada`);
+            return;
+        }
+        // Verificar se a campanha não está cancelada
+        if (campaign.status === "CANCELADA") {
+            return;
+        }
+        const wbot = await (0, GetWhatsappWbot_1.default)(campaign.whatsapp);
+        if (!wbot) {
+            logger_1.default.error(`[CAMPAIGN] Wbot não encontrado para campanha ${campaignId}`);
+            return;
+        }
+        if (!campaign.whatsapp) {
+            logger_1.default.error(`[CAMPAIGN] WhatsApp não encontrado para campanha ${campaignId}`);
+            return;
+        }
+        if (!wbot?.user?.id) {
+            logger_1.default.error(`[CAMPAIGN] Usuário do wbot não encontrado para campanha ${campaignId}`);
+            return;
+        }
+        logger_1.default.info(`Disparo de campanha solicitado: Campanha=${campaignId};Registro=${campaignShippingId}`);
+        const campaignShipping = await CampaignShipping_1.default.findByPk(campaignShippingId, {
+            include: [{ model: ContactListItem_1.default, as: "contact" }]
+        });
+        if (!campaignShipping) {
+            logger_1.default.error(`[CAMPAIGN] CampaignShipping ${campaignShippingId} não encontrado`);
+            return;
+        }
+        let chatId;
+        if (campaignShipping.contact && campaignShipping.contact.isGroup) {
+            chatId = `${campaignShipping.number}@g.us`;
+        }
+        else {
+            const isGroupNumber = campaignShipping.number.includes('@') || campaignShipping.number.length > 15;
+            chatId = isGroupNumber
+                ? `${campaignShipping.number}@g.us`
+                : `${campaignShipping.number}@s.whatsapp.net`;
+        }
+        if (campaign.openTicket === "enabled") {
+            const [contact] = await Contact_1.default.findOrCreate({
+                where: {
+                    number: campaignShipping.number,
+                    companyId: campaign.companyId
+                },
+                defaults: {
+                    companyId: campaign.companyId,
+                    name: campaignShipping.contact ? campaignShipping.contact.name : "Contato da Campanha",
+                    number: campaignShipping.number,
+                    email: campaignShipping.contact ? campaignShipping.contact.email : "",
+                    whatsappId: campaign.whatsappId,
+                    profilePicUrl: ""
+                }
+            });
+            const whatsapp = await Whatsapp_1.default.findByPk(campaign.whatsappId);
+            let ticket = await Ticket_1.default.findOne({
+                where: {
+                    contactId: contact.id,
+                    companyId: campaign.companyId,
+                    whatsappId: whatsapp.id,
+                    status: ["open", "pending"]
+                }
+            });
+            if (!ticket) {
+                ticket = await Ticket_1.default.create({
+                    companyId: campaign.companyId,
+                    contactId: contact.id,
+                    whatsappId: whatsapp.id,
+                    queueId: campaign?.queueId,
+                    userId: campaign?.userId,
+                    status: campaign?.statusTicket
+                });
+            }
+            ticket = await (0, ShowTicketService_1.default)(ticket.id, campaign.companyId);
+            if (whatsapp.status === "CONNECTED") {
+                if (campaign.confirmation && campaignShipping.confirmation === null) {
+                    const confirmationMessage = await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                        text: `\u200c ${campaignShipping.confirmationMessage}`
+                    });
+                    await (0, wbotMessageListener_1.verifyMessage)(confirmationMessage, ticket, contact, null, true, false);
+                    await campaignShipping.update({ confirmationRequestedAt: (0, moment_1.default)() });
+                }
+                else {
+                    if (!campaign.mediaPath) {
+                        console.log(`[DISPATCH-CAMPAIGN] Enviando mensagem de texto para: ${chatId}`);
+                        console.log(`[DISPATCH-CAMPAIGN] Conteúdo da mensagem: ${campaignShipping.message}`);
+                        const sentMessage = await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                            text: `\u200c ${campaignShipping.message}`
+                        });
+                        console.log(`[DISPATCH-CAMPAIGN] Mensagem enviada com sucesso: ${sentMessage ? 'SIM' : 'NÃO'}`);
+                        await (0, wbotMessageListener_1.verifyMessage)(sentMessage, ticket, contact, null, true, false);
+                    }
+                    if (campaign.mediaPath) {
+                        const publicFolder = path_1.default.resolve(__dirname, "..", "public");
+                        const filePath = path_1.default.join(publicFolder, `company${campaign.companyId}`, campaign.mediaPath);
+                        const options = await (0, SendWhatsAppMedia_1.getMessageOptions)(campaign.mediaName, filePath, String(campaign.companyId), `\u200c ${campaignShipping.message}`);
+                        if (Object.keys(options).length) {
+                            if (options.mimetype === "audio/mp4") {
+                                const audioMessage = await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                                    text: `\u200c ${campaignShipping.message}`
+                                });
+                                await (0, wbotMessageListener_1.verifyMessage)(audioMessage, ticket, contact, null, true, false);
+                            }
+                            const sentMessage = await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                                ...options
+                            });
+                            await (0, wbotMessageListener_1.verifyMediaMessage)(sentMessage, ticket, ticket.contact, null, false, true, wbot);
+                        }
+                    }
+                    // if (campaign?.statusTicket === 'closed') {
+                    //   await ticket.update({
+                    //     status: "closed"
+                    //   })
+                    //   const io = getIO();
+                    //   io.of(String(ticket.companyId))
+                    //     // .to(ticket.id.toString())
+                    //     .emit(`company-${ticket.companyId}-ticket`, {
+                    //       action: "delete",
+                    //       ticketId: ticket.id
+                    //     });
+                    // }
+                }
+                await campaignShipping.update({ deliveredAt: (0, moment_1.default)() });
+            }
+        }
+        else {
+            if (campaign.confirmation && campaignShipping.confirmation === null) {
+                await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                    text: campaignShipping.confirmationMessage
+                });
+                await campaignShipping.update({ confirmationRequestedAt: (0, moment_1.default)() });
+            }
+            else {
+                if (!campaign.mediaPath) {
+                    console.log(`[DISPATCH-CAMPAIGN] Enviando mensagem SEM ticket para: ${chatId}`);
+                    console.log(`[DISPATCH-CAMPAIGN] Conteúdo da mensagem: ${campaignShipping.message}`);
+                    const sentMessage = await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                        text: campaignShipping.message
+                    });
+                    console.log(`[DISPATCH-CAMPAIGN] Mensagem enviada com sucesso (sem ticket): ${sentMessage ? 'SIM' : 'NÃO'}`);
+                }
+                if (campaign.mediaPath) {
+                    const publicFolder = path_1.default.resolve(__dirname, "..", "public");
+                    const filePath = path_1.default.join(publicFolder, `company${campaign.companyId}`, campaign.mediaPath);
+                    const options = await (0, SendWhatsAppMedia_1.getMessageOptions)(campaign.mediaName, filePath, String(campaign.companyId), campaignShipping.message);
+                    if (Object.keys(options).length) {
+                        if (options.mimetype === "audio/mp4") {
+                            await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), {
+                                text: campaignShipping.message
+                            });
+                        }
+                        await wbot.sendMessage((0, getJidOf_1.getJidOf)(chatId), { ...options });
+                    }
+                }
+            }
+            await campaignShipping.update({ deliveredAt: (0, moment_1.default)() });
+        }
+        await verifyAndFinalizeCampaign(campaign);
+        const io = (0, socket_1.getIO)();
+        io.of(String(campaign.companyId)).emit(`company-${campaign.companyId}-campaign`, {
+            action: "update",
+            record: campaign
+        });
+        logger_1.default.info(`Campanha enviada para: Campanha=${campaignId};Contato=${campaignShipping.contact ? campaignShipping.contact.name : campaignShipping.number}`);
+    }
+    catch (err) {
+        Sentry.captureException(err);
+        logger_1.default.error(err.message);
+        console.log(err.stack);
+    }
+}
+async function handleLoginStatus(job) {
+    const thresholdTime = new Date();
+    thresholdTime.setMinutes(thresholdTime.getMinutes() - 5);
+    await User_1.default.update({ online: false }, {
+        where: {
+            updatedAt: { [sequelize_1.Op.lt]: thresholdTime },
+            online: true
+        }
+    });
+}
+async function handleResumeTicketsOutOfHour(job) {
+    // logger.info("Buscando atendimentos perdidos nas filas");
+    try {
+        const companies = await Company_1.default.findAll({
+            attributes: ["id", "name"],
+            where: {
+                status: true
+            },
+            include: [
+                {
+                    model: Whatsapp_1.default,
+                    attributes: ["id", "name", "status", "timeSendQueue", "sendIdQueue"],
+                    where: {
+                        timeSendQueue: { [sequelize_1.Op.gt]: 0 }
+                    }
+                }
+            ]
+        });
+        companies.map(async (c) => {
+            c.whatsapps.map(async (w) => {
+                if (w.status === "CONNECTED") {
+                    var companyId = c.id;
+                    const moveQueue = w.timeSendQueue ? w.timeSendQueue : 0;
+                    const moveQueueId = w.sendIdQueue;
+                    const moveQueueTime = moveQueue;
+                    const idQueue = moveQueueId;
+                    const timeQueue = moveQueueTime;
+                    if (moveQueue > 0) {
+                        if (!isNaN(idQueue) &&
+                            Number.isInteger(idQueue) &&
+                            !isNaN(timeQueue) &&
+                            Number.isInteger(timeQueue)) {
+                            const tempoPassado = (0, moment_1.default)()
+                                .subtract(timeQueue, "minutes")
+                                .utc()
+                                .format();
+                            // const tempoAgora = moment().utc().format();
+                            const { count, rows: tickets } = await Ticket_1.default.findAndCountAll({
+                                attributes: ["id", "channel"],
+                                where: {
+                                    status: "pending",
+                                    queueId: null,
+                                    companyId: companyId,
+                                    whatsappId: w.id,
+                                    updatedAt: {
+                                        [sequelize_1.Op.lt]: tempoPassado
+                                    }
+                                    // isOutOfHour: false
+                                },
+                                include: [
+                                    {
+                                        model: Contact_1.default,
+                                        as: "contact",
+                                        attributes: [
+                                            "id",
+                                            "name",
+                                            "number",
+                                            "email",
+                                            "profilePicUrl",
+                                            "acceptAudioMessage",
+                                            "active",
+                                            "disableBot",
+                                            "urlPicture",
+                                            "lgpdAcceptedAt",
+                                            "companyId"
+                                        ],
+                                        include: ["extraInfo", "tags"]
+                                    },
+                                    {
+                                        model: Queue_2.default,
+                                        as: "queue",
+                                        attributes: ["id", "name", "color"]
+                                    },
+                                    {
+                                        model: Whatsapp_1.default,
+                                        as: "whatsapp",
+                                        attributes: [
+                                            "id",
+                                            "name",
+                                            "expiresTicket",
+                                            "groupAsTicket",
+                                            "color"
+                                        ]
+                                    }
+                                ]
+                            });
+                            if (count > 0) {
+                                tickets.map(async (ticket) => {
+                                    await ticket.update({
+                                        queueId: idQueue
+                                    });
+                                    await ticket.reload();
+                                    const io = (0, socket_1.getIO)();
+                                    io.of(String(companyId))
+                                        // .to("notification")
+                                        // .to(ticket.id.toString())
+                                        .emit(`company-${companyId}-ticket`, {
+                                        action: "update",
+                                        ticket,
+                                        ticketId: ticket.id
+                                    });
+                                    // io.to("pending").emit(`company-${companyId}-ticket`, {
+                                    //   action: "update",
+                                    //   ticket,
+                                    // });
+                                    logger_1.default.info(`Atendimento Perdido: ${ticket.id} - Empresa: ${companyId}`);
+                                });
+                            }
+                        }
+                        else {
+                            logger_1.default.info(`Condição não respeitada - Empresa: ${companyId}`);
+                        }
+                    }
+                }
+            });
+        });
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("SearchForQueue -> VerifyQueue: error", e.message);
+        throw e;
+    }
+}
+async function handleVerifyQueue(job) {
+    // logger.info("Buscando atendimentos perdidos nas filas");
+    try {
+        const companies = await Company_1.default.findAll({
+            attributes: ["id", "name"],
+            where: {
+                status: true
+            },
+            include: [
+                {
+                    model: Whatsapp_1.default,
+                    attributes: ["id", "name", "status", "timeSendQueue", "sendIdQueue"]
+                }
+            ]
+        });
+        companies.map(async (c) => {
+            c.whatsapps.map(async (w) => {
+                if (w.status === "CONNECTED") {
+                    var companyId = c.id;
+                    const moveQueue = w.timeSendQueue ? w.timeSendQueue : 0;
+                    const moveQueueId = w.sendIdQueue;
+                    const moveQueueTime = moveQueue;
+                    const idQueue = moveQueueId;
+                    const timeQueue = moveQueueTime;
+                    if (moveQueue > 0) {
+                        if (!isNaN(idQueue) &&
+                            Number.isInteger(idQueue) &&
+                            !isNaN(timeQueue) &&
+                            Number.isInteger(timeQueue)) {
+                            const tempoPassado = (0, moment_1.default)()
+                                .subtract(timeQueue, "minutes")
+                                .utc()
+                                .format();
+                            // const tempoAgora = moment().utc().format();
+                            const { count, rows: tickets } = await Ticket_1.default.findAndCountAll({
+                                attributes: ["id", "channel"],
+                                where: {
+                                    status: "pending",
+                                    queueId: null,
+                                    companyId: companyId,
+                                    whatsappId: w.id,
+                                    updatedAt: {
+                                        [sequelize_1.Op.lt]: tempoPassado
+                                    }
+                                    // isOutOfHour: false
+                                },
+                                include: [
+                                    {
+                                        model: Contact_1.default,
+                                        as: "contact",
+                                        attributes: [
+                                            "id",
+                                            "name",
+                                            "number",
+                                            "email",
+                                            "profilePicUrl",
+                                            "acceptAudioMessage",
+                                            "active",
+                                            "disableBot",
+                                            "urlPicture",
+                                            "lgpdAcceptedAt",
+                                            "companyId"
+                                        ],
+                                        include: ["extraInfo", "tags"]
+                                    },
+                                    {
+                                        model: Queue_2.default,
+                                        as: "queue",
+                                        attributes: ["id", "name", "color"]
+                                    },
+                                    {
+                                        model: Whatsapp_1.default,
+                                        as: "whatsapp",
+                                        attributes: [
+                                            "id",
+                                            "name",
+                                            "expiresTicket",
+                                            "groupAsTicket",
+                                            "color"
+                                        ]
+                                    }
+                                ]
+                            });
+                            if (count > 0) {
+                                tickets.map(async (ticket) => {
+                                    await ticket.update({
+                                        queueId: idQueue
+                                    });
+                                    await (0, CreateLogTicketService_1.default)({
+                                        userId: null,
+                                        queueId: idQueue,
+                                        ticketId: ticket.id,
+                                        type: "redirect"
+                                    });
+                                    await ticket.reload();
+                                    const io = (0, socket_1.getIO)();
+                                    io.of(String(companyId))
+                                        // .to("notification")
+                                        // .to(ticket.id.toString())
+                                        .emit(`company-${companyId}-ticket`, {
+                                        action: "update",
+                                        ticket,
+                                        ticketId: ticket.id
+                                    });
+                                    // io.to("pending").emit(`company-${companyId}-ticket`, {
+                                    //   action: "update",
+                                    //   ticket,
+                                    // });
+                                    logger_1.default.info(`Atendimento Perdido: ${ticket.id} - Empresa: ${companyId}`);
+                                });
+                            }
+                        }
+                        else {
+                            logger_1.default.info(`Condição não respeitada - Empresa: ${companyId}`);
+                        }
+                    }
+                }
+            });
+        });
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("SearchForQueue -> VerifyQueue: error", e.message);
+        throw e;
+    }
+}
+async function handleRandomUser() {
+    // logger.info("Iniciando a randomização dos atendimentos...");
+    const jobR = new CronJob('0 */1 * * * *', async () => {
+        try {
+            const companies = await Company_1.default.findAll({
+                attributes: ['id', 'name'],
+                where: {
+                    status: true
+                },
+                include: [
+                    {
+                        model: Queue_1.default,
+                        attributes: ["id", "name", "ativarRoteador", "tempoRoteador"],
+                        where: {
+                            ativarRoteador: true,
+                            tempoRoteador: {
+                                [sequelize_1.Op.ne]: 0
+                            }
+                        }
+                    },
+                ]
+            });
+            if (companies) {
+                companies.map(async (c) => {
+                    c.queues.map(async (q) => {
+                        const { count, rows: tickets } = await Ticket_1.default.findAndCountAll({
+                            where: {
+                                companyId: c.id,
+                                status: "pending",
+                                queueId: q.id,
+                            },
+                            include: [
+                                {
+                                    model: Contact_1.default,
+                                    as: "contact",
+                                    include: [
+                                        {
+                                            model: ContactWallet_1.default,
+                                            as: "contactWallets",
+                                            where: {
+                                                queueId: q.id
+                                            },
+                                            required: false
+                                        }
+                                    ]
+                                }
+                            ]
+                        });
+                        //logger.info(`Localizado: ${count} filas para randomização.`);
+                        const getRandomUserId = (userIds) => {
+                            const randomIndex = Math.floor(Math.random() * userIds.length);
+                            return userIds[randomIndex];
+                        };
+                        // Function to fetch the User record by userId
+                        const findUserById = async (userId, companyId) => {
+                            try {
+                                const user = await User_1.default.findOne({
+                                    where: {
+                                        id: userId,
+                                        companyId
+                                    },
+                                });
+                                if (user && user?.profile === "user") {
+                                    if (user.online === true) {
+                                        return user.id;
+                                    }
+                                    else {
+                                        // logger.info("USER OFFLINE");
+                                        return 0;
+                                    }
+                                }
+                                else {
+                                    // logger.info("ADMIN");
+                                    return 0;
+                                }
+                            }
+                            catch (errorV) {
+                                Sentry.captureException(errorV);
+                                logger_1.default.error(`[VerifyUsersRandom] VerifyUsersRandom: error ${JSON.stringify(errorV)}`);
+                                throw errorV;
+                            }
+                        };
+                        if (count > 0) {
+                            for (const ticket of tickets) {
+                                const { queueId, userId } = ticket;
+                                const tempoRoteador = q.tempoRoteador;
+                                // Verificar se o contato possui carteira definida para esta fila
+                                if (ticket.contact && ticket.contact.contactWallets && ticket.contact.contactWallets.length > 0) {
+                                    const hasWalletForQueue = ticket.contact.contactWallets.some(wallet => wallet.queueId === queueId);
+                                    if (hasWalletForQueue) {
+                                        logger_1.default.info(`[RANDOM USER] Ticket ${ticket.id} possui carteira definida para fila ${queueId} - pulando randomização`);
+                                        continue; // Pular este ticket, não randomizar
+                                    }
+                                }
+                                // Find all UserQueue records with the specific queueId
+                                const userQueues = await UserQueue_1.default.findAll({
+                                    where: {
+                                        queueId: queueId,
+                                    },
+                                });
+                                // Extract the userIds from the UserQueue records
+                                const userIds = userQueues.map((userQueue) => userQueue.userId);
+                                const tempoPassadoB = (0, moment_1.default)().subtract(tempoRoteador, "minutes").utc().toDate();
+                                const updatedAtV = new Date(ticket.updatedAt);
+                                let settings = await CompaniesSettings_1.default.findOne({
+                                    where: {
+                                        companyId: ticket.companyId
+                                    }
+                                });
+                                const sendGreetingMessageOneQueues = settings.sendGreetingMessageOneQueues === "enabled" || false;
+                                if (!userId) {
+                                    // ticket.userId is null, randomly select one of the provided userIds
+                                    const randomUserId = getRandomUserId(userIds);
+                                    if (randomUserId !== undefined && await findUserById(randomUserId, ticket.companyId) > 0) {
+                                        // Update the ticket with the randomly selected userId
+                                        //ticket.userId = randomUserId;
+                                        //ticket.save();
+                                        // if (sendGreetingMessageOneQueues) {
+                                        //   const ticketToSend = await ShowTicketService(ticket.id, ticket.companyId);
+                                        //   await SendWhatsAppMessage({ body: `\u200e *Assistente Virtual*:\nAguarde enquanto localizamos um atendente... Você será atendido em breve!`, ticket: ticketToSend });
+                                        // }
+                                        await (0, UpdateTicketService_1.default)({
+                                            ticketData: { status: "pending", userId: randomUserId, queueId: queueId },
+                                            ticketId: ticket.id,
+                                            companyId: ticket.companyId,
+                                        });
+                                        //await ticket.reload();
+                                        logger_1.default.info(`Ticket ID ${ticket.id} atualizado para UserId ${randomUserId} - ${ticket.updatedAt}`);
+                                    }
+                                    else {
+                                        //logger.info(`Ticket ID ${ticket.id} NOT updated with UserId ${randomUserId} - ${ticket.updatedAt}`);
+                                    }
+                                }
+                                else if (userIds.includes(userId)) {
+                                    if (tempoPassadoB > updatedAtV) {
+                                        // ticket.userId is present and is in userIds, exclude it from random selection
+                                        const availableUserIds = userIds.filter((id) => id !== userId);
+                                        if (availableUserIds.length > 0) {
+                                            // Randomly select one of the remaining userIds
+                                            const randomUserId = getRandomUserId(availableUserIds);
+                                            if (randomUserId !== undefined && await findUserById(randomUserId, ticket.companyId) > 0) {
+                                                // Update the ticket with the randomly selected userId
+                                                //ticket.userId = randomUserId;
+                                                //ticket.save();
+                                                // if (sendGreetingMessageOneQueues) {
+                                                //   const ticketToSend = await ShowTicketService(ticket.id, ticket.companyId);
+                                                //   await SendWhatsAppMessage({ body: "*Assistente Virtual*:\nAguarde enquanto localizamos um atendente... Você será atendido em breve!", ticket: ticketToSend });
+                                                // };
+                                                await (0, UpdateTicketService_1.default)({
+                                                    ticketData: { status: "pending", userId: randomUserId, queueId: queueId },
+                                                    ticketId: ticket.id,
+                                                    companyId: ticket.companyId,
+                                                });
+                                                logger_1.default.info(`Ticket ID ${ticket.id} atualizado para UserId ${randomUserId} - ${ticket.updatedAt}`);
+                                            }
+                                            else {
+                                                //logger.info(`Ticket ID ${ticket.id} NOT updated with UserId ${randomUserId} - ${ticket.updatedAt}`);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+        }
+        catch (e) {
+            Sentry.captureException(e);
+            logger_1.default.error(`[VerifyUsersRandom] VerifyUsersRandom: error ${JSON.stringify(e)}`);
+            throw e;
+        }
+    });
+    jobR.start();
+}
+async function handleProcessLanes() {
+    const job = new CronJob("*/1 * * * *", async () => {
+        const companies = await Company_1.default.findAll({
+            include: [
+                {
+                    model: Plan_1.default,
+                    as: "plan",
+                    attributes: ["id", "name", "useKanban"],
+                    where: {
+                        useKanban: true
+                    }
+                }
+            ]
+        });
+        companies.map(async (c) => {
+            try {
+                const companyId = c.id;
+                const ticketTags = await TicketTag_1.default.findAll({
+                    include: [
+                        {
+                            model: Ticket_1.default,
+                            as: "ticket",
+                            where: {
+                                status: "open",
+                                fromMe: true,
+                                companyId
+                            },
+                            attributes: ["id", "contactId", "updatedAt", "whatsappId"]
+                        },
+                        {
+                            model: Tag_1.default,
+                            as: "tag",
+                            attributes: [
+                                "id",
+                                "timeLane",
+                                "nextLaneId",
+                                "greetingMessageLane"
+                            ],
+                            where: {
+                                companyId
+                            }
+                        }
+                    ]
+                });
+                if (ticketTags.length > 0) {
+                    ticketTags.map(async (t) => {
+                        if (!(0, lodash_1.isNil)(t?.tag.nextLaneId) &&
+                            t?.tag.nextLaneId > 0 &&
+                            t?.tag.timeLane > 0) {
+                            const nextTag = await Tag_1.default.findByPk(t?.tag.nextLaneId);
+                            const dataLimite = new Date();
+                            dataLimite.setMinutes(dataLimite.getMinutes() - Number(t.tag.timeLane));
+                            const dataUltimaInteracaoChamado = new Date(t.ticket.updatedAt);
+                            if (dataUltimaInteracaoChamado < dataLimite) {
+                                await TicketTag_1.default.destroy({
+                                    where: { ticketId: t.ticketId, tagId: t.tagId }
+                                });
+                                await TicketTag_1.default.create({
+                                    ticketId: t.ticketId,
+                                    tagId: nextTag.id
+                                });
+                                const whatsapp = await Whatsapp_1.default.findByPk(t.ticket.whatsappId);
+                                if (!(0, lodash_1.isNil)(nextTag.greetingMessageLane) &&
+                                    nextTag.greetingMessageLane !== "") {
+                                    const bodyMessage = nextTag.greetingMessageLane;
+                                    const ticketUpdate = await (0, ShowTicketService_1.default)(t.ticketId, companyId);
+                                    if (ticketUpdate.channel === "whatsapp") {
+                                        // Enviar mensagem de texto
+                                        const sentMessage = await (0, SendWhatsAppMessage_1.default)({
+                                            body: bodyMessage,
+                                            ticket: ticketUpdate
+                                        });
+                                        await (0, wbotMessageListener_1.verifyMessage)(sentMessage, ticketUpdate, ticketUpdate.contact);
+                                    }
+                                    if (ticketUpdate.channel === "whatsapp_oficial") {
+                                        await (0, SendWhatsAppOficialMessage_1.default)({
+                                            body: bodyMessage,
+                                            ticket: ticketUpdate,
+                                            quotedMsg: null,
+                                            type: 'text',
+                                            media: null,
+                                            vCard: null
+                                        });
+                                    }
+                                    // Enviar mídias se existirem
+                                    if (nextTag.mediaFiles) {
+                                        try {
+                                            const mediaFiles = JSON.parse(nextTag.mediaFiles);
+                                            for (const mediaFile of mediaFiles) {
+                                                if (ticketUpdate.channel === "whatsapp") {
+                                                    const sentMedia = await (0, SendWhatsAppMedia_2.default)({
+                                                        media: mediaFile,
+                                                        ticket: ticketUpdate
+                                                    });
+                                                    await (0, wbotMessageListener_1.verifyMessage)(sentMedia, ticketUpdate, ticketUpdate.contact);
+                                                }
+                                                if (ticketUpdate.channel === "whatsapp_oficial") {
+                                                    const mediaSrc = {
+                                                        fieldname: 'medias',
+                                                        originalname: mediaFile.originalname,
+                                                        encoding: '7bit',
+                                                        mimetype: mediaFile.mimetype,
+                                                        filename: mediaFile.filename,
+                                                        path: mediaFile.path
+                                                    };
+                                                    await (0, SendWhatsAppOficialMessage_1.default)({
+                                                        body: "",
+                                                        ticket: ticketUpdate,
+                                                        type: mediaFile.mimetype.split("/")[0],
+                                                        media: mediaSrc
+                                                    });
+                                                }
+                                            }
+                                        }
+                                        catch (error) {
+                                            console.log("Error sending media files in auto lane movement:", error);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            catch (e) {
+                Sentry.captureException(e);
+                logger_1.default.error("Process Lanes -> Verify: error", e.message);
+                throw e;
+            }
+        });
+    });
+    job.start();
+}
+async function handleCloseTicketsAutomatic() {
+    const job = new CronJob("*/1 * * * *", async () => {
+        const companies = await Company_1.default.findAll({
+            where: {
+                status: true
+            }
+        });
+        companies.map(async (c) => {
+            try {
+                const companyId = c.id;
+                await (0, wbotClosedTickets_1.ClosedAllOpenTickets)(companyId);
+            }
+            catch (e) {
+                Sentry.captureException(e);
+                logger_1.default.error("ClosedAllOpenTickets -> Verify: error", e.message);
+                throw e;
+            }
+        });
+    });
+    job.start();
+}
+async function handleInvoiceCreate() {
+    logger_1.default.info("GERANDO RECEITA...");
+    const job = new CronJob("0 * * * *", async () => {
+        try {
+            const companies = await Company_1.default.findAll({
+                where: {
+                    generateInvoice: true
+                }
+            });
+            for (const c of companies) {
+                try {
+                    const { status, dueDate, id: companyId, planId } = c;
+                    const date = (0, moment_1.default)(dueDate).format();
+                    const timestamp = (0, moment_1.default)().format();
+                    const hoje = (0, moment_1.default)().format("DD/MM/yyyy");
+                    const vencimento = (0, moment_1.default)(dueDate).format("DD/MM/yyyy");
+                    const diff = (0, moment_1.default)(vencimento, "DD/MM/yyyy").diff((0, moment_1.default)(hoje, "DD/MM/yyyy"));
+                    const dias = moment_1.default.duration(diff).asDays();
+                    if (status === true) {
+                        // Verifico se a empresa está a mais de 3 dias sem pagamento
+                        if (dias <= -3) {
+                            logger_1.default.info(`EMPRESA: ${companyId} está VENCIDA A MAIS DE 3 DIAS... INATIVANDO... ${dias}`);
+                            await c.update({ status: false });
+                            logger_1.default.info(`EMPRESA: ${companyId} foi INATIVADA.`);
+                            logger_1.default.info(`EMPRESA: ${companyId} Desativando conexões com o WhatsApp...`);
+                            try {
+                                const whatsapps = await Whatsapp_1.default.findAll({
+                                    where: { companyId },
+                                    attributes: ["id", "status", "session"]
+                                });
+                                for (const whatsapp of whatsapps) {
+                                    if (whatsapp.session) {
+                                        await whatsapp.update({
+                                            status: "DISCONNECTED",
+                                            session: ""
+                                        });
+                                        try {
+                                            const wbot = await (0, wbot_1.getWbot)(whatsapp.id);
+                                            wbot.logout();
+                                            logger_1.default.info(`EMPRESA: ${companyId} teve o WhatsApp ${whatsapp.id} desconectado...`);
+                                        }
+                                        catch (wbotError) {
+                                            logger_1.default.warn(`Erro ao desconectar WhatsApp ${whatsapp.id} da empresa ${companyId}: ${wbotError.message}`);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (whatsappError) {
+                                logger_1.default.error(`Erro ao desconectar WhatsApps da empresa ${companyId}: ${whatsappError.message}`);
+                                Sentry.captureException(whatsappError);
+                            }
+                        }
+                        else {
+                            // Buscar o plano da empresa
+                            const plan = await Plan_1.default.findByPk(planId);
+                            if (!plan) {
+                                logger_1.default.error(`EMPRESA: ${companyId} - Plano não encontrado (planId: ${planId})`);
+                                continue;
+                            }
+                            const valuePlan = plan.amount.replace(",", ".");
+                            // Verificar faturas em aberto
+                            const sql = `SELECT * FROM "Invoices" WHERE "companyId" = ${c.id} AND "status" = 'open';`;
+                            const openInvoices = await database_1.default.query(sql, { type: sequelize_1.QueryTypes.SELECT });
+                            const existingInvoice = openInvoices.find(invoice => (0, moment_1.default)(invoice.dueDate).format("DD/MM/yyyy") === vencimento);
+                            if (existingInvoice) {
+                                // Due date already exists, no action needed
+                                //logger.info(`Fatura Existente`);
+                            }
+                            if (openInvoices.length > 0) {
+                                const invoiceToUpdate = openInvoices[0];
+                                const updateSql = `UPDATE "Invoices" SET "dueDate" = '${date}', value = ${valuePlan} WHERE "id" = ${invoiceToUpdate.id};`;
+                                await database_1.default.query(updateSql, { type: sequelize_1.QueryTypes.UPDATE });
+                                logger_1.default.info(`Fatura Atualizada ID: ${invoiceToUpdate.id} com valor ${valuePlan}`);
+                            }
+                            else {
+                                const sql = `INSERT INTO "Invoices" ("companyId", "dueDate", detail, status, value, users, connections, queues, "updatedAt", "createdAt")
+            VALUES (${c.id}, '${date}', '${plan.name}', 'open', ${valuePlan}, ${plan.users}, ${plan.connections}, ${plan.queues}, '${timestamp}', '${timestamp}');`;
+                                const invoiceInsert = await database_1.default.query(sql, { type: sequelize_1.QueryTypes.INSERT });
+                                logger_1.default.info(`Fatura Gerada para o cliente: ${c.id}`);
+                            }
+                        }
+                    }
+                }
+                catch (e) {
+                    Sentry.captureException(e);
+                    logger_1.default.error("InvoiceCreate -> Verify: error", e);
+                    throw e;
+                }
+            }
+        }
+        catch (e) {
+            Sentry.captureException(e);
+            logger_1.default.error("InvoiceCreate -> Verify: error", e);
+            throw e;
+        }
+    });
+    job.start();
+}
+handleInvoiceCreate();
+handleProcessLanes();
+handleCloseTicketsAutomatic();
+handleRandomUser();
+async function handleLidRetry(job) {
+    try {
+        const { data } = job;
+        const { contactId, whatsappId, companyId, number, retryCount, maxRetries = 5 } = data;
+        logger_1.default.info(`[RDS-LID-RETRY] Tentativa ${retryCount} de obter LID para contato ${contactId} (${number})`);
+        // Buscar o contato e o whatsapp
+        const contact = await Contact_1.default.findByPk(contactId);
+        const whatsapp = await Whatsapp_1.default.findByPk(whatsappId);
+        if (!contact) {
+            logger_1.default.error(`[RDS-LID-RETRY] Contato ${contactId} não encontrado. Cancelando retentativa.`);
+            return;
+        }
+        if (!whatsapp || whatsapp.status !== "CONNECTED") {
+            logger_1.default.error(`[RDS-LID-RETRY] WhatsApp ${whatsappId} não está conectado. Reagendando retentativa.`);
+            // Se ainda não atingiu o limite de retentativas, reagendar
+            if (retryCount < maxRetries) {
+                await exports.lidRetryQueue.add("RetryLidLookup", {
+                    contactId,
+                    whatsappId,
+                    companyId,
+                    number,
+                    retryCount: retryCount + 1,
+                    maxRetries
+                }, {
+                    delay: 5 * 60 * 1000,
+                    attempts: 1,
+                    removeOnComplete: true
+                });
+            }
+            else {
+                logger_1.default.warn(`[RDS-LID-RETRY] Número máximo de tentativas (${maxRetries}) atingido para contato ${contactId}. Desistindo.`);
+            }
+            return;
+        }
+        try {
+            // Obter a instância do WhatsApp
+            const wbot = await (0, wbot_1.getWbot)(whatsappId);
+            if (!wbot) {
+                throw new Error(`Instância WhatsApp ${whatsappId} não encontrada no wbot`);
+            }
+            // Formatar o número adequadamente se não terminar com @s.whatsapp.net
+            const formattedNumber = number.endsWith("@s.whatsapp.net") ? number : `${number}@s.whatsapp.net`;
+            // Fazer a consulta ao WhatsApp
+            const ow = wbot.onWhatsApp(formattedNumber);
+            if (ow?.[0]?.exists) {
+                const lid = ow[0].lid;
+                if (lid) {
+                    logger_1.default.info(`[RDS-LID-RETRY] LID ${lid} obtido com sucesso para contato ${contactId}`);
+                    // Verificar e deduplicar contatos
+                    await (0, verifyContact_1.checkAndDedup)(contact, lid);
+                    // Criar o mapeamento de LID
+                    await WhatsapplidMap_1.default.findOrCreate({
+                        where: {
+                            companyId,
+                            contactId,
+                            lid
+                        },
+                        defaults: {
+                            companyId,
+                            contactId,
+                            lid
+                        }
+                    });
+                    // Atualizar o campo lid do contato se ainda não estiver preenchido
+                    if (!contact.lid) {
+                        await contact.update({ lid });
+                    }
+                    logger_1.default.info(`[RDS-LID-RETRY] Mapeamento de LID criado/atualizado para contato ${contactId}`);
+                    return;
+                }
+            }
+            // Se chegou aqui, não conseguiu obter o LID
+            logger_1.default.warn(`[RDS-LID-RETRY] Não foi possível obter LID para contato ${contactId} (${number})`);
+            // Se ainda não atingiu o limite de retentativas, reagendar
+            if (retryCount < maxRetries) {
+                await exports.lidRetryQueue.add("RetryLidLookup", {
+                    contactId,
+                    whatsappId,
+                    companyId,
+                    number,
+                    retryCount: retryCount + 1,
+                    maxRetries
+                }, {
+                    delay: Math.pow(2, retryCount) * 60 * 1000,
+                    attempts: 1,
+                    removeOnComplete: true
+                });
+                logger_1.default.info(`[RDS-LID-RETRY] Reagendada tentativa ${retryCount + 1} para contato ${contactId}`);
+            }
+            else {
+                logger_1.default.warn(`[RDS-LID-RETRY] Número máximo de tentativas (${maxRetries}) atingido para contato ${contactId}. Desistindo.`);
+            }
+        }
+        catch (error) {
+            logger_1.default.error(`[RDS-LID-RETRY] Erro ao processar retentativa para contato ${contactId}: ${error.message}`);
+            // Reagendar em caso de erro se não atingiu o limite de retentativas
+            if (retryCount < maxRetries) {
+                await exports.lidRetryQueue.add("RetryLidLookup", {
+                    contactId,
+                    whatsappId,
+                    companyId,
+                    number,
+                    retryCount: retryCount + 1,
+                    maxRetries
+                }, {
+                    delay: Math.pow(2, retryCount) * 60 * 1000,
+                    attempts: 1,
+                    removeOnComplete: true
+                });
+            }
+        }
+    }
+    catch (err) {
+        Sentry.captureException(err);
+        logger_1.default.error(`[RDS-LID-RETRY] Erro geral no processador de retentativas: ${err.message}`);
+    }
+}
+async function startQueueProcess() {
+    logger_1.default.info("Iniciando processamento de filas");
+    exports.messageQueue.process("SendMessage", handleSendMessage);
+    // Novo job para envio via API Oficial (Meta)
+    exports.messageQueue.process("SendMessageOficial", handleSendMessageOficial);
+    exports.scheduleMonitor.process("Verify", handleVerifySchedules);
+    exports.scheduleMonitor.process("VerifyReminders", handleVerifyReminders);
+    exports.sendScheduledMessages.process("SendMessage", handleSendScheduledMessage);
+    exports.sendScheduledMessages.process("SendReminder", handleSendReminder);
+    exports.campaignQueue.process("VerifyCampaignsDaatabase", handleVerifyCampaigns);
+    exports.campaignQueue.process("ProcessCampaign", handleProcessCampaign);
+    exports.campaignQueue.process("PrepareContact", handlePrepareContact);
+    exports.campaignQueue.process("DispatchCampaign", handleDispatchCampaign);
+    exports.userMonitor.process("VerifyLoginStatus", handleLoginStatus);
+    exports.queueMonitor.process("VerifyQueueStatus", handleVerifyQueue);
+    exports.lidRetryQueue.process("RetryLidLookup", handleLidRetry);
+    (0, BirthdayJob_1.initializeBirthdayJobs)();
+    workerContinuo();
+    exports.scheduleMonitor.add("Verify", {}, {
+        repeat: { cron: "0 * * * * *", key: "verify" },
+        removeOnComplete: true
+    });
+    // ✅ Adicionar verificação de lembretes
+    exports.scheduleMonitor.add("VerifyReminders", {}, {
+        repeat: { cron: "0 * * * * *", key: "verify-reminders" },
+        removeOnComplete: true
+    });
+    exports.campaignQueue.add("VerifyCampaignsDaatabase", {}, {
+        repeat: { cron: "*/20 * * * * *", key: "verify-campaing" },
+        removeOnComplete: true
+    });
+    exports.userMonitor.add("VerifyLoginStatus", {}, {
+        repeat: { cron: "*/3 * * * *", key: "verify-login" },
+        removeOnComplete: true
+    });
+    exports.queueMonitor.add("VerifyQueueStatus", {}, {
+        repeat: { cron: "0 * * * * *", key: "verify-queue" },
+        removeOnComplete: true
+    });
+}
+exports.startQueueProcess = startQueueProcess;
+// Handler para envio de mensagens via API Oficial
+async function handleSendMessageOficial(job) {
+    try {
+        const { data } = job;
+        const { ticketId, companyId, data: payload } = data;
+        // Resolver companyId se não tiver vindo no job
+        let companyIdResolved = companyId;
+        if (!companyIdResolved) {
+            const tk = await Ticket_1.default.findByPk(ticketId);
+            companyIdResolved = tk?.companyId;
+        }
+        // Buscar ticket com contexto completo
+        const ticket = await (0, ShowTicketService_1.default)(ticketId, companyIdResolved);
+        if (!ticket) {
+            throw new Error(`Ticket ${ticketId} não encontrado para envio oficial`);
+        }
+        // Construir media (se existir) a partir de informações persistidas/URL
+        let media = null;
+        const fsAny = require("fs");
+        const pathAny = require("path");
+        const publicFolder = pathAny.resolve(__dirname, "..", "public");
+        // Caso media previamente salva no public
+        if (payload?.mediaFilename) {
+            const fullPath = pathAny.join(publicFolder, `company${ticket.companyId}`, payload.mediaFilename);
+            media = {
+                path: fullPath,
+                originalname: payload.mediaOriginalname || payload.mediaFilename,
+                mimetype: payload.mediaMimetype || "application/octet-stream",
+                filename: payload.mediaFilename
+            };
+        }
+        // Caso seja necessário baixar da URL (indexImage via URL)
+        if (!media && payload?.downloadUrl) {
+            const axiosAny = require("axios");
+            const contentType = payload.mediaMimetype || "image/jpeg";
+            const extension = contentType.includes("png")
+                ? ".png"
+                : contentType.includes("gif")
+                    ? ".gif"
+                    : ".jpg";
+            const fileName = payload.mediaName || `api-img-${Date.now()}${extension}`;
+            const fullPath = pathAny.join(publicFolder, `company${ticket.companyId}`, fileName);
+            fsAny.mkdirSync(pathAny.join(publicFolder, `company${ticket.companyId}`), { recursive: true });
+            const response = await axiosAny.get(payload.downloadUrl, { responseType: "arraybuffer" });
+            fsAny.writeFileSync(fullPath, Buffer.from(response.data));
+            media = {
+                path: fullPath,
+                originalname: fileName,
+                mimetype: contentType,
+                filename: fileName
+            };
+        }
+        await (0, SendWhatsAppOficialMessage_1.default)({
+            body: payload?.body,
+            ticket,
+            quotedMsg: null,
+            type: payload?.type,
+            media,
+            vCard: payload?.vCard || null
+        });
+        // Limpeza de arquivo temporário, se aplicável
+        if (media?.path) {
+            try {
+                if (fsAny.existsSync(media.path)) {
+                    fsAny.unlinkSync(media.path);
+                }
+            }
+            catch (err) {
+                logger_1.default.warn(`Falha ao remover arquivo temporário: ${media.path}`);
+            }
+        }
+    }
+    catch (e) {
+        Sentry.captureException(e);
+        logger_1.default.error("MessageQueue -> SendMessageOficial: error", e.message);
+        throw e;
+    }
+}

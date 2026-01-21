@@ -1,0 +1,18 @@
+=======================================================
+API OFICIAL DO WHATSAPP - INFORMAÇÕES DE ACESSO
+=======================================================
+
+URL:            https://apioficial.emmtecnologia.com.br
+Porta:          6000
+Banco:          emmtecnologia_apioficial
+PM2 Process:    emmtecnologia-apioficial
+Swagger:        https://apioficial.emmtecnologia.com.br/swagger
+
+TOKEN ADMIN:    629376cff614bd03d52742e6b1e6c10841024f4c55af81d382584d9cc7e14ae9
+
+Webhook Meta:
+https://apioficial.emmtecnologia.com.br/v1/webhook/{companyId}/{conexaoId}
+
+=======================================================
+GUARDE ESTAS INFORMAÇÕES EM LOCAL SEGURO!
+=======================================================
