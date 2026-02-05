@@ -9,6 +9,7 @@ import isQueueIdHistoryBlocked from "../UserServices/isQueueIdHistoryBlocked";
 import Contact from "../../models/Contact";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
+import MessageReaction from "../../models/MessageReaction";
 
 interface Request {
   ticketId: string;
@@ -32,7 +33,6 @@ const ListMessagesService = async ({
   queues = [],
   user
 }: Request): Promise<Response> => {
-
   if (!isNaN(Number(ticketId))) {
     const uuid = await Ticket.findOne({
       where: {
@@ -52,30 +52,33 @@ const ListMessagesService = async ({
 
   const ticketsFilter: any[] | null = [];
 
-  const isAllHistoricEnabled = await isQueueIdHistoryBlocked({ userRequest: user.id });
+  const isAllHistoricEnabled = await isQueueIdHistoryBlocked({
+    userRequest: user.id
+  });
 
   let ticketIds = [];
   if (!isAllHistoricEnabled) {
     ticketIds = await Ticket.findAll({
-      where:
-      {
+      where: {
         id: { [Op.lte]: ticket.id },
         companyId: ticket.companyId,
         contactId: ticket.contactId,
         whatsappId: ticket.whatsappId,
         isGroup: ticket.isGroup,
-        queueId: user.profile === "admin" || user.allTicket === "enable" || (ticket.isGroup && user.allowGroup) ?
-          {
-            [Op.or]: [queues, null]
-          } :
-          { [Op.in]: queues },
+        queueId:
+          user.profile === "admin" ||
+          user.allTicket === "enable" ||
+          (ticket.isGroup && user.allowGroup)
+            ? {
+                [Op.or]: [queues, null]
+              }
+            : { [Op.in]: queues }
       },
       attributes: ["id"]
     });
   } else {
     ticketIds = await Ticket.findAll({
-      where:
-      {
+      where: {
         id: { [Op.lte]: ticket.id },
         companyId: ticket.companyId,
         contactId: ticket.contactId,
@@ -103,23 +106,47 @@ const ListMessagesService = async ({
 
   const { count, rows: messages } = await Message.findAndCountAll({
     where: { ticketId: tickets, companyId },
-    attributes: ["id", "wid", "fromMe", "mediaUrl", "body", "mediaType", "ack", "createdAt", "ticketId", "isDeleted", "queueId", "isForwarded", "isEdited", "isPrivate", "companyId"],
+    attributes: [
+      "id",
+      "wid",
+      "fromMe",
+      "mediaUrl",
+      "body",
+      "mediaType",
+      "ack",
+      "createdAt",
+      "ticketId",
+      "isDeleted",
+      "queueId",
+      "isForwarded",
+      "isEdited",
+      "isPrivate",
+      "companyId"
+    ],
     limit,
     include: [
       {
         model: Contact,
         as: "contact",
-        attributes: ["id", "name"],
+        attributes: ["id", "name"]
       },
       {
         model: Message,
-        attributes: ["id", "wid", "fromMe", "mediaUrl", "body", "mediaType", "companyId"],
+        attributes: [
+          "id",
+          "wid",
+          "fromMe",
+          "mediaUrl",
+          "body",
+          "mediaType",
+          "companyId"
+        ],
         as: "quotedMsg",
         include: [
           {
             model: Contact,
             as: "contact",
-            attributes: ["id", "name"],
+            attributes: ["id", "name"]
           }
         ],
         required: false
@@ -134,13 +161,25 @@ const ListMessagesService = async ({
             as: "queue",
             attributes: ["id", "name", "color"]
           }
-        ],
+        ]
+      },
+      {
+        model: MessageReaction,
+        as: "reactions",
+        attributes: ["id", "emoji", "userId", "createdAt"],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name"]
+          }
+        ]
       }
     ],
     distinct: true,
     offset,
     subQuery: false,
-    order: [["createdAt", "DESC"]] 
+    order: [["createdAt", "DESC"]]
   });
 
   const hasMore = count > offset + messages.length;
