@@ -61,7 +61,9 @@ export async function checkAndDedup(
   );
 
   if (allTickets.length > 0) {
-    console.log(`[RDS CONTATO] Transferidos ${allTickets.length} tickets do contato ${lidContact.id} para ${contact.id}`);
+    console.log(
+      `[RDS CONTATO] Transferidos ${allTickets.length} tickets do contato ${lidContact.id} para ${contact.id}`
+    );
   }
 
   // Delete the duplicate contact after transferring all data
@@ -75,8 +77,6 @@ export async function verifyContact(
 ): Promise<Contact> {
   let profilePicUrl: string;
 
-
-
   // try {
   //   profilePicUrl = await wbot.profilePictureUrl(msgContact.id);
   // } catch (e) {
@@ -84,35 +84,43 @@ export async function verifyContact(
   // }
 
   const isLid = msgContact.id.includes("@lid") || false;
-  console.log("[DEBUG RODRIGO] isLid", isLid)
+  // console.log("[DEBUG RODRIGO] isLid", isLid)
   const isGroup = msgContact.id.includes("@g.us");
   const isWhatsappNet = msgContact.id.includes("@s.whatsapp.net");
 
   // Extrair o número do ID
-  const idParts = msgContact.id.split('@');
+  const idParts = msgContact.id.split("@");
   const extractedId = idParts[0];
 
   // Extrair qualquer número de telefone adicional que possa estar presente
-  const extractedPhone = extractedId.split(':')[0]; // Remove parte após ":" se existir
+  const extractedPhone = extractedId.split(":")[0]; // Remove parte após ":" se existir
 
   // Determinar número e LID adequadamente
   let number = extractedPhone;
-  console.log("[DEBUG RODRIGO] number", number)
+  // console.log("[DEBUG RODRIGO] number", number);
   let originalLid = msgContact.lid || null;
-  console.log("[DEBUG RODRIGO] originalLid", originalLid)
+  // console.log("[DEBUG RODRIGO] originalLid", originalLid);
 
   // Se o ID estiver no formato telefone:XX@s.whatsapp.net, extraia apenas o telefone
-  if (isWhatsappNet && extractedId.includes(':')) {
-    logger.info(`[RDS-LID-FIX] ID contém separador ':' - extraindo apenas o telefone: ${extractedPhone}`);
+  if (isWhatsappNet && extractedId.includes(":")) {
+    logger.info(
+      `[RDS-LID-FIX] ID contém separador ':' - extraindo apenas o telefone: ${extractedPhone}`
+    );
   }
 
   // Verificar se o "número" parece ser um LID (muito longo para ser telefone)
   const isNumberLikelyLid = !isLid && number && number.length > 15 && !isGroup;
   if (isNumberLikelyLid) {
-    logger.info(`[RDS-LID-FIX] Número extraído parece ser um LID (muito longo): ${number}`);
+    logger.info(
+      `[RDS-LID-FIX] Número extraído parece ser um LID (muito longo): ${number}`
+    );
   }
 
-  logger.info(`[RDS-LID-FIX] Processando contato - ID original: ${msgContact.id}, número extraído: ${number}, LID detectado: ${originalLid || "não"}`);
+  logger.info(
+    `[RDS-LID-FIX] Processando contato - ID original: ${
+      msgContact.id
+    }, número extraído: ${number}, LID detectado: ${originalLid || "não"}`
+  );
 
   const contactData = {
     name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
@@ -120,7 +128,7 @@ export async function verifyContact(
     profilePicUrl,
     isGroup,
     companyId,
-    lid: originalLid  // Adicionar o LID aos dados do contato quando disponível
+    lid: originalLid // Adicionar o LID aos dados do contato quando disponível
   };
 
   if (isGroup) {
@@ -130,27 +138,31 @@ export async function verifyContact(
   return lidUpdateMutex.runExclusive(async () => {
     let foundContact: Contact | null = null;
     if (isLid) {
-      console.log("[DEBUG RODRIGO] isLid", JSON.stringify(msgContact, null, 2))
+      // console.log("[DEBUG RODRIGO] isLid", JSON.stringify(msgContact, null, 2));
       foundContact = await Contact.findOne({
         where: {
           companyId,
           [Op.or]: [
             { lid: originalLid ? originalLid : msgContact.id },
             { number: number },
-            { remoteJid: originalLid ? originalLid : msgContact.id }],
+            { remoteJid: originalLid ? originalLid : msgContact.id }
+          ]
         },
         include: ["tags", "extraInfo", "whatsappLidMap"]
       });
     } else {
-      console.log("[DEBUG RODRIGO] No isLid", JSON.stringify(msgContact, null, 2))
+      // console.log(
+      //   "[DEBUG RODRIGO] No isLid",
+      //   JSON.stringify(msgContact, null, 2)
+      // );
       foundContact = await Contact.findOne({
         where: {
           companyId,
           number: number
-        },
+        }
       });
     }
-    console.log("[DEBUG RODRIGO] foundContact", foundContact?.id)
+    // console.log("[DEBUG RODRIGO] foundContact", foundContact?.id);
     if (isLid) {
       if (foundContact) {
         return updateContact(foundContact, {
@@ -195,12 +207,10 @@ export async function verifyContact(
     } else if (foundContact) {
       if (!foundContact.whatsappLidMap) {
         try {
-
           const ow = await wbot.onWhatsApp(msgContact.id);
 
           if (ow?.[0]?.exists) {
             const lid = ow?.[0]?.lid as string;
-
 
             if (lid) {
               await checkAndDedup(foundContact, lid);
@@ -219,14 +229,19 @@ export async function verifyContact(
                   contactId: foundContact.id
                 });
               }
-              logger.info(`[RDS CONTATO] LID obtido para contato ${foundContact.id} (${msgContact.id}): ${lid}`);
+              logger.info(
+                `[RDS CONTATO] LID obtido para contato ${foundContact.id} (${msgContact.id}): ${lid}`
+              );
             }
           } else {
-            logger.warn(`[RDS CONTATO] Contato ${msgContact.id} não encontrado no WhatsApp, mas continuando processamento`);
+            logger.warn(
+              `[RDS CONTATO] Contato ${msgContact.id} não encontrado no WhatsApp, mas continuando processamento`
+            );
           }
         } catch (error) {
-          console.log("[DEBUG RODRIGO] error", JSON.stringify(error, null, 2))
-          logger.error(`[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`);
+          logger.error(
+            `[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`
+          );
 
           try {
             await queues["lidRetryQueue"].add(
@@ -245,9 +260,13 @@ export async function verifyContact(
                 removeOnComplete: true
               }
             );
-            logger.info(`[RDS CONTATO] Agendada retentativa de obtenção de LID para contato ${foundContact.id} (${msgContact.id})`);
+            logger.info(
+              `[RDS CONTATO] Agendada retentativa de obtenção de LID para contato ${foundContact.id} (${msgContact.id})`
+            );
           } catch (queueError) {
-            logger.error(`[RDS CONTATO] Erro ao adicionar contato ${foundContact.id} à fila de retentativa: ${queueError.message}`);
+            logger.error(
+              `[RDS CONTATO] Erro ao adicionar contato ${foundContact.id} à fila de retentativa: ${queueError.message}`
+            );
           }
         }
       }
@@ -258,61 +277,42 @@ export async function verifyContact(
       let newContact: Contact | null = null;
 
       try {
-
-
-
         const ow = await wbot.onWhatsApp(msgContact.id);
 
-
-
-
         if (!ow?.[0]?.exists) {
-
-
-
           if (originalLid && !contactData.lid) {
-
             contactData.lid = originalLid;
           }
-
 
           return CreateOrUpdateContactService(contactData);
         }
 
-
-
-
         let lid = ow?.[0]?.lid as string;
-
 
         if (!lid && originalLid) {
           lid = originalLid;
-
         }
-
 
         try {
           const firstItem = ow && ow.length > 0 ? ow[0] : null;
           if (firstItem) {
             const firstItemAny = firstItem as any;
             if (firstItemAny.jid) {
-              const parts = String(firstItemAny.jid).split('@');
+              const parts = String(firstItemAny.jid).split("@");
               if (parts.length > 0) {
                 const owNumber = parts[0];
                 if (owNumber && owNumber !== number) {
-
                 }
               }
             }
           }
         } catch (e) {
-          logger.error(`[RDS-LID-FIX] Erro ao extrair número da resposta onWhatsApp: ${e.message}`);
+          logger.error(
+            `[RDS-LID-FIX] Erro ao extrair número da resposta onWhatsApp: ${e.message}`
+          );
         }
 
-
-
         if (lid) {
-
           const lidContact = await Contact.findOne({
             where: {
               companyId,
@@ -346,10 +346,8 @@ export async function verifyContact(
             };
             newContact = await CreateOrUpdateContactService(contactDataWithLid);
 
-
             if (newContact.lid !== lid) {
               await newContact.update({ lid: lid });
-
             }
 
             await WhatsappLidMap.create({
@@ -362,11 +360,14 @@ export async function verifyContact(
           }
         }
       } catch (error) {
-        console.log("[DEBUG RODRIGO] error", JSON.stringify(error, null, 2))
-        logger.error(`[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`);
+        logger.error(
+          `[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`
+        );
 
         newContact = await CreateOrUpdateContactService(contactData);
-        logger.info(`[RDS CONTATO] Contato criado sem LID devido a erro: ${newContact.id}`);
+        logger.info(
+          `[RDS CONTATO] Contato criado sem LID devido a erro: ${newContact.id}`
+        );
 
         try {
           await queues["lidRetryQueue"].add(
@@ -386,9 +387,13 @@ export async function verifyContact(
               removeOnComplete: true
             }
           );
-          logger.info(`[RDS CONTATO] Agendada retentativa de obtenção de LID para novo contato ${newContact.id} (${msgContact.id})`);
+          logger.info(
+            `[RDS CONTATO] Agendada retentativa de obtenção de LID para novo contato ${newContact.id} (${msgContact.id})`
+          );
         } catch (queueError) {
-          logger.error(`[RDS CONTATO] Erro ao adicionar contato ${newContact.id} à fila de retentativa: ${queueError.message}`);
+          logger.error(
+            `[RDS CONTATO] Erro ao adicionar contato ${newContact.id} à fila de retentativa: ${queueError.message}`
+          );
         }
 
         return newContact;
