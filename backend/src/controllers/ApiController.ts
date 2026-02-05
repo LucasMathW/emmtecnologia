@@ -11,7 +11,9 @@ import CreateOrUpdateContactService from "../services/ContactServices/CreateOrUp
 import FindOrCreateTicketService from "../services/TicketServices/FindOrCreateTicketService";
 import CheckIsValidContact from "../services/WbotServices/CheckIsValidContact";
 import CheckContactNumber from "../services/WbotServices/CheckNumber";
-import SendWhatsAppMedia, { getMessageOptions } from "../services/WbotServices/SendWhatsAppMedia";
+import SendWhatsAppMedia, {
+  getMessageOptions
+} from "../services/WbotServices/SendWhatsAppMedia";
 import UpdateTicketService from "../services/TicketServices/UpdateTicketService";
 import { getWbot } from "../libs/wbot";
 import SendWhatsAppMessageLink from "../services/WbotServices/SendWhatsAppMessageLink";
@@ -23,7 +25,10 @@ import moment from "moment";
 import CompaniesSettings from "../models/CompaniesSettings";
 import ShowUserService from "../services/UserServices/ShowUserService";
 import { isNil } from "lodash";
-import { verifyMediaMessage, verifyMessage } from "../services/WbotServices/wbotMessageListener";
+import {
+  verifyMediaMessage,
+  verifyMessage
+} from "../services/WbotServices/wbotMessageListener";
 import ShowQueueService from "../services/QueueService/ShowQueueService";
 import path from "path";
 import Contact from "../models/Contact";
@@ -37,7 +42,7 @@ type WhatsappData = {
 };
 
 export class OnWhatsAppDto {
-  constructor(public readonly jid: string, public readonly exists: boolean) { }
+  constructor(public readonly jid: string, public readonly exists: boolean) {}
 }
 
 type MessageData = {
@@ -70,7 +75,11 @@ const createContact = async (
   try {
     // await CheckIsValidContact(newContact, companyId);
 
-    const validNumber: any = await CheckContactNumber(newContact, companyId, newContact.length > 17);
+    const validNumber: any = await CheckContactNumber(
+      newContact,
+      companyId,
+      newContact.length > 17
+    );
 
     const contactData = {
       name: `${validNumber.jid.replace(/\D/g, "")}`,
@@ -86,9 +95,8 @@ const createContact = async (
     const contact = await CreateOrUpdateContactService(contactData);
 
     const settings = await CompaniesSettings.findOne({
-        where: { companyId }
-      }
-    )    // return contact;
+      where: { companyId }
+    }); // return contact;
 
     let whatsapp: Whatsapp | null;
 
@@ -126,8 +134,12 @@ const createContact = async (
     if (createTicket && createTicket.channel === "whatsapp") {
       SetTicketMessagesAsRead(createTicket);
 
-      await FindOrCreateATicketTrakingService({ ticketId: createTicket.id, companyId, whatsappId: whatsapp.id, userId });
-
+      await FindOrCreateATicketTrakingService({
+        ticketId: createTicket.id,
+        companyId,
+        whatsappId: whatsapp.id,
+        userId
+      });
     }
 
     return createTicket;
@@ -140,7 +152,11 @@ function formatBRNumber(jid: string) {
   const regexp = new RegExp(/^(\d{2})(\d{2})\d{1}(\d{8})$/);
   if (regexp.test(jid)) {
     const match = regexp.exec(jid);
-    if (match && match[1] === '55' && Number.isInteger(Number.parseInt(match[2]))) {
+    if (
+      match &&
+      match[1] === "55" &&
+      Number.isInteger(Number.parseInt(match[2]))
+    ) {
       const ddd = Number.parseInt(match[2]);
       if (ddd < 31) {
         return match[0];
@@ -154,10 +170,10 @@ function formatBRNumber(jid: string) {
 }
 
 function createJid(number: string) {
-  if (number.includes('@g.us') || number.includes('@s.whatsapp.net')) {
+  if (number.includes("@g.us") || number.includes("@s.whatsapp.net")) {
     return formatBRNumber(number) as string;
   }
-  return number.includes('-')
+  return number.includes("-")
     ? `${number}@g.us`
     : `${formatBRNumber(number)}@s.whatsapp.net`;
 }
@@ -200,12 +216,12 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 
   const wbot = await getWbot(whatsapp.id);
 
-  let user
+  let user;
   if (userId?.toString() !== "" && !isNaN(userId)) {
     user = await ShowUserService(userId, companyId);
   }
 
-  let queue
+  let queue;
   if (queueId?.toString() !== "" && !isNaN(queueId)) {
     queue = await ShowQueueService(queueId, companyId);
   }
@@ -214,7 +230,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 
   // @ts-ignore: Unreachable code error
   if (sendSignature && !isNil(user)) {
-    bodyMessage = `*${user.name}:*\n${body.trim()}`
+    bodyMessage = `*${user.name}:*\n${body.trim()}`;
   } else {
     bodyMessage = body.trim();
   }
@@ -230,7 +246,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     isGroup: false,
     companyId,
     whatsappId,
-    remoteJid: number.length > 17 ? `${number}@g.us` : `${number}@s.whatsapp.net`,
+    remoteJid:
+      number.length > 17 ? `${number}@g.us` : `${number}@s.whatsapp.net`,
     wbot
   };
 
@@ -243,12 +260,24 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
         await Promise.all(
           medias.map(async (media: Express.Multer.File) => {
             const publicFolder = path.resolve(__dirname, "..", "..", "public");
-            const filePath = path.join(publicFolder, `company${companyId}`, media.filename);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}`,
+              media.filename
+            );
 
-            const options = await getMessageOptions(media.filename, filePath, companyId.toString(), `\u200e ${bodyMessage}`);
+            const options = await getMessageOptions(
+              media.filename,
+              filePath,
+              companyId.toString(),
+              `\u200e ${bodyMessage}`
+            );
             await wbot.sendMessage(
-              `${newContact.number}@${newContact.number.length > 17 ? "g.us" : "s.whatsapp.net"}`,
-              options);
+              `${newContact.number}@${
+                newContact.number.length > 17 ? "g.us" : "s.whatsapp.net"
+              }`,
+              options
+            );
 
             const fileExists = fs.existsSync(filePath);
 
@@ -256,22 +285,32 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
               fs.unlinkSync(filePath);
             }
           })
-        )
+        );
       } catch (error) {
-        console.log(medias)
+        console.log(medias);
         throw new AppError("Error sending API media: " + error.message);
       }
     } else {
       await wbot.sendMessage(
-        `${newContact.number}@${newContact.number.length > 17 ? "g.us" : "s.whatsapp.net"}`,
+        `${newContact.number}@${
+          newContact.number.length > 17 ? "g.us" : "s.whatsapp.net"
+        }`,
         {
           text: `\u200e ${bodyMessage}`
-        })
+        }
+      );
     }
   } else {
-    const contactAndTicket = await createContact(whatsapp.id, companyId, newContact.number, userId, queueId, wbot);
+    const contactAndTicket = await createContact(
+      whatsapp.id,
+      companyId,
+      newContact.number,
+      userId,
+      queueId,
+      wbot
+    );
 
-    let sentMessage
+    let sentMessage;
 
     // Se estiver configurado para API Oficial, envie por ela
     const isOfficial = contactAndTicket?.channel === "whatsapp_oficial";
@@ -290,11 +329,20 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
                 vCard: null
               });
             } else {
-              sentMessage = await SendWhatsAppMedia({ body: `\u200e ${bodyMessage}`, media, ticket: contactAndTicket, isForwarded: false });
+              sentMessage = await SendWhatsAppMedia({
+                body: `\u200e ${bodyMessage}`,
+                media,
+                ticket: contactAndTicket,
+                isForwarded: false
+              });
             }
 
             const publicFolder = path.resolve(__dirname, "..", "..", "public");
-            const filePath = path.join(publicFolder, `company${companyId}`, media.filename);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}`,
+              media.filename
+            );
             const fileExists = fs.existsSync(filePath);
 
             if (fileExists) {
@@ -303,14 +351,21 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
           })
         );
         if (!isOfficial && sentMessage) {
-          await verifyMediaMessage(sentMessage, contactAndTicket, contactAndTicket.contact, null, false, false, wbot);
+          await verifyMediaMessage(
+            sentMessage,
+            contactAndTicket,
+            contactAndTicket.contact,
+            null,
+            false,
+            false,
+            wbot
+          );
         }
       } catch (error) {
         throw new AppError("Error sending API media: " + error.message);
       }
     } else {
       if (isOfficial) {
-
         messageCreated = await MessageApi.create({
           companyId,
           contactId: contact.id,
@@ -372,16 +427,27 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
       setTimeout(async () => {
         await UpdateTicketService({
           ticketId: contactAndTicket.id,
-          ticketData: { status: "closed", sendFarewellMessage: false, amountUsedBotQueues: 0, lastMessage: body },
-          companyId,
+          ticketData: {
+            status: "closed",
+            sendFarewellMessage: false,
+            amountUsedBotQueues: 0,
+            lastMessage: body
+          },
+          companyId
         });
       }, 100);
     } else if (userId?.toString() !== "" && !isNaN(userId)) {
       setTimeout(async () => {
         await UpdateTicketService({
           ticketId: contactAndTicket.id,
-          ticketData: { status: "open", amountUsedBotQueues: 0, lastMessage: body, userId, queueId },
-          companyId,
+          ticketData: {
+            status: "open",
+            amountUsedBotQueues: 0,
+            lastMessage: body,
+            userId,
+            queueId
+          },
+          companyId
         });
       }, 100);
     }
@@ -390,7 +456,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
   setTimeout(async () => {
     const { dateToClient } = useDate();
 
-    const hoje: string = dateToClient(new Date())
+    const hoje: string = dateToClient(new Date());
     const timestamp = moment().format();
 
     let exist = await ApiUsages.findOne({
@@ -431,9 +497,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
                 updatedAt: timestamp
               });
             }
-
           })
-        )
+        );
       } else {
         await exist.update({
           usedText: exist.dataValues["usedText"] + 1,
@@ -444,7 +509,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     } else {
       exist = await ApiUsages.create({
         companyId: companyId,
-        dateUsed: hoje,
+        dateUsed: hoje
       });
 
       if (medias) {
@@ -477,9 +542,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
                 updatedAt: timestamp
               });
             }
-
           })
-        )
+        );
       } else {
         await exist.update({
           usedText: exist.dataValues["usedText"] + 1,
@@ -488,13 +552,15 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
         });
       }
     }
-
   }, 100);
 
   return res.send({ status: "SUCCESS" });
 };
 
-export const indexImage = async (req: Request, res: Response): Promise<Response> => {
+export const indexImage = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const newContact: ContactData = req.body;
   const { whatsappId }: WhatsappData = req.body;
   const { msdelay }: any = req.body;
@@ -520,7 +586,11 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
     throw new AppError(err.message);
   }
 
-  const contactAndTicket = await createContact(whatsappId, companyId, newContact.number);
+  const contactAndTicket = await createContact(
+    whatsappId,
+    companyId,
+    newContact.number
+  );
 
   const isOfficial = contactAndTicket?.channel === "whatsapp_oficial";
 
@@ -531,14 +601,28 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
         const axios = (await import("axios")).default;
         const response = await axios.get(url, { responseType: "arraybuffer" });
         const contentType = response.headers["content-type"] || "image/jpeg";
-        const extension = contentType.includes("png") ? ".png" : contentType.includes("jpeg") ? ".jpg" : contentType.includes("jpg") ? ".jpg" : contentType.includes("gif") ? ".gif" : ".jpg";
+        const extension = contentType.includes("png")
+          ? ".png"
+          : contentType.includes("jpeg")
+          ? ".jpg"
+          : contentType.includes("jpg")
+          ? ".jpg"
+          : contentType.includes("gif")
+          ? ".gif"
+          : ".jpg";
 
         const publicFolder = path.resolve(__dirname, "..", "..", "public");
         const fileName = `api-img-${Date.now()}${extension}`;
-        const filePath = path.join(publicFolder, `company${companyId}`, fileName);
+        const filePath = path.join(
+          publicFolder,
+          `company${companyId}`,
+          fileName
+        );
 
         // Garante diretório e grava arquivo
-        fs.mkdirSync(path.join(publicFolder, `company${companyId}`), { recursive: true });
+        fs.mkdirSync(path.join(publicFolder, `company${companyId}`), {
+          recursive: true
+        });
         fs.writeFileSync(filePath, Buffer.from(response.data));
 
         const media: any = {
@@ -563,17 +647,28 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
           fs.unlinkSync(filePath);
         }
       } catch (error) {
-        throw new AppError("Error sending API image by URL (Oficial): " + error.message);
+        throw new AppError(
+          "Error sending API image by URL (Oficial): " + error.message
+        );
       }
     } else {
-      await SendWhatsAppMediaImage({ ticket: contactAndTicket, url, caption, msdelay });
+      await SendWhatsAppMediaImage({
+        ticket: contactAndTicket,
+        url,
+        caption,
+        msdelay
+      });
     }
   }
 
   setTimeout(async () => {
     await UpdateTicketService({
       ticketId: contactAndTicket.id,
-      ticketData: { status: "closed", sendFarewellMessage: false, amountUsedBotQueues: 0 },
+      ticketData: {
+        status: "closed",
+        sendFarewellMessage: false,
+        amountUsedBotQueues: 0
+      },
       companyId
     });
   }, 100);
@@ -581,7 +676,7 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
   setTimeout(async () => {
     const { dateToClient } = useDate();
 
-    const hoje: string = dateToClient(new Date())
+    const hoje: string = dateToClient(new Date());
     const timestamp = moment().format();
 
     const exist = await ApiUsages.findOne({
@@ -600,7 +695,7 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
     } else {
       const usage = await ApiUsages.create({
         companyId: companyId,
-        dateUsed: hoje,
+        dateUsed: hoje
       });
 
       await usage.update({
@@ -609,13 +704,15 @@ export const indexImage = async (req: Request, res: Response): Promise<Response>
         updatedAt: timestamp
       });
     }
-
   }, 100);
 
   return res.send({ status: "SUCCESS" });
 };
 
-export const checkNumber = async (req: Request, res: Response): Promise<Response> => {
+export const checkNumber = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const newContact: ContactData = req.body;
 
   const authHeader = req.headers.authorization;
@@ -636,11 +733,10 @@ export const checkNumber = async (req: Request, res: Response): Promise<Response
     }[];
 
     if (result.exists) {
-
       setTimeout(async () => {
         const { dateToClient } = useDate();
 
-        const hoje: string = dateToClient(new Date())
+        const hoje: string = dateToClient(new Date());
         const timestamp = moment().format();
 
         const exist = await ApiUsages.findOne({
@@ -659,7 +755,7 @@ export const checkNumber = async (req: Request, res: Response): Promise<Response
         } else {
           const usage = await ApiUsages.create({
             companyId: companyId,
-            dateUsed: hoje,
+            dateUsed: hoje
           });
 
           await usage.update({
@@ -668,21 +764,28 @@ export const checkNumber = async (req: Request, res: Response): Promise<Response
             updatedAt: timestamp
           });
         }
-
       }, 100);
 
-      return res.status(200).json({ existsInWhatsapp: true, number: number, numberFormatted: result.jid });
+      return res.status(200).json({
+        existsInWhatsapp: true,
+        number: number,
+        numberFormatted: result.jid
+      });
     }
-
   } catch (error) {
-    return res.status(400).json({ existsInWhatsapp: false, number: jid, error: "Not exists on Whatsapp" });
+    return res.status(400).json({
+      existsInWhatsapp: false,
+      number: jid,
+      error: "Not exists on Whatsapp"
+    });
   }
-
 };
 
-export const indexWhatsappsId = async (req: Request, res: Response): Promise<Response> => {
-
-  return res.status(200).json('oi');
+export const indexWhatsappsId = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  return res.status(200).json("oi");
 };
 
 async function getNextAvailableSchedule(companyId: number): Promise<Date> {
@@ -693,7 +796,7 @@ async function getNextAvailableSchedule(companyId: number): Promise<Date> {
       isSending: false,
       schedule: { [Op.not]: null }
     },
-    order: [['schedule', 'DESC']],
+    order: [["schedule", "DESC"]],
     limit: 1
   });
 
@@ -705,5 +808,7 @@ async function getNextAvailableSchedule(companyId: number): Promise<Date> {
   }
 
   // Caso contrário, adiciona 30 segundos à última mensagem agendada
-  return new Date(new Date(lastScheduledMessage.schedule).getTime() + 60 * 1000);
+  return new Date(
+    new Date(lastScheduledMessage.schedule).getTime() + 60 * 1000
+  );
 }
