@@ -3,7 +3,7 @@ import { readFile } from "fs";
 import fs from "fs";
 import { promises as fsp } from "fs";
 import * as Sentry from "@sentry/node";
-import { isNil, isNull } from "lodash";
+import { get, isNil, isNull } from "lodash";
 import { REDIS_URI_MSG_CONN } from "../../config/redis";
 
 import {
@@ -24,6 +24,7 @@ import {
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
 import Message from "../../models/Message";
+import MessageReaction from "../../models/MessageReaction";
 import { Mutex } from "async-mutex";
 import { getIO } from "../../libs/socket";
 import CreateMessageService from "../MessageServices/CreateMessageService";
@@ -101,6 +102,8 @@ import {
   updateGroupMetadataCache
 } from "../../utils/RedisGroupCache";
 import sgpListenerOficial from "../IntegrationsServices/Sgp/sgpListenerOficial";
+import { handlePresenceUpdate } from "./HandlePresenceUpdate";
+import { Console } from "console";
 
 let ffmpegPath: string;
 if (os.platform() === "win32") {
@@ -432,13 +435,13 @@ const getSenderMessage = (
   if (msg.key.fromMe) return me.id;
 
   const key: IExtendedMessageKey = msg.key;
-  console.log(
-    "[DEBUG RODRIGO] key",
-    key.participant_pn,
-    msg.participant,
-    key.participant,
-    key.remoteJid
-  );
+  // console.log(
+  //   "[DEBUG RODRIGO] key",
+  //   key.participant_pn,
+  //   msg.participant,
+  //   key.participant,
+  //   key.remoteJid
+  // );
   const senderId =
     key.participant_pn ||
     msg.participant ||
@@ -459,7 +462,7 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
 
   const isGroup = msg.key.remoteJid.includes("g.us");
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
-  console.log("[LUCAS MATHEUS] key", JSON.stringify(key, null, 2));
+  // console.log("[LUCAS MATHEUS] key", JSON.stringify(key, null, 2));
   const lid =
     key.sender_lid && key?.sender_lid.includes("@lid")
       ? key.sender_lid
@@ -474,13 +477,13 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
       : key.participant_pn && key.participant_pn.length > 0
       ? key.participant_pn
       : null;
-  console.log("[LUCAS MATHEUS] senderPn", senderPn);
+  // console.log("[LUCAS MATHEUS] senderPn", senderPn);
   const remoteJid = !key.remoteJid.includes("@lid")
     ? key.remoteJid
     : key.remoteJid.includes("@lid") && senderPn !== null
     ? senderPn
     : lid;
-  console.log("[LUCAS MATHEUS] remoteJid", remoteJid);
+  // console.log("[LUCAS MATHEUS] remoteJid", remoteJid);
   // Usa o identificador normalizado que considera o lid
   // const normalizedId = normalizeContactIdentifier(msg);
 
@@ -1098,6 +1101,7 @@ export const verifyMessage = async (
   isPrivate?: boolean,
   isForwarded: boolean = false
 ) => {
+  console.log("DEBUG LUCAS => VerifyMesssage");
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg);
   const body = getBodyMessage(msg);
@@ -3758,9 +3762,9 @@ const handleMessage = async (
   companyId: number,
   isImported: boolean = false
 ): Promise<void> => {
+  console.log("DEBUG LUCAS => handleMessage");
   let campaignExecuted = false;
 
-  console.log("[DEBUG RODRIGO] msg.key.id", JSON.stringify(msg.key));
   if (isImported) {
     addLogs({
       fileName: `processImportMessagesWppId${wbot.id}.txt`,
@@ -3785,10 +3789,6 @@ const handleMessage = async (
       );
     }
   }
-  //  else {
-  //   await new Promise(r => setTimeout(r, i * 150));
-  //   i++
-  // }
 
   if (!isValidMsg(msg)) {
     return;
@@ -3886,17 +3886,8 @@ const handleMessage = async (
       msgContact = await getContactMessage(msg, wbot);
     }
 
-    console.log(
-      "[DEBUG RODRIGO] msgContact",
-      JSON.stringify(msgContact, null, 2)
-    );
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
 
-    // IGNORAR MENSAGENS DE GRUPO
-    // const msgIsGroupBlock = await Settings.findOne({
-    //   where: { key: "CheckMsgIsGroup", companyId }
-    // });
-    // console.log("GETTING WHATSAPP SHOW WHATSAPP 2384", wbot.id, companyId)
     const whatsapp = await ShowWhatsAppService(wbot.id!, companyId);
 
     if (!whatsapp.allowGroup && isGroup) return;
@@ -3969,6 +3960,8 @@ const handleMessage = async (
 
     const contact = await verifyContact(msgContact, wbot, companyId);
 
+    // console.log("DEBUG LUCAS =>", contact);
+
     let unreadMessages = 0;
 
     if (msg.key.fromMe) {
@@ -3986,12 +3979,6 @@ const handleMessage = async (
       where: { companyId }
     });
     const enableLGPD = settings.enableLGPD === "enabled";
-
-    // contador
-    // if (msg.key.fromMe && count?.unreadCount > 0) {
-    //   let remoteJid = msg.key.remoteJid;
-    //   SendAckBYRemoteJid({ remoteJid, companyId });
-    // }
 
     const isFirstMsg = await Ticket.findOne({
       where: {
@@ -4083,14 +4070,64 @@ const handleMessage = async (
       });
     }
 
-    if (msgType === "editedMessage" || msgType === "protocolMessage") {
+    const protocolType = msg.message?.protocolMessage?.type;
+
+    if (protocolType === 0) {
+      const io = getIO();
+
+      // REVOKE (mensagem apagada)
+      const msgKeyIdDeleted = msg.message.protocolMessage.key.id;
+
+      const messageToDelete = await Message.findOne({
+        where: {
+          wid: msgKeyIdDeleted,
+          companyId,
+          ticketId: ticket.id
+        }
+      });
+
+      // console.log("DEBUG LUCAS messageDelete =>", messageToDelete);
+
+      if (!messageToDelete) return;
+
+      const fullMessage = await Message.findByPk(messageToDelete.id, {
+        include: [
+          {
+            model: Ticket,
+            as: "ticket",
+            include: [{ model: Contact, as: "contact" }]
+          }
+        ]
+      });
+
+      // 🔥 REGRA DE OURO: NÃO ALTERAR BODY
+      await messageToDelete.update({
+        isDeleted: true
+      });
+
+      // Envia apenas o delta (estado), não o conteúdo
+      io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+        action: "tombstone",
+        message: {
+          id: messageToDelete.id,
+          isDeleted: true,
+          ticketId: messageToDelete.ticketId, // 🔥 ESSENCIAL
+          ticketUuid: fullMessage.ticket.uuid
+        },
+        ticket: fullMessage.ticket,
+        contact: fullMessage.ticket.contact
+      });
+
+      return;
+    }
+
+    if (msgType === "editedMessage" || protocolType === 14) {
       const msgKeyIdEdited =
         msgType === "editedMessage"
           ? msg.message.editedMessage.message.protocolMessage.key.id
           : msg.message?.protocolMessage.key.id;
       let bodyEdited = findCaption(msg.message);
 
-      // console.log("bodyEdited", bodyEdited)
       const io = getIO();
       try {
         const messageToUpdate = await Message.findOne({
@@ -4101,18 +4138,32 @@ const handleMessage = async (
           }
         });
 
+        // console.log("DEBUG LUCAS messageUpdate =>", messageToUpdate);
+
         if (!messageToUpdate) return;
 
         await messageToUpdate.update({ isEdited: true, body: bodyEdited });
 
         await ticket.update({ lastMessage: bodyEdited });
 
-        io.of(String(companyId))
-          // .to(String(ticket.id))
-          .emit(`company-${companyId}-appMessage`, {
-            action: "update",
-            message: messageToUpdate
-          });
+        const fullMessage = await Message.findByPk(messageToUpdate.id, {
+          include: [
+            {
+              model: Ticket,
+              as: "ticket",
+              include: [{ model: Contact, as: "contact" }]
+            }
+          ]
+        });
+
+        // console.log("FULLMESSAGS", fullMessage);
+
+        io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+          action: "update",
+          message: fullMessage,
+          ticket: fullMessage.ticket,
+          contact: fullMessage.ticket.contact
+        });
 
         io.of(String(companyId))
           // .to(ticket.status)
@@ -4128,13 +4179,6 @@ const handleMessage = async (
       }
       return;
     }
-
-    //const ticketTraking = await FindOrCreateATicketTrakingService({
-    //  ticketId: ticket.id,
-    //  companyId,
-    //  userId,
-    //  whatsappId: whatsapp?.id
-    //});
 
     let useLGPD = false;
 
@@ -5397,16 +5441,287 @@ const filterMessages = (msg: WAMessage): boolean => {
   return true;
 };
 
-// Logs de debug de eventos Baileys removidos para produção
+// const handleBaileysReaction = async (
+//   message: proto.IWebMessageInfo,
+//   wbot: WASocket,
+//   companyId: number
+// ) => {
+//   try {
+//     const nsp = getIO().of(`/${companyId}`);
+
+//     const reaction = message.message?.reactionMessage;
+//     if (!reaction) return;
+
+//     const reactedMsgWid = reaction.key?.id;
+//     const emoji = reaction.text || "";
+
+//     if (!reactedMsgWid) return;
+
+//     // 🔥 Descobre quem reagiu (LID vs número real)
+//     const rawJid =
+//       message.key.remoteJidAlt ||
+//       reaction.key.remoteJidAlt ||
+//       reaction.key.participant ||
+//       message.key.participant ||
+//       reaction.key.remoteJid ||
+//       message.key.remoteJid;
+
+//     if (!rawJid) return;
+
+//     const normalizedJid = normalizeJid(rawJid);
+//     const number = normalizedJid.replace(/\D/g, "");
+
+//     // 🔥 Busca contato (cliente)
+//     const contact = await Contact.findOne({
+//       where: {
+//         number,
+//         companyId
+//       }
+//     });
+
+//     // 🔥 Busca mensagem reagida
+//     const msg = await Message.findOne({
+//       where: {
+//         wid: reactedMsgWid,
+//         companyId
+//       },
+//       include: [
+//         {
+//           model: Ticket,
+//           as: "ticket",
+//           attributes: ["id"]
+//         }
+//       ]
+//     });
+
+//     const room = `company-${companyId}-chat-${msg.ticket.id}`;
+
+//     if (!msg || !contact) {
+//       console.log("Reaction ignorada:", reactedMsgWid, number);
+//       return;
+//     }
+
+//     // 🔥 Descobre se quem reagiu foi o dono da conexão (agente)
+//     let userId: number;
+//     let fromJid: string;
+
+//     // 🔥 Número do WhatsApp conectado
+//     const whatsapp = await Whatsapp.findByPk(wbot.id);
+//     const agentNumber = whatsapp.number;
+
+//     // 🔥 Busca o usuário humano pelo número
+//     const agentUser = await User.findOne({
+//       where: {
+//         whatsappId: whatsapp.id,
+//         companyId
+//       }
+//     });
+
+//     if (!agentUser) {
+//       console.log(
+//         "Usuário do WhatsApp da empresa não encontrado:",
+//         agentNumber
+//       );
+//       return;
+//     }
+
+//     if (message.key.fromMe) {
+//       userId = agentUser.id;
+//       fromJid = `${whatsapp.number}@s.whatsapp.net`;
+//     } else {
+//       userId = contact.id;
+//       fromJid = normalizedJid;
+//     }
+
+//     const payload = {
+//       messageId: msg.id,
+//       userId,
+//       emoji
+//     };
+
+//     // ❌ REMOÇÃO
+//     if (emoji === "") {
+//       await MessageReaction.destroy({
+//         where: {
+//           messageId: msg.id,
+//           userId
+//         }
+//       });
+
+//       nsp.to(room).emit("reaction:remove", payload);
+//       nsp.emit("reaction:remove", payload);
+
+//       console.log("Reaction removida:", reactedMsgWid, userId);
+//       return;
+//     }
+
+//     // ❤️ UPSERT
+//     await MessageReaction.upsert({
+//       messageId: msg.id,
+//       userId,
+//       fromJid,
+//       emoji
+//     });
+
+//     nsp.to(room).emit("reaction:update", payload); // quem está no chat
+//     nsp.emit("reaction:update", payload); // quem acabou de entrar
+
+//     console.log("Reaction salva:", reactedMsgWid, emoji, userId);
+//   } catch (err) {
+//     console.error("Erro ao processar reaction Baileys:", err);
+//   }
+// };
+
+const handleBaileysReaction = async (
+  message: proto.IWebMessageInfo,
+  wbot: WASocket,
+  companyId: number
+) => {
+  try {
+    const io = getIO();
+    const nsp = io.of(`/${companyId}`);
+
+    const reaction = message.message?.reactionMessage;
+    if (!reaction) return;
+
+    const reactedMsgWid = reaction.key?.id;
+    const emoji = reaction.text || "";
+
+    if (!reactedMsgWid) return;
+
+    // 🔥 Descobre quem reagiu
+    const rawJid =
+      message.key.remoteJidAlt ||
+      reaction.key.remoteJidAlt ||
+      reaction.key.participant ||
+      message.key.participant ||
+      reaction.key.remoteJid ||
+      message.key.remoteJid;
+
+    if (!rawJid) return;
+
+    const normalizedJid = normalizeJid(rawJid);
+    const number = normalizedJid.replace(/\D/g, "");
+
+    const contact = await Contact.findOne({
+      where: { number, companyId }
+    });
+
+    const msg = await Message.findOne({
+      where: {
+        wid: reactedMsgWid,
+        companyId
+      },
+      attributes: ["id", "ticketId"]
+    });
+
+    if (!msg || !contact) return;
+
+    // 🔥 Resolve userId (agente x contato)
+    let userId: number;
+    let fromJid: string;
+
+    const whatsapp = await Whatsapp.findByPk(wbot.id);
+    const agentUser = await User.findOne({
+      where: {
+        whatsappId: whatsapp.id,
+        companyId
+      }
+    });
+
+    if (!agentUser) return;
+
+    if (message.key.fromMe) {
+      userId = agentUser.id;
+      fromJid = `${whatsapp.number}@s.whatsapp.net`;
+    } else {
+      userId = contact.id;
+      fromJid = normalizedJid;
+    }
+
+    // 🔥 REMOÇÃO (estado final: sem reação)
+    if (!emoji) {
+      await MessageReaction.destroy({
+        where: {
+          messageId: msg.id,
+          userId
+        }
+      });
+
+      nsp.emit(`company-${companyId}-appMessage`, {
+        action: "reaction:remove",
+        messageId: msg.id,
+        userId,
+        ticketId: msg.ticketId
+      });
+
+      return;
+    }
+
+    // 🔥 UPSERT (estado final: reação ativa)
+    await MessageReaction.upsert({
+      messageId: msg.id,
+      userId,
+      fromJid,
+      emoji
+    });
+
+    nsp.emit(`company-${companyId}-appMessage`, {
+      action: "reaction:update",
+      messageId: msg.id,
+      reaction: {
+        userId,
+        emoji
+      },
+      ticketId: msg.ticketId
+    });
+  } catch (err) {
+    console.error("Erro ao processar reaction Baileys:", err);
+  }
+};
+
 const wbotMessageListener = (wbot: Session, companyId: number): void => {
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
-    const messages = messageUpsert.messages
-      .filter(filterMessages)
-      .map(msg => msg);
+    const rawMessages = messageUpsert.messages;
+    if (!rawMessages || rawMessages.length === 0) return;
+
+    for (const message of rawMessages) {
+      // 🔥 1️⃣ Reaction
+      if (message.message?.reactionMessage) {
+        console.log("recao da messagem");
+
+        await handleBaileysReaction(message, wbot, companyId);
+        continue; // pula para próxima mensagem
+      }
+      console.log("messagem normal");
+      // 🔥 2️⃣ Mensagem normal
+      await handleMessage(message, wbot, companyId);
+    }
+
+    // const messages = rawMessages.filter(filterMessages);
+    const messages = rawMessages.filter(
+      msg => filterMessages(msg) && !msg.message?.reactionMessage
+    );
 
     if (!messages) return;
 
-    // console.log("CIAAAAAAA WBOT " , companyId)
+    for (const message of messages) {
+      const messageExists = await Message.count({
+        where: { wid: message.key.id!, companyId }
+      });
+
+      if (!messageExists) {
+        console.log("LUCAS MATHEUS > MENSAGEM PASSOU AQUI");
+        await handleMessage(message, wbot, companyId);
+        await verifyRecentCampaign(message, companyId);
+        await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
+      }
+
+      if (message.key.remoteJid?.endsWith("@g.us")) {
+        handleMsgAck(message, 2);
+      }
+    }
+
     messages.forEach(async (message: proto.IWebMessageInfo) => {
       if (
         message?.messageStubParameters?.length &&
@@ -5475,18 +5790,6 @@ const wbotMessageListener = (wbot: Session, companyId: number): void => {
         }
       }
     });
-
-    // messages.forEach(async (message: proto.IWebMessageInfo) => {
-    //   const messageExists = await Message.count({
-    //     where: { id: message.key.id!, companyId }
-    //   });
-
-    //   if (!messageExists) {
-    //     await handleMessage(message, wbot, companyId);
-    //     await verifyRecentCampaign(message, companyId);
-    //     await verifyCampaignMessageAndCloseTicket(message, companyId);
-    //   }
-    // });
   });
 
   wbot.ev.on("messages.update", (messageUpdate: WAMessageUpdate[]) => {
@@ -5525,16 +5828,38 @@ const wbotMessageListener = (wbot: Session, companyId: number): void => {
     });
   });
 
-  // wbot.ev.on('message-receipt.update', (events: any) => {
-  //   events.forEach(async (msg: any) => {
-  //     const ack = msg?.receipt?.receiptTimestamp ? 3 : msg?.receipt?.readTimestamp ? 4 : 0;
-  //     if (!ack) return;
-  //     await handleMsgAck(msg, ack);
-  //   });
-  // })
-  // wbot.ev.on("presence.update", (events: any) => {
-  //   console.log(events)
-  // })
+  wbot.ev.on("presence.update", data => {
+    const presences = data.presences || {};
+
+    for (const remoteJid in presences) {
+      const presence = presences[remoteJid];
+
+      if (!presence.lastKnownPresence) continue;
+
+      let status: "typing" | "paused" | "online" | "offline";
+
+      switch (presence.lastKnownPresence) {
+        case "composing":
+          status = "typing";
+          break;
+        case "paused":
+          status = "paused";
+          break;
+        case "available":
+          status = "online";
+          break;
+        default:
+          status = "offline";
+      }
+
+      // 🔥 Joga isso para o mesmo sistema de socket que já existe
+      handlePresenceUpdate({
+        remoteJid,
+        companyId,
+        status
+      });
+    }
+  });
 
   wbot.ev.on("contacts.update", (contacts: any) => {
     // Logs de debug de contacts.update removidos para produção
@@ -5577,9 +5902,7 @@ const wbotMessageListener = (wbot: Session, companyId: number): void => {
       await CreateOrUpdateContactService(contactData);
     });
   });
-
   // Handlers extras removidos para produção
-
   wbot.ev.on("group-participants.update", async event => {
     console.log(
       "group-participants.update.listener",
@@ -5678,7 +6001,8 @@ export {
   handleMessage,
   isValidMsg,
   getTypeMessage,
-  handleMsgAck
+  handleMsgAck,
+  handleBaileysReaction
 };
 
 // Função helper para mapear corretamente o mediaType baseado no MIME type completo
