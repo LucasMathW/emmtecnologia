@@ -1,11 +1,11 @@
-import 'dotenv/config';
+import "dotenv/config";
 import gracefulShutdown from "http-graceful-shutdown";
 import app from "./app";
 import { initIO } from "./libs/socket";
 import logger from "./utils/logger";
 import { StartAllWhatsAppsSessions } from "./services/WbotServices/StartAllWhatsAppsSessions";
 import Company from "./models/Company";
-import BullQueue from './libs/queue';
+import BullQueue from "./libs/queue";
 import { startQueueProcess } from "./queues";
 import { startLidSyncJob } from "./jobs/LidSyncJob";
 
@@ -26,7 +26,7 @@ const server = app.listen(process.env.PORT, async () => {
     await startQueueProcess();
   });
 
-  if (process.env.REDIS_URI_ACK && process.env.REDIS_URI_ACK !== '') {
+  if (process.env.REDIS_URI_ACK && process.env.REDIS_URI_ACK !== "") {
     BullQueue.process();
   }
 
@@ -35,12 +35,20 @@ const server = app.listen(process.env.PORT, async () => {
 });
 
 process.on("uncaughtException", err => {
-  logger.error({ msg: "uncaughtException", error: err.message, stack: err.stack?.split("\n")[0] });
+  logger.error({
+    msg: "uncaughtException",
+    error: err.message,
+    stack: err.stack?.split("\n")[0]
+  });
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any, p: any) => {
-  logger.error({ msg: "unhandledRejection", reason: String(reason), promise: String(p) });
+  logger.error({
+    msg: "unhandledRejection",
+    reason: String(reason),
+    promise: String(p)
+  });
   process.exit(1);
 });
 
