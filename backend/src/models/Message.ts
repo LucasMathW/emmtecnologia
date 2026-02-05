@@ -8,13 +8,15 @@ import {
   PrimaryKey,
   Default,
   BelongsTo,
-  ForeignKey
+  ForeignKey,
+  HasMany
 } from "sequelize-typescript";
 import Contact from "./Contact";
 import Ticket from "./Ticket";
 import Company from "./Company";
 import Queue from "./Queue";
 import TicketTraking from "./TicketTraking";
+import MessageReaction from "./MessageReaction";
 
 @Table
 class Message extends Model<Message> {
@@ -49,9 +51,9 @@ class Message extends Model<Message> {
   @Column(DataType.STRING)
   get mediaUrl(): string | null {
     if (this.getDataValue("mediaUrl")) {
-      
-      return `${process.env.BACKEND_URL}${process.env.PROXY_PORT ?`:${process.env.PROXY_PORT}`:""}/public/company${this.companyId}/${this.getDataValue("mediaUrl")}`;
-
+      return `${process.env.BACKEND_URL}${
+        process.env.PROXY_PORT ? `:${process.env.PROXY_PORT}` : ""
+      }/public/company${this.companyId}/${this.getDataValue("mediaUrl")}`;
     }
     return null;
   }
@@ -111,7 +113,7 @@ class Message extends Model<Message> {
 
   @BelongsTo(() => Queue)
   queue: Queue;
-  
+
   @Column
   wid: string;
 
@@ -126,6 +128,12 @@ class Message extends Model<Message> {
   @Default(false)
   @Column
   isForwarded: boolean;
+
+  @HasMany(() => MessageReaction, {
+    foreignKey: "messageId",
+    as: "reactions"
+  })
+  reactions: MessageReaction[];
 }
 
 export default Message;
