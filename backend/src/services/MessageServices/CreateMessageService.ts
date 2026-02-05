@@ -33,10 +33,9 @@ const CreateMessageService = async ({
   messageData,
   companyId
 }: Request): Promise<Message> => {
-  
   const correctMediaType = (data: MessageData): MessageData => {
     // Se já tem mediaType definido como audio, manter
-    if (data.mediaType === 'audio') {
+    if (data.mediaType === "audio") {
       return data;
     }
 
@@ -44,22 +43,32 @@ const CreateMessageService = async ({
     const shouldBeAudio = (data: MessageData): boolean => {
       // Verificar pela URL
       if (data.mediaUrl) {
-        const audioExtensions = ['.mp3', '.wav', '.ogg', '.webm', '.m4a', '.aac'];
+        const audioExtensions = [
+          ".mp3",
+          ".wav",
+          ".ogg",
+          ".webm",
+          ".m4a",
+          ".aac"
+        ];
         const url = data.mediaUrl.toLowerCase();
         if (audioExtensions.some(ext => url.includes(ext))) {
           return true;
         }
-        
+
         // Verificar se tem padrão de nome de áudio
-        if (url.includes('audio_')) {
+        if (url.includes("audio_")) {
           return true;
         }
       }
 
       // Verificar pelo body
-      if (data.body && typeof data.body === 'string') {
+      if (data.body && typeof data.body === "string") {
         const body = data.body.toLowerCase();
-        if (body.includes('áudio gravado') || body.includes('🎵 arquivo de áudio')) {
+        if (
+          body.includes("áudio gravado") ||
+          body.includes("🎵 arquivo de áudio")
+        ) {
           return true;
         }
       }
@@ -69,10 +78,12 @@ const CreateMessageService = async ({
 
     // Se deveria ser áudio, corrigir o tipo
     if (shouldBeAudio(data)) {
-      console.log(`🎵 Corrigindo tipo de mídia de '${data.mediaType}' para 'audio'`);
+      console.log(
+        `🎵 Corrigindo tipo de mídia de '${data.mediaType}' para 'audio'`
+      );
       return {
         ...data,
-        mediaType: 'audio'
+        mediaType: "audio"
       };
     }
 
@@ -80,7 +91,7 @@ const CreateMessageService = async ({
   };
 
   const correctedMessageData = correctMediaType(messageData);
-  
+
   await Message.upsert({ ...correctedMessageData, companyId });
 
   const message = await Message.findOne({
@@ -96,7 +107,17 @@ const CreateMessageService = async ({
         include: [
           {
             model: Contact,
-            attributes: ["id", "name", "number", "email", "profilePicUrl", "acceptAudioMessage", "active", "urlPicture", "companyId"],
+            attributes: [
+              "id",
+              "name",
+              "number",
+              "email",
+              "profilePicUrl",
+              "acceptAudioMessage",
+              "active",
+              "urlPicture",
+              "companyId"
+            ],
             include: ["extraInfo", "tags"]
           },
           {
@@ -141,13 +162,12 @@ const CreateMessageService = async ({
   const io = getIO();
 
   if (!messageData?.ticketImported) {
-    io.of(String(companyId))
-      .emit(`company-${companyId}-appMessage`, {
-        action: "create",
-        message,
-        ticket: message.ticket,
-        contact: message.ticket.contact
-      });
+    io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+      action: "create",
+      message,
+      ticket: message.ticket,
+      contact: message.ticket.contact
+    });
   }
 
   return message;
