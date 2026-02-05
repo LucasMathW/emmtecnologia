@@ -19,25 +19,24 @@ export const initIO = (httpServer: Server): SocketIO => {
   });
 
   if (process.env.SOCKET_ADMIN && JSON.parse(process.env.SOCKET_ADMIN)) {
-    User.findByPk(1).then(
-      (adminUser) => {
-        instrument(io, {
-          auth: {
-            type: "basic",
-            username: adminUser.email,
-            password: adminUser.passwordHash
-          },
-          mode: "development",
-        });
-      }
-    );
+    User.findByPk(1).then(adminUser => {
+      instrument(io, {
+        auth: {
+          type: "basic",
+          username: adminUser.email,
+          password: adminUser.passwordHash
+        },
+        mode: "development"
+      });
+    });
   }
 
   const workspaces = io.of(/^\/\w+$/);
   workspaces.on("connection", socket => {
-
     const token_api_oficial = process.env.TOKEN_API_OFICIAL || "";
-    const token = Array.isArray(socket?.handshake?.query?.token) ? socket.handshake.query.token[1] : socket?.handshake?.query?.token?.split(" ")[1];
+    const token = Array.isArray(socket?.handshake?.query?.token)
+      ? socket.handshake.query.token[1]
+      : socket?.handshake?.query?.token?.split(" ")[1];
 
     if (!token) {
       return socket.disconnect();
@@ -46,13 +45,15 @@ export const initIO = (httpServer: Server): SocketIO => {
     if (token !== token_api_oficial) {
       try {
         const decoded = verify(token, authConfig.secret);
-        const companyId = socket.nsp.name.split("/")[1]
+        const companyId = socket.nsp.name.split("/")[1];
 
         const decodedPayload = decoded as JwtPayload;
         const companyIdToken = decodedPayload.companyId;
 
         if (+companyIdToken !== +companyId) {
-          logger.error(`CompanyId do token ${companyIdToken} diferente da companyId do socket ${companyId}`)
+          logger.error(
+            `CompanyId do token ${companyIdToken} diferente da companyId do socket ${companyId}`
+          );
           return socket.disconnect();
         }
       } catch (error) {
@@ -70,7 +71,10 @@ export const initIO = (httpServer: Server): SocketIO => {
     const handleHeartbeat = async (socket: any) => {
       try {
         const companyId = socket.nsp.name.split("/")[1];
-        const decoded = verify(token !== token_api_oficial ? token : "", authConfig.secret);
+        const decoded = verify(
+          token !== token_api_oficial ? token : "",
+          authConfig.secret
+        );
         const decodedPayload = decoded as JwtPayload;
         const userId = decodedPayload.id;
 
@@ -109,7 +113,9 @@ export const initIO = (httpServer: Server): SocketIO => {
     //  NOVO: Handler para verificar aniversários quando usuário se conecta
     const checkAndEmitBirthdays = async (companyId: number) => {
       try {
-        const birthdayData = await BirthdayService.getTodayBirthdaysForCompany(companyId);
+        const birthdayData = await BirthdayService.getTodayBirthdaysForCompany(
+          companyId
+        );
 
         // Emitir eventos de aniversário se houver aniversariantes
         if (birthdayData.users.length > 0) {
@@ -119,7 +125,9 @@ export const initIO = (httpServer: Server): SocketIO => {
               userName: user.name,
               userAge: user.age
             });
-            logger.info(` [GLOBAL] Emitido evento de aniversário para usuário: ${user.name}`);
+            logger.info(
+              ` [GLOBAL] Emitido evento de aniversário para usuário: ${user.name}`
+            );
           });
         }
 
@@ -130,7 +138,9 @@ export const initIO = (httpServer: Server): SocketIO => {
               contactName: contact.name,
               contactAge: contact.age
             });
-            logger.info(` [GLOBAL] Emitido evento de aniversário para contato: ${contact.name}`);
+            logger.info(
+              ` [GLOBAL] Emitido evento de aniversário para contato: ${contact.name}`
+            );
           });
         }
       } catch (error) {
@@ -189,8 +199,17 @@ export const initIO = (httpServer: Server): SocketIO => {
     });
 
     // Eventos existentes
-    socket.on("joinChatBox", (ticketId: string) => {
-      socket.join(ticketId);
+    // socket.on("joinChatBox", (ticketId: string) => {
+    //   socket.join(ticketId);
+    // });
+
+    socket.on("joinChatBox", (chatId: string) => {
+      const companyId = socket.nsp.name.split("/")[1];
+      const room = `company-${companyId}-chat-${chatId}`;
+
+      socket.join(room);
+
+      logger.info(`Socket ${socket.id} entrou no room ${room}`);
     });
 
     socket.on("joinNotification", () => {
@@ -198,7 +217,9 @@ export const initIO = (httpServer: Server): SocketIO => {
     });
 
     socket.on("joinVersion", () => {
-      logger.info(`A client joined version channel namespace ${socket.nsp.name}`);
+      logger.info(
+        `A client joined version channel namespace ${socket.nsp.name}`
+      );
       socket.join("version");
     });
 
@@ -253,7 +274,6 @@ export const initIO = (httpServer: Server): SocketIO => {
         logger.error("Error in socket disconnect:", error);
       }
     });
-
   });
   return io;
 };
@@ -269,37 +289,47 @@ export const getIO = (): SocketIO => {
 export const emitBirthdayEvents = async (companyId: number) => {
   try {
     if (!io) {
-      logger.warn(`[RDS-SOCKET] Socket IO não inicializado ao tentar emitir eventos de aniversário para empresa ${companyId}`);
+      logger.warn(
+        `[RDS-SOCKET] Socket IO não inicializado ao tentar emitir eventos de aniversário para empresa ${companyId}`
+      );
       return;
     }
 
-    const birthdayData = await BirthdayService.getTodayBirthdaysForCompany(companyId);
+    const birthdayData = await BirthdayService.getTodayBirthdaysForCompany(
+      companyId
+    );
 
     // Emitir para todos os usuários da empresa
     if (birthdayData.users.length > 0) {
       birthdayData.users.forEach(user => {
         io.of(`/${companyId}`).emit("user-birthday", {
-          userId: user.id,  // ✅ Corrigido: usar userId em vez de user.id
+          userId: user.id, // ✅ Corrigido: usar userId em vez de user.id
           userName: user.name,
           userAge: user.age
         });
-        logger.info(` [GLOBAL] Emitido evento de aniversário para usuário: ${user.name}`);
+        logger.info(
+          ` [GLOBAL] Emitido evento de aniversário para usuário: ${user.name}`
+        );
       });
     }
 
     if (birthdayData.contacts.length > 0) {
       birthdayData.contacts.forEach(contact => {
         io.of(`/${companyId}`).emit("contact-birthday", {
-          contactId: contact.id,  // ✅ Corrigido: usar contactId em vez de contact.id
+          contactId: contact.id, // ✅ Corrigido: usar contactId em vez de contact.id
           contactName: contact.name,
           contactAge: contact.age
         });
-        logger.info(` [GLOBAL] Emitido evento de aniversário para contato: ${contact.name}`);
+        logger.info(
+          ` [GLOBAL] Emitido evento de aniversário para contato: ${contact.name}`
+        );
       });
     }
   } catch (error) {
-    logger.error(` [RDS-SOCKET] Erro ao emitir eventos de aniversário para empresa ${companyId}:`, 
-      error instanceof Error ? error.message : "Unknown error");
+    logger.error(
+      ` [RDS-SOCKET] Erro ao emitir eventos de aniversário para empresa ${companyId}:`,
+      error instanceof Error ? error.message : "Unknown error"
+    );
     if (error instanceof Error && error.stack) {
       logger.debug(" [RDS-SOCKET] Error stack:", error.stack);
     }
