@@ -9,6 +9,7 @@
     "start": "nodemon dist/server.js",
     "dev:server": "ts-node-dev --respawn --transpile-only --ignore node_modules src/server.ts",
     "db:migrate": "npx sequelize db:migrate",
+    "db:migrate:create": "npx sequelize migration:generate --name",
     "db:seed": "sequelize db:seed:all",
     "fix:birthday-settings": "ts-node src/scripts/fix-birthday-settings.ts",
     "pretest": "NODE_ENV=test sequelize db:migrate && NODE_ENV=test sequelize db:seed:all",
