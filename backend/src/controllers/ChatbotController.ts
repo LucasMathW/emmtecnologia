@@ -13,16 +13,37 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { name, color, greetingMessage, queueType, optIntegrationId, optQueueId, optUserId, optFileId, closeTicket } = req.body;
+  const {
+    name,
+    color,
+    greetingMessage,
+    queueType,
+    optIntegrationId,
+    optQueueId,
+    optUserId,
+    optFileId,
+    closeTicket
+  } = req.body;
   const { companyId } = req.user;
 
-  const chatbot = await CreateChatBotServices({ name, color, greetingMessage, queueType, optIntegrationId, optQueueId, optUserId, optFileId, closeTicket });
+  console.log("PASSEI AQUI =>>", optQueueId);
+
+  const chatbot = await CreateChatBotServices({
+    name,
+    color,
+    greetingMessage,
+    queueType,
+    optIntegrationId,
+    optQueueId,
+    optUserId,
+    optFileId,
+    closeTicket
+  });
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-chatbot`, {
-      action: "update",
-      chatbot
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-chatbot`, {
+    action: "update",
+    chatbot
+  });
 
   return res.status(200).json(chatbot);
 };
@@ -44,11 +65,10 @@ export const update = async (
   const chatbot = await UpdateChatBotServices(chatbotId, req.body);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-chatbot`, {
-      action: "update",
-      chatbot
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-chatbot`, {
+    action: "update",
+    chatbot
+  });
 
   return res.status(201).json(chatbot);
 };
@@ -63,11 +83,10 @@ export const remove = async (
   await DeleteChatBotServices(chatbotId);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-chatbot`, {
-      action: "delete",
-      chatbotId: +chatbotId
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-chatbot`, {
+    action: "delete",
+    chatbotId: +chatbotId
+  });
 
   return res.status(200).send();
 };
