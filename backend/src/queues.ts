@@ -982,13 +982,33 @@ async function handleVerifyCampaigns(job) {
       scheduledAt: string;
       nextScheduledAt: string;
     }[] = await sequelize.query(
-      `SELECT id, "scheduledAt", "nextScheduledAt"
-         FROM "Campaigns" c
-         WHERE (
-           ("scheduledAt" <= NOW() + INTERVAL '1 minute' AND "scheduledAt" >= NOW() - INTERVAL '1 minute' AND status = 'PROGRAMADA' AND "executionCount" = 0)
-           OR
-           ("nextScheduledAt" <= NOW() + INTERVAL '1 minute' AND "nextScheduledAt" >= NOW() - INTERVAL '1 minute' AND status IN ('PROGRAMADA', 'EM_ANDAMENTO') AND "isRecurring" = true)
-         )`,
+      // `SELECT id, "scheduledAt", "nextScheduledAt"
+      //    FROM "Campaigns" c
+      //    WHERE (
+      //      ("scheduledAt" <= NOW() + INTERVAL '1 minute' AND "scheduledAt" >= NOW() - INTERVAL '1 minute' AND status = 'PROGRAMADA' AND "executionCount" = 0)
+      //      OR
+      //      ("nextScheduledAt" <= NOW() + INTERVAL '1 minute' AND "nextScheduledAt" >= NOW() - INTERVAL '1 minute' AND status IN ('PROGRAMADA', 'EM_ANDAMENTO') AND "isRecurring" = true)
+      //    )`,
+      `
+        SELECT id, "scheduledAt", "nextScheduledAt"
+        FROM "Campaigns"
+        WHERE
+        (
+          (
+            "scheduledAt" IS NOT NULL
+            AND "scheduledAt" BETWEEN NOW() - INTERVAL '1 minute' AND NOW() + INTERVAL '1 minute'
+            AND status = 'PROGRAMADA'
+            AND "executionCount" = 0
+          )
+          OR
+          (
+            "nextScheduledAt" IS NOT NULL
+            AND "nextScheduledAt" BETWEEN NOW() - INTERVAL '1 minute' AND NOW() + INTERVAL '1 minute'
+            AND status IN ('PROGRAMADA', 'EM_ANDAMENTO')
+            AND "isRecurring" = true
+          )
+        )
+        `,
       { type: QueryTypes.SELECT }
     );
 
@@ -1012,7 +1032,24 @@ async function handleVerifyCampaigns(job) {
           }
 
           const now = moment();
+
+          // const executeAt = campaign.nextScheduledAt || campaign.scheduledAt;
+          // const scheduledAt = moment(executeAt);
+          // const delay = Math.max(0, scheduledAt.diff(now, "milliseconds"));
+
           const executeAt = campaign.nextScheduledAt || campaign.scheduledAt;
+
+          // Blindagem TOTAL
+          if (
+            !executeAt ||
+            !moment(executeAt, moment.ISO_8601, true).isValid()
+          ) {
+            logger.error(
+              `[CAMPAIGN-SKIP] Campanha ${campaign.id} ignorada por data inválida: nextScheduledAt=${campaign.nextScheduledAt}, scheduledAt=${campaign.scheduledAt}`
+            );
+            return;
+          }
+
           const scheduledAt = moment(executeAt);
           const delay = Math.max(0, scheduledAt.diff(now, "milliseconds"));
 
