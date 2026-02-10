@@ -104,6 +104,8 @@ import {
 import sgpListenerOficial from "../IntegrationsServices/Sgp/sgpListenerOficial";
 import { handlePresenceUpdate } from "./HandlePresenceUpdate";
 import { Console } from "console";
+import { ms } from "date-fns/locale";
+import { WAMessageSafe } from "../../@types/WAMessageSafe";
 
 let ffmpegPath: string;
 if (os.platform() === "win32") {
@@ -125,7 +127,7 @@ setInterval(() => {
 }, 5000);
 
 interface ImessageUpsert {
-  messages: proto.IWebMessageInfo[];
+  messages: WAMessageSafe[];
   type: MessageUpsertType;
 }
 
@@ -226,7 +228,7 @@ const contactsArrayMessageGet = (msg: any) => {
   return finalContacts;
 };
 
-const getTypeMessage = (msg: proto.IWebMessageInfo): string => {
+const getTypeMessage = (msg: WAMessageSafe): string => {
   const msgType = getContentType(msg.message);
   if (
     msg.message?.extendedTextMessage &&
@@ -293,7 +295,7 @@ const msgLocation = (image, latitude, longitude) => {
   }
 };
 
-export const getBodyMessage = (msg: proto.IWebMessageInfo): string | null => {
+export const getBodyMessage = (msg: WAMessageSafe): string | null => {
   try {
     let type = getTypeMessage(msg);
 
@@ -394,7 +396,7 @@ const msgAdMetaPreview = (image, title, body, sourceUrl, messageUser) => {
   }
 };
 
-export const getQuotedMessage = (msg: proto.IWebMessageInfo) => {
+export const getQuotedMessage = (msg: WAMessageSafe) => {
   const body = extractMessageContent(msg.message)[
     Object.keys(msg?.message).values().next().value
   ];
@@ -409,7 +411,7 @@ export const getQuotedMessage = (msg: proto.IWebMessageInfo) => {
   return quoted;
 };
 
-export const getQuotedMessageId = (msg: proto.IWebMessageInfo) => {
+export const getQuotedMessageId = (msg: WAMessageSafe) => {
   const body = extractMessageContent(msg.message)[
     Object.keys(msg?.message).values().next().value
   ];
@@ -427,10 +429,7 @@ const getMeSocket = (wbot: Session): IMe => {
   };
 };
 
-const getSenderMessage = (
-  msg: proto.IWebMessageInfo,
-  wbot: Session
-): string => {
+const getSenderMessage = (msg: WAMessageSafe, wbot: Session): string => {
   const me = getMeSocket(wbot);
   if (msg.key.fromMe) return me.id;
 
@@ -452,12 +451,12 @@ const getSenderMessage = (
   return senderId && jidNormalizedUser(senderId);
 };
 
-const normalizeContactIdentifier = (msg: proto.IWebMessageInfo): string => {
+const normalizeContactIdentifier = (msg: WAMessageSafe): string => {
   // @ts-ignore: lid pode não estar definido no tipo, mas existe na versão mais recente
   return normalizeJid(msg.key.sender_lid || msg.key.remoteJid);
 };
 
-const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
+const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
   const key: IExtendedMessageKey = msg.key;
 
   const isGroup = msg.key.remoteJid.includes("g.us");
@@ -551,10 +550,13 @@ const allowedMimeTypes = [
 ];
 
 const downloadMedia = async (
-  msg: proto.IWebMessageInfo,
+  // msg: WAMessageSafe,
+  msg: WAMessageSafe,
   isImported: Date = null,
   wbot: Session
 ) => {
+  if (!msg.key) return;
+
   const mineType =
     msg.message?.imageMessage ||
     msg.message?.audioMessage ||
@@ -811,7 +813,7 @@ const checkLIDStatus = async (wbot: Session): Promise<boolean> => {
 };
 
 const verifyQuotedMessage = async (
-  msg: proto.IWebMessageInfo
+  msg: WAMessageSafe
 ): Promise<Message | null> => {
   if (!msg) return null;
   const quoted = getQuotedMessageId(msg);
@@ -828,7 +830,8 @@ const verifyQuotedMessage = async (
 };
 
 export const verifyMediaMessage = async (
-  msg: proto.IWebMessageInfo,
+  // msg: WAMessageSafe,
+  msg: WAMessageSafe,
   ticket: Ticket,
   contact: Contact,
   ticketTraking: TicketTraking,
@@ -1094,7 +1097,7 @@ export const verifyMediaMessage = async (
 };
 
 export const verifyMessage = async (
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   ticket: Ticket,
   contact: Contact,
   ticketTraking?: TicketTraking,
@@ -1167,7 +1170,7 @@ export const verifyMessage = async (
   }
 };
 
-const isValidMsg = (msg: proto.IWebMessageInfo): boolean => {
+const isValidMsg = (msg: WAMessageSafe): boolean => {
   if (msg.key.remoteJid === "status@broadcast") return false;
   try {
     const msgType = getTypeMessage(msg);
@@ -1394,7 +1397,7 @@ async function sendDelayedMessages(
 
 const verifyQueue = async (
   wbot: Session,
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   ticket: Ticket,
   contact: Contact,
   settings?: any,
@@ -2480,7 +2483,7 @@ const findMatchingCampaign = (
 };
 
 export const flowbuilderIntegration = async (
-  msg: proto.IWebMessageInfo | null,
+  msg: WAMessageSafe | null,
   wbot: Session | null,
   companyId: number,
   queueIntegration: QueueIntegrations,
@@ -3239,7 +3242,7 @@ export const flowbuilderIntegration = async (
 };
 
 export const handleMessageIntegration = async (
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   wbot: Session,
   companyId: number,
   queueIntegration: QueueIntegrations,
@@ -3431,7 +3434,7 @@ export const handleMessageIntegration = async (
 
 const flowBuilderQueue = async (
   ticket: Ticket,
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   wbot: Session,
   whatsapp: Whatsapp,
   companyId: number,
@@ -3487,7 +3490,7 @@ const checkTemporaryAI = async (
   msgContact: IMe,
   mediaSent: Message,
   ticketTraking: TicketTraking,
-  msg: proto.IWebMessageInfo
+  msg: WAMessageSafe
 ) => {
   // Verificar se é modo temporário com flowContinuation
   const dataWebhook = ticket.dataWebhook as any;
@@ -3547,7 +3550,7 @@ const checkTemporaryAI = async (
 };
 
 const handleOpenAi = async (
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   wbot: Session,
   ticket: Ticket,
   contact: Contact,
@@ -3757,7 +3760,7 @@ const handleOpenAi = async (
 };
 
 const handleMessage = async (
-  msg: proto.IWebMessageInfo,
+  msg: WAMessageSafe,
   wbot: Session,
   companyId: number,
   isImported: boolean = false
@@ -5327,7 +5330,7 @@ const handleMsgAck = async (
 };
 
 const verifyRecentCampaign = async (
-  message: proto.IWebMessageInfo,
+  message: WAMessageSafe,
   companyId: number
 ) => {
   if (!isValidMsg(message)) {
@@ -5370,7 +5373,7 @@ const verifyRecentCampaign = async (
 };
 
 const verifyCampaignMessageAndCloseTicket = async (
-  message: proto.IWebMessageInfo,
+  message: WAMessageSafe,
   companyId: number,
   wbot: Session
 ) => {
@@ -5442,7 +5445,7 @@ const filterMessages = (msg: WAMessage): boolean => {
 };
 
 // const handleBaileysReaction = async (
-//   message: proto.IWebMessageInfo,
+//   message: WAMessageSafe,
 //   wbot: WASocket,
 //   companyId: number
 // ) => {
@@ -5571,10 +5574,11 @@ const filterMessages = (msg: WAMessage): boolean => {
 //     console.error("Erro ao processar reaction Baileys:", err);
 //   }
 // };
-
+import { WbotSession } from "../../@types/WbotSession";
 const handleBaileysReaction = async (
-  message: proto.IWebMessageInfo,
-  wbot: WASocket,
+  message: WAMessageSafe,
+  // wbot: WASocket,
+  wbot: WbotSession,
   companyId: number
 ) => {
   try {
@@ -5622,6 +5626,7 @@ const handleBaileysReaction = async (
     let fromJid: string;
 
     const whatsapp = await Whatsapp.findByPk(wbot.id);
+
     const agentUser = await User.findOne({
       where: {
         whatsappId: whatsapp.id,
@@ -5659,12 +5664,27 @@ const handleBaileysReaction = async (
     }
 
     // 🔥 UPSERT (estado final: reação ativa)
-    await MessageReaction.upsert({
-      messageId: msg.id,
-      userId,
-      fromJid,
-      emoji
+    // await MessageReaction.upsert({
+    //   messageId: msg.id,
+    //   userId,
+    //   fromJid,
+    //   emoji
+    // });
+
+    const [messageReaction, created] = await MessageReaction.findOrCreate({
+      where: {
+        messageId: msg.id,
+        userId
+      },
+      defaults: {
+        fromJid,
+        emoji
+      }
     });
+
+    if (!created && messageReaction.emoji !== emoji) {
+      await messageReaction.update({ emoji });
+    }
 
     nsp.emit(`company-${companyId}-appMessage`, {
       action: "reaction:update",
@@ -5680,7 +5700,7 @@ const handleBaileysReaction = async (
   }
 };
 
-const wbotMessageListener = (wbot: Session, companyId: number): void => {
+const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
@@ -5711,7 +5731,6 @@ const wbotMessageListener = (wbot: Session, companyId: number): void => {
       });
 
       if (!messageExists) {
-        console.log("LUCAS MATHEUS > MENSAGEM PASSOU AQUI");
         await handleMessage(message, wbot, companyId);
         await verifyRecentCampaign(message, companyId);
         await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
@@ -5722,7 +5741,7 @@ const wbotMessageListener = (wbot: Session, companyId: number): void => {
       }
     }
 
-    messages.forEach(async (message: proto.IWebMessageInfo) => {
+    messages.forEach(async (message: WAMessageSafe) => {
       if (
         message?.messageStubParameters?.length &&
         message.messageStubParameters[0].includes("absent")
