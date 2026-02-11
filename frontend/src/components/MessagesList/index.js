@@ -1,4 +1,12 @@
-import React, { useContext, useState, useEffect, useReducer, useRef } from "react";
+/* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
 import { isSameDay, parseISO, format } from "date-fns";
 import clsx from "clsx";
 import { isNil } from "lodash";
@@ -8,7 +16,7 @@ import {
   Divider,
   Typography,
   IconButton,
-  makeStyles
+  makeStyles,
 } from "@material-ui/core";
 
 import {
@@ -20,9 +28,9 @@ import {
   Facebook,
   Instagram,
   Reply,
-  WhatsApp
+  WhatsApp,
 } from "@material-ui/icons";
-import LockIcon from '@material-ui/icons/Lock';
+import LockIcon from "@material-ui/icons/Lock";
 import MarkdownWrapper from "../MarkdownWrapper";
 import VcardPreview from "../VcardPreview";
 import LocationPreview from "../LocationPreview";
@@ -44,12 +52,54 @@ import { AuthContext } from "../../context/Auth/AuthContext";
 import { QueueSelectedContext } from "../../context/QueuesSelected/QueuesSelectedContext";
 import AudioModal from "../AudioModal";
 import { CircularProgress } from "@material-ui/core";
-import { useParams, useHistory } from 'react-router-dom';
+import { useParams, useHistory } from "react-router-dom";
 import { downloadResource } from "../../utils";
 import Template from "./templates";
 import { usePdfViewer } from "../../hooks/usePdfViewer";
+import { NewLineKind } from "typescript";
+import EmojiEmotionsOutlinedIcon from "@material-ui/icons/EmojiEmotionsOutlined";
 
 const useStyles = makeStyles((theme) => ({
+  reactionButton: {
+    position: "absolute",
+    top: "50%",
+    right: -32,
+    transform: "translateY(-50%)",
+    background: "#fff",
+    borderRadius: "50%",
+    padding: 4,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    cursor: "pointer",
+    display: "none",
+    zIndex: 20,
+
+    "&:hover": {
+      background: "#f0f2f5",
+    },
+  },
+
+  reactionButtonRight: {
+    display: "none",
+    position: "absolute",
+    top: "50%",
+    left: -32, // 👈 fica fora do balão, à esquerda
+    transform: "translateY(-50%)",
+    background: "#fff",
+    borderRadius: "50%",
+    padding: 4,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    cursor: "pointer",
+    fontSize: 16,
+    zIndex: 20,
+    "&:hover": {
+      background: "#f0f2f5",
+    },
+  },
+
+  messageWithReaction: {
+    marginBottom: 25, // ajuste fino aqui (16~22 costuma ficar bom)
+  },
+
   messagesListWrapper: {
     overflow: "hidden",
     position: "relative",
@@ -74,15 +124,18 @@ const useStyles = makeStyles((theme) => ({
 
   currentTicktText: {
     color: theme.palette.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     padding: 8,
     alignSelf: "center",
     marginLeft: "0px",
   },
 
   messagesList: {
-    backgroundImage: theme.mode === 'light' ? `url(${whatsBackground})` : `url(${whatsBackgroundDark})`,
-    backgroundColor: theme.mode === 'light' ? "transparent" : "#0b0b0d",
+    backgroundImage:
+      theme.mode === "light"
+        ? `url(${whatsBackground})`
+        : `url(${whatsBackgroundDark})`,
+    backgroundColor: theme.mode === "light" ? "transparent" : "#0b0b0d",
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
@@ -91,7 +144,7 @@ const useStyles = makeStyles((theme) => ({
     ...theme.scrollbarStyles,
   },
   dragElement: {
-    background: 'rgba(255, 255, 255, 0.8)',
+    background: "rgba(255, 255, 255, 0.8)",
     position: "absolute",
     width: "100%",
     height: "100%",
@@ -99,10 +152,10 @@ const useStyles = makeStyles((theme) => ({
     textAlign: "center",
     fontSize: "3em",
     border: "5px dashed #333",
-    color: '#333',
+    color: "#333",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
   circleLoading: {
     color: blue[500],
@@ -117,10 +170,21 @@ const useStyles = makeStyles((theme) => ({
     marginRight: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: 600,
+    maxWidth: "min(600px, 90vw)",
     height: "auto",
     display: "block",
     position: "relative",
+
+    // 👇 ÁREA INVISÍVEL DE HOVER
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: -8,
+      bottom: -8,
+      left: -20, // 👈 expande hover pra fora do balão
+      right: -20, // 👈 expande hover pra fora do balão
+    },
+
     "&:hover #messageActionsButton": {
       display: "flex",
       position: "absolute",
@@ -128,9 +192,13 @@ const useStyles = makeStyles((theme) => ({
       right: 0,
     },
 
+    "&:hover $reactionButton": {
+      display: "flex",
+    },
+
     whiteSpace: "pre-wrap",
-    backgroundColor: theme.mode === 'light' ? "#ffffff" : "#202c33",
-    color: theme.mode === 'light' ? "#303030" : "#ffffff",
+    backgroundColor: theme.mode === "light" ? "#ffffff" : "#202c33",
+    color: theme.mode === "light" ? "#303030" : "#ffffff",
     alignSelf: "flex-start",
     borderTopLeftRadius: 0,
     borderTopRightRadius: 8,
@@ -140,13 +208,14 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: 5,
     paddingTop: 5,
     paddingBottom: 0,
-    boxShadow: theme.mode === 'light' ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000"
+    boxShadow:
+      theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
 
   quotedContainerLeft: {
     margin: "-3px -80px 6px -6px",
     overflow: "hidden",
-    backgroundColor: theme.mode === 'light' ? "#f0f0f0" : "#1d282f",
+    backgroundColor: theme.mode === "light" ? "#f0f0f0" : "#1d282f",
     borderRadius: "7.5px",
     display: "flex",
     position: "relative",
@@ -171,19 +240,30 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: 600,
+    maxWidth: "min(600px, 90vw)",
     height: "auto",
     display: "block",
     position: "relative",
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: -8,
+      bottom: -8,
+      left: -20,
+      right: -20,
+    },
     "&:hover #messageActionsButton": {
       display: "flex",
       position: "absolute",
       top: 0,
       right: 0,
     },
+    "&:hover $reactionButtonRight": {
+      display: "flex",
+    },
     whiteSpace: "pre-wrap",
-    backgroundColor: theme.mode === 'light' ? "#dcf8c6" : "#005c4b",
-    color: theme.mode === 'light' ? "#303030" : "#ffffff",
+    backgroundColor: theme.mode === "light" ? "#dcf8c6" : "#005c4b",
+    color: theme.mode === "light" ? "#303030" : "#ffffff",
     alignSelf: "flex-end",
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
@@ -193,7 +273,8 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: 5,
     paddingTop: 5,
     paddingBottom: 0,
-    boxShadow: theme.mode === 'light' ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000"
+    boxShadow:
+      theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
 
   messageRightPrivate: {
@@ -210,6 +291,9 @@ const useStyles = makeStyles((theme) => ({
       top: 0,
       right: 0,
     },
+    "&:hover $reactionButtonRight": {
+      display: "flex",
+    },
     whiteSpace: "pre-wrap",
     backgroundColor: "#F0E68C",
     color: "#303030",
@@ -222,13 +306,14 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: 5,
     paddingTop: 5,
     paddingBottom: 0,
-    boxShadow: theme.mode === 'light' ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000"
+    boxShadow:
+      theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
 
   quotedContainerRight: {
     margin: "-3px -80px 6px -6px",
     overflowY: "hidden",
-    backgroundColor: theme.mode === 'light' ? "#cfe9ba" : "#025144",
+    backgroundColor: theme.mode === "light" ? "#cfe9ba" : "#025144",
     borderRadius: "7.5px",
     display: "flex",
     position: "relative",
@@ -287,7 +372,7 @@ const useStyles = makeStyles((theme) => ({
     // ✅ CORREÇÃO: Adicionar estilos específicos para vídeo
     "&[controls]": {
       objectFit: "contain", // Para vídeos, usar contain em vez de cover
-    }
+    },
   },
 
   timestamp: {
@@ -306,7 +391,7 @@ const useStyles = makeStyles((theme) => ({
     left: 5,
     color: "#999",
     display: "flex",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   dailyTimestamp: {
@@ -383,8 +468,8 @@ const useStyles = makeStyles((theme) => ({
   },
 
   deletedMessage: {
-    color: '#f55d65'
-  }
+    color: "#f55d65",
+  },
 }));
 
 const reducer = (state, action) => {
@@ -393,7 +478,6 @@ const reducer = (state, action) => {
     const newMessages = [];
 
     messages.forEach((message) => {
-
       const messageIndex = state.findIndex((m) => m.id === message.id);
       if (messageIndex !== -1) {
         state[messageIndex] = message;
@@ -407,6 +491,7 @@ const reducer = (state, action) => {
 
   if (action.type === "ADD_MESSAGE") {
     const newMessage = action.payload;
+    // console.log("DEBUG LUCAS =>", newMessage);
     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
 
     if (messageIndex !== -1) {
@@ -420,14 +505,103 @@ const reducer = (state, action) => {
 
   if (action.type === "UPDATE_MESSAGE") {
     const messageToUpdate = action.payload;
-    const messageIndex = state.findIndex((m) => m.id === messageToUpdate.id);
 
-    if (messageIndex !== -1) {
-      state[messageIndex] = messageToUpdate;
-    }
+    return state.map((m) => {
+      if (m.id !== messageToUpdate.id) return m;
 
-    return [...state];
+      return {
+        ...m, // mantém tudo que o front já tem
+        ...messageToUpdate, // aplica body, isDeleted, isEdited
+        ticket: m.ticket, // força manter
+        contact: m.contact, // força manter
+      };
+    });
   }
+
+  if (action.type === "DELETE_MESSAGE") {
+    const messageId = action.payload;
+
+    return state.map((m) => {
+      if (m.id !== messageId) return m;
+
+      return {
+        ...m,
+        isDeleted: true,
+      };
+    });
+  }
+
+  if (action.type === "REACTION_UPDATE") {
+    const { messageId, reaction } = action.payload;
+
+    return state.map((message) => {
+      if (message.id !== messageId) return message;
+
+      const reactions = message.reactions || [];
+
+      // remove reação anterior do mesmo usuário
+      const filtered = reactions.filter((r) => r.userId !== reaction.userId);
+
+      return {
+        ...message,
+        reactions: [...filtered, reaction],
+      };
+    });
+  }
+
+  if (action.type === "REACTION_REMOVE") {
+    const { messageId, userId } = action.payload;
+
+    return state.map((message) => {
+      if (message.id !== messageId) return message;
+
+      return {
+        ...message,
+        reactions: (message.reactions || []).filter((r) => r.userId !== userId),
+      };
+    });
+  }
+
+  // if (action.type === "ADD_REACTION") {
+  //   const { messageId, reaction } = action.payload;
+
+  //   return state.map((message) => {
+  //     if (message.id !== messageId) return message;
+
+  //     const reactions = message.reactions || [];
+
+  //     // remove reação anterior do mesmo usuário
+  //     const filtered = reactions.filter((r) => r.userId !== reaction.userId);
+
+  //     // se clicou no mesmo emoji → remove
+  //     const alreadyReacted = reactions.find(
+  //       (r) => r.userId === reaction.userId && r.emoji === reaction.emoji,
+  //     );
+
+  //     return {
+  //       ...message,
+  //       reactions: alreadyReacted ? filtered : [...filtered, reaction],
+  //     };
+  //   });
+  // }
+
+  // if (action.type === "REMOVE_REACTION") {
+  //   const { messageId, userId } = action.payload;
+
+  //   return state.map((message) => {
+  //     if (message.id !== messageId) return message;
+
+  //     const reactions = message.reactions || [];
+
+  //     // Filtra apenas as reações que NÃO são do usuário que removeu
+  //     const filteredReactions = reactions.filter((r) => r.userId !== userId);
+
+  //     return {
+  //       ...message,
+  //       reactions: filteredReactions,
+  //     };
+  //   });
+  // }
 
   if (action.type === "RESET") {
     return [];
@@ -440,7 +614,7 @@ const MessagesList = ({
   whatsappId,
   queueId,
   channel,
-  ticketStatus
+  ticketStatus,
 }) => {
   const classes = useStyles();
   const [messagesList, dispatch] = useReducer(reducer, []);
@@ -469,11 +643,7 @@ const MessagesList = ({
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
 
   // Hook simplificado para PDF
-  const {
-    downloadPdf,
-    extractPdfInfoFromMessage,
-    isPdfUrl
-  } = usePdfViewer();
+  const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
 
   const { showSelectMessageCheckbox } = useContext(ForwardMessageContext);
   const { user, socket } = useContext(AuthContext);
@@ -487,15 +657,18 @@ const MessagesList = ({
       let settingEnableLGPD;
 
       for (const [key, value] of Object.entries(settings)) {
-        if (key === "lgpdDeleteMessage") settinglgpdDeleteMessage = value
-        if (key === "enableLGPD") settingEnableLGPD = value
+        if (key === "lgpdDeleteMessage") settinglgpdDeleteMessage = value;
+        if (key === "enableLGPD") settingEnableLGPD = value;
       }
-      if (settingEnableLGPD === "enabled" && settinglgpdDeleteMessage === "enabled") {
+      if (
+        settingEnableLGPD === "enabled" &&
+        settinglgpdDeleteMessage === "enabled"
+      ) {
         setLGPDDeleteMessage(true);
       }
     }
     fetchData();
-  }, [])
+  }, []);
 
   useEffect(() => {
     dispatch({ type: "RESET" });
@@ -514,7 +687,10 @@ const MessagesList = ({
         if (isNil(ticketId)) return;
         try {
           const { data } = await api.get("/messages/" + ticketId, {
-            params: { pageNumber, selectedQueues: JSON.stringify(selectedQueuesMessage) },
+            params: {
+              pageNumber,
+              selectedQueues: JSON.stringify(selectedQueuesMessage),
+            },
           });
 
           if (currentTicketId.current === ticketId) {
@@ -550,31 +726,107 @@ const MessagesList = ({
 
     const connectEventMessagesList = () => {
       socket.emit("joinChatBox", `${ticketId}`);
-    }
+    };
 
     const onAppMessageMessagesList = (data) => {
-      if (data.action === "create" && data.ticket.uuid === ticketId) {
-        dispatch({ type: "ADD_MESSAGE", payload: data.message });
+      console.log("EVENTO:", data);
+
+      if (data.action === "reaction:update") {
+        console.log("DEBUG LUCAS => reaction.update === update");
+
+        dispatch({
+          type: "REACTION_UPDATE",
+          payload: {
+            messageId: data.messageId,
+            reaction: data.reaction,
+          },
+        });
+      }
+
+      if (data.action === "reaction:remove") {
+        console.log("DEBUG LUCAS => reaction.remove === remove");
+
+        dispatch({
+          type: "REACTION_REMOVE",
+          payload: {
+            messageId: data.messageId,
+            userId: data.userId,
+          },
+        });
+      }
+
+      const msg = data.message;
+      if (!msg) return;
+
+      const chatTicketUuid = ticketId; // o que vem da URL
+
+      const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
+      const msgTicketId = msg.ticketId || msg.ticket?.id || null;
+
+      const isSameChat =
+        String(msgTicketUuid) === String(chatTicketUuid) ||
+        String(msgTicketId) === String(chatTicketUuid);
+
+      if (!isSameChat) {
+        return;
+      }
+
+      if (data.action === "create") {
+        console.log("DEBUG LUCAS => data.action === create");
+        dispatch({ type: "ADD_MESSAGE", payload: msg });
         scrollToBottom();
       }
 
-      if (data.action === "update" && data?.message?.ticket?.uuid === ticketId) {
-        dispatch({ type: "UPDATE_MESSAGE", payload: data.message });
+      if (data.action === "update") {
+        dispatch({ type: "UPDATE_MESSAGE", payload: msg });
       }
 
-      if (data.action == "delete" && data.message.ticket?.uuid === ticketId) {
-        dispatch({ type: "DELETE_MESSAGE", payload: data.messageId });
+      if (data.action === "tombstone") {
+        console.log("DEBUG LUCAS => data.action === tombstone");
+
+        dispatch({
+          type: "UPDATE_MESSAGE",
+          payload: {
+            ...msg,
+            isDeleted: true,
+          },
+        });
       }
-    }
+
+      if (data.action === "delete") {
+        console.log("DEBUG LUCAS => data.action === delete");
+        dispatch({ type: "DELETE_MESSAGE", payload: msg.id });
+      }
+
+      //   if (data.action === "reaction") {
+      //     dispatch({
+      //       type: "ADD_REACTION",
+      //       payload: {
+      //         messageId: data.messageId,
+      //         reaction: data.reaction,
+      //       },
+      //     });
+      //   }
+
+      //   if (data.action === "reaction:remove") {
+      //     dispatch({
+      //       type: "REMOVE_REACTION",
+      //       payload: {
+      //         messageId: data.messageId,
+      //         userId: data.userId,
+      //       },
+      //     });
+      //   }
+    };
+
     socket.on("connect", connectEventMessagesList);
     socket.on(`company-${companyId}-appMessage`, onAppMessageMessagesList);
 
     return () => {
-      socket.emit("joinChatBoxLeave", `${ticketId}`)
+      socket.emit("joinChatBoxLeave", `${ticketId}`);
       socket.off("connect", connectEventMessagesList);
       socket.off(`company-${companyId}-appMessage`, onAppMessageMessagesList);
     };
-
   }, [ticketId]);
 
   useEffect(() => {
@@ -631,25 +883,37 @@ const MessagesList = ({
   };
 
   const getBasename = (filepath) => {
-    if (!filepath) return '';
+    if (!filepath) return "";
     // Remove query strings e hashes
-    const cleanPath = filepath.split('?')[0].split('#')[0];
+    const cleanPath = filepath.split("?")[0].split("#")[0];
     // Pega o último segmento após /
-    const segments = cleanPath.split('/');
+    const segments = cleanPath.split("/");
     return segments[segments.length - 1];
   };
 
   const checkMessageMedia = (message) => {
     const isAudioMessage = (message) => {
       if (message.mediaType === "audio") {
-        console.log("🎵 Detectado como áudio pelo mediaType:", message.mediaType);
+        console.log(
+          "🎵 Detectado como áudio pelo mediaType:",
+          message.mediaType,
+        );
         return true;
       }
 
       if (message.mediaUrl) {
-        const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.webm'];
+        const audioExtensions = [
+          ".mp3",
+          ".wav",
+          ".ogg",
+          ".m4a",
+          ".aac",
+          ".webm",
+        ];
         const url = message.mediaUrl.toLowerCase();
-        const hasAudioExtension = audioExtensions.some(ext => url.includes(ext));
+        const hasAudioExtension = audioExtensions.some((ext) =>
+          url.includes(ext),
+        );
 
         if (hasAudioExtension) {
           console.log("🎵 Detectado como áudio pela URL:", url);
@@ -657,13 +921,14 @@ const MessagesList = ({
         }
       }
 
-      if (message.body && typeof message.body === 'string') {
+      if (message.body && typeof message.body === "string") {
         const body = message.body.toLowerCase();
-        const isAudioBody = body.includes('áudio gravado') ||
-          body.includes('audio_') ||
-          body.includes('🎵') ||
-          body.includes('arquivo de áudio') ||
-          body.includes('mensagem de voz');
+        const isAudioBody =
+          body.includes("áudio gravado") ||
+          body.includes("audio_") ||
+          body.includes("🎵") ||
+          body.includes("arquivo de áudio") ||
+          body.includes("mensagem de voz");
 
         if (isAudioBody) {
           console.log("🎵 Detectado como áudio pelo body:", body);
@@ -680,17 +945,23 @@ const MessagesList = ({
     }
 
     // Localização
-    else if (message.mediaType === "locationMessage" && message.body.split('|').length >= 2) {
-      let locationParts = message.body.split('|');
+    else if (
+      message.mediaType === "locationMessage" &&
+      message.body.split("|").length >= 2
+    ) {
+      let locationParts = message.body.split("|");
       let imageLocation = locationParts[0];
       let linkLocation = locationParts[1];
-      let descriptionLocation = locationParts.length > 2 ? locationParts[2] : null;
+      let descriptionLocation =
+        locationParts.length > 2 ? locationParts[2] : null;
 
-      return <LocationPreview 
-        image={imageLocation} 
-        link={linkLocation} 
-        description={descriptionLocation} 
-      />;
+      return (
+        <LocationPreview
+          image={imageLocation}
+          link={linkLocation}
+          description={descriptionLocation}
+        />
+      );
     }
 
     // Contatos
@@ -698,7 +969,7 @@ const MessagesList = ({
       let array = message.body.split("\n");
       let obj = [];
       let contact = "";
-      
+
       for (let index = 0; index < array.length; index++) {
         const v = array[index];
         let values = v.split(":");
@@ -711,38 +982,42 @@ const MessagesList = ({
           }
         }
       }
-      
-      return <VcardPreview 
-        contact={contact} 
-        numbers={obj[0]?.number} 
-        queueId={message?.ticket?.queueId} 
-        whatsappId={message?.ticket?.whatsappId} 
-        channel={channel} 
-      />;
-    }
 
-    else if (message.mediaType === "adMetaPreview") { // Adicionado para renderizar o componente de preview de anúncio
+      return (
+        <VcardPreview
+          contact={contact}
+          numbers={obj[0]?.number}
+          queueId={message?.ticket?.queueId}
+          whatsappId={message?.ticket?.whatsappId}
+          channel={channel}
+        />
+      );
+    } else if (message.mediaType === "adMetaPreview") {
+      // Adicionado para renderizar o componente de preview de anúncio
       console.log("Entrou no MetaPreview");
       // ✅ CORREÇÃO: Parse correto dos dados - formato: image|sourceUrl|title|body|messageUser
-      let [image, sourceUrl, title, body, messageUser] = message.body.split('|');
-      
+      let [image, sourceUrl, title, body, messageUser] =
+        message.body.split("|");
+
       // Fallback para messageUser se não estiver presente
       if (!messageUser || messageUser.trim() === "") {
-        messageUser = "Olá! Tenho interesse e queria mais informações, por favor.";
+        messageUser =
+          "Olá! Tenho interesse e queria mais informações, por favor.";
       }
-      
-      return <AdMetaPreview 
-        image={image} 
-        sourceUrl={sourceUrl} 
-        title={title} 
-        body={body} 
-        messageUser={messageUser} 
-      />;
+
+      return (
+        <AdMetaPreview
+          image={image}
+          sourceUrl={sourceUrl}
+          title={title}
+          body={body}
+          messageUser={messageUser}
+        />
+      );
     }
 
     // PDF e Documentos - SÓ DOWNLOAD
     else if (isPdfUrl(message.mediaUrl, message.body, message.mediaType)) {
-      
       console.log("📄 Renderizando como documento/PDF:", message.id);
       const pdfInfo = extractPdfInfoFromMessage(message);
 
@@ -764,16 +1039,17 @@ const MessagesList = ({
     else if (isAudioMessage(message)) {
       console.log("🎵 Renderizando como áudio:", message.id);
       return (
-        <div style={{
-          width: '100%',
-          maxWidth: '300px',
-          padding: '8px',
-          backgroundColor: 'transparent'
-        }}>
-          <AudioModal
-            url={message.mediaUrl}
-            message={message}
-          />
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "100%",
+            padding: "8px",
+            backgroundColor: "transparent",
+            boxSizing: "border-box", // ✅ INCLUI PADDING NA LARGURA
+            overflow: "hidden", // ✅ IMPEDE vazamento
+          }}
+        >
+          <AudioModal url={message.mediaUrl} message={message} />
         </div>
       );
     }
@@ -787,29 +1063,31 @@ const MessagesList = ({
     // Vídeos
     else if (message.mediaType === "video") {
       console.log("🎥 Renderizando como vídeo");
-      
+
       return (
         <div style={{ maxWidth: "400px", width: "100%", position: "relative" }}>
           {/* Loading indicator */}
           {videoLoading && !videoError && (
-            <div style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 2,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "8px"
-            }}>
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                zIndex: 2,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
               <CircularProgress size={30} />
               <Typography variant="caption" color="textSecondary">
                 Carregando vídeo...
               </Typography>
             </div>
           )}
-          
+
           {/* Vídeo player melhorado */}
           <video
             className={classes.messageMedia}
@@ -817,14 +1095,14 @@ const MessagesList = ({
             controls
             preload="metadata"
             playsInline
-            style={{ 
-              width: "100%", 
-              height: "auto", 
+            style={{
+              width: "100%",
+              height: "auto",
               maxHeight: "300px",
               borderRadius: "8px",
               backgroundColor: "#f0f0f0",
               opacity: videoLoading ? 0.3 : 1,
-              transition: "opacity 0.3s ease"
+              transition: "opacity 0.3s ease",
             }}
             onLoadStart={() => {
               console.log("⏳ Iniciando carregamento do vídeo");
@@ -850,30 +1128,31 @@ const MessagesList = ({
             <source src={message.mediaUrl} type="video/mp4" />
             <source src={message.mediaUrl} type="video/webm" />
             <source src={message.mediaUrl} type="video/ogg" />
-            
             {/* Fallback para navegadores antigos */}
             Seu navegador não suporta reprodução de vídeo.
           </video>
-          
+
           {/* Error state */}
           {videoError && (
-            <div style={{ 
-              padding: "20px", 
-              textAlign: "center", 
-              backgroundColor: "#f5f5f5",
-              borderRadius: "8px",
-              color: "#666",
-              marginTop: "8px"
-            }}>
+            <div
+              style={{
+                padding: "20px",
+                textAlign: "center",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "8px",
+                color: "#666",
+                marginTop: "8px",
+              }}
+            >
               <Typography variant="body2" style={{ marginBottom: "12px" }}>
                 ❌ Erro ao carregar vídeo
               </Typography>
               <Button
                 startIcon={<GetApp />}
                 onClick={() => {
-                  const link = document.createElement('a');
+                  const link = document.createElement("a");
                   link.href = message.mediaUrl;
-                  link.download = message.body || 'video.mp4';
+                  link.download = message.body || "video.mp4";
                   link.click();
                 }}
                 variant="outlined"
@@ -896,7 +1175,9 @@ const MessagesList = ({
             <Button
               startIcon={<GetApp />}
               variant="outlined"
-              onClick={() => downloadPdf(message.mediaUrl, message.body || 'arquivo')}
+              onClick={() =>
+                downloadPdf(message.mediaUrl, message.body || "arquivo")
+              }
             >
               Download
             </Button>
@@ -912,23 +1193,28 @@ const MessagesList = ({
   const renderMessageAck = (message) => {
     if (message.ack === 0) {
       return <AccessTime fontSize="small" className={classes.ackIcons} />;
-    } else
-      if (message.ack === 1) {
-        return <Done fontSize="small" className={classes.ackIcons} />;
-      } else
-        if (message.ack === 2 || message.ack === 3) {
-          return <DoneAll fontSize="small" className={classes.ackIcons} />;
-        } else
-          if (message.ack === 4) {
-            return <DoneAll fontSize="small" className={message.mediaType === "audio" ? classes.ackPlayedIcon : classes.ackDoneAllIcon} />;
-          } else
-            if (message.ack === 5) {
-              return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />
-            }
+    } else if (message.ack === 1) {
+      return <Done fontSize="small" className={classes.ackIcons} />;
+    } else if (message.ack === 2 || message.ack === 3) {
+      return <DoneAll fontSize="small" className={classes.ackIcons} />;
+    } else if (message.ack === 4) {
+      return (
+        <DoneAll
+          fontSize="small"
+          className={
+            message.mediaType === "audio"
+              ? classes.ackPlayedIcon
+              : classes.ackDoneAllIcon
+          }
+        />
+      );
+    } else if (message.ack === 5) {
+      return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />;
+    }
   };
 
   const renderDailyTimestamps = (message, index) => {
-    const today = format(new Date(), "dd/MM/yyyy")
+    const today = format(new Date(), "dd/MM/yyyy");
 
     if (index === 0) {
       return (
@@ -937,37 +1223,41 @@ const MessagesList = ({
           key={`timestamp-${message.id}`}
         >
           <div className={classes.dailyTimestampText}>
-            {today === format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy") ? "HOJE" : format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")}
+            {today ===
+            format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")
+              ? "HOJE"
+              : format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")}
           </div>
         </span>
       );
-    } else
-      if (index < messagesList.length - 1) {
-        let messageDay = parseISO(messagesList[index].createdAt);
-        let previousMessageDay = parseISO(messagesList[index - 1].createdAt);
+    } else if (index < messagesList.length - 1) {
+      let messageDay = parseISO(messagesList[index].createdAt);
+      let previousMessageDay = parseISO(messagesList[index - 1].createdAt);
 
-        if (!isSameDay(messageDay, previousMessageDay)) {
-          return (
-            <span
-              className={classes.dailyTimestamp}
-              key={`timestamp-${message.id}`}
-            >
-              <div className={classes.dailyTimestampText}>
-                {today === format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy") ? "HOJE" : format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")}
-              </div>
-            </span>
-          );
-        }
-      } else
-        if (index === messagesList.length - 1) {
-          return (
-            <div
-              key={`ref-${message.id}`}
-              ref={lastMessageRef}
-              style={{ float: "left", clear: "both" }}
-            />
-          );
-        }
+      if (!isSameDay(messageDay, previousMessageDay)) {
+        return (
+          <span
+            className={classes.dailyTimestamp}
+            key={`timestamp-${message.id}`}
+          >
+            <div className={classes.dailyTimestampText}>
+              {today ===
+              format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")
+                ? "HOJE"
+                : format(parseISO(messagesList[index].createdAt), "dd/MM/yyyy")}
+            </div>
+          </span>
+        );
+      }
+    } else if (index === messagesList.length - 1) {
+      return (
+        <div
+          key={`ref-${message.id}`}
+          ref={lastMessageRef}
+          style={{ float: "left", clear: "both" }}
+        />
+      );
+    }
   };
 
   const renderTicketsSeparator = (message, index) => {
@@ -983,11 +1273,13 @@ const MessagesList = ({
           >
             <div
               className={classes.currentTicktText}
-              style={{ backgroundColor: message?.ticket?.queue?.color || "grey" }}
+              style={{
+                backgroundColor: message?.ticket?.queue?.color || "grey",
+              }}
             >
-              #{i18n.t("ticketsList.called")} {message?.ticketId} - {message?.ticket?.queue?.name}
+              #{i18n.t("ticketsList.called")} {message?.ticketId} -{" "}
+              {message?.ticket?.queue?.name}
             </div>
-
           </span>
         );
       } else {
@@ -1000,14 +1292,13 @@ const MessagesList = ({
               className={classes.currentTicktText}
               style={{ backgroundColor: "grey" }}
             >
-              #{i18n.t("ticketsList.called")} {message.ticketId} - {i18n.t("ticketsList.noQueue")}
+              #{i18n.t("ticketsList.called")} {message.ticketId} -{" "}
+              {i18n.t("ticketsList.noQueue")}
             </div>
-
           </span>
         );
       }
     }
-
   };
 
   const renderMessageDivider = (message, index) => {
@@ -1016,7 +1307,6 @@ const MessagesList = ({
       let previousMessageUser = messagesList[index - 1].fromMe;
       if (messageUser !== previousMessageUser) {
         return (
-
           <span style={{ marginTop: 16 }} key={`divider-${message.id}`}></span>
         );
       }
@@ -1024,7 +1314,6 @@ const MessagesList = ({
   };
 
   const renderQuotedMessage = (message) => {
-
     return (
       <div
         className={clsx(classes.quotedContainerLeft, {
@@ -1043,83 +1332,80 @@ const MessagesList = ({
             </span>
           )}
 
-          {message.quotedMsg.mediaType === "audio"
-            && (
-              <div className={classes.downloadMedia}>
-                <AudioModal url={message.quotedMsg.mediaUrl} />
-              </div>
-            )
-          }
-          {message.quotedMsg.mediaType === "video"
-            && (
-              <div style={{ maxWidth: "300px", width: "100%" }}>
-                <video
-                  className={classes.messageMedia}
-                  src={message.quotedMsg.mediaUrl}
-                  controls
-                  preload="metadata"
-                  style={{ 
-                    width: "100%", 
-                    height: "auto", 
-                    maxHeight: "200px",
-                    borderRadius: "6px",
-                    backgroundColor: "#f0f0f0"
-                  }}
-                  onError={(e) => {
-                    console.error("❌ Erro ao carregar vídeo citado:", e);
+          {message.quotedMsg.mediaType === "audio" && (
+            <div className={classes.downloadMedia}>
+              <AudioModal url={message.quotedMsg.mediaUrl} />
+            </div>
+          )}
+          {message.quotedMsg.mediaType === "video" && (
+            <div style={{ maxWidth: "300px", width: "100%" }}>
+              <video
+                className={classes.messageMedia}
+                src={message.quotedMsg.mediaUrl}
+                controls
+                preload="metadata"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  maxHeight: "200px",
+                  borderRadius: "6px",
+                  backgroundColor: "#f0f0f0",
+                }}
+                onError={(e) => {
+                  console.error("❌ Erro ao carregar vídeo citado:", e);
+                }}
+              >
+                <source src={message.quotedMsg.mediaUrl} type="video/mp4" />
+                <source src={message.quotedMsg.mediaUrl} type="video/webm" />
+                <source src={message.quotedMsg.mediaUrl} type="video/ogg" />
+                <div
+                  style={{
+                    padding: "10px",
+                    textAlign: "center",
+                    fontSize: "12px",
+                    color: "#999",
                   }}
                 >
-                  <source src={message.quotedMsg.mediaUrl} type="video/mp4" />
-                  <source src={message.quotedMsg.mediaUrl} type="video/webm" />
-                  <source src={message.quotedMsg.mediaUrl} type="video/ogg" />
-                  <div style={{ padding: "10px", textAlign: "center", fontSize: "12px", color: "#999" }}>
-                    ❌ Erro ao carregar vídeo
-                  </div>
-                </video>
-              </div>
-            )
-          }
-          {message.quotedMsg.mediaType === "contactMessage"
-            && (
-              "Contato"
-            )
-          }
-          {message.quotedMsg.mediaType === "application"
-            && (
-              <div className={classes.downloadMedia}>
-                <Button
-                  startIcon={<GetApp />}
-                  variant="outlined"
-                  target="_blank"
-                  href={message.quotedMsg.mediaUrl}
-                >
-                  Download
-                </Button>
-              </div>
-            )
-          }
+                  ❌ Erro ao carregar vídeo
+                </div>
+              </video>
+            </div>
+          )}
+          {message.quotedMsg.mediaType === "contactMessage" && "Contato"}
+          {message.quotedMsg.mediaType === "application" && (
+            <div className={classes.downloadMedia}>
+              <Button
+                startIcon={<GetApp />}
+                variant="outlined"
+                target="_blank"
+                href={message.quotedMsg.mediaUrl}
+              >
+                Download
+              </Button>
+            </div>
+          )}
 
-          {message.quotedMsg.mediaType === "image"
-            && (
-              <ModalImageCors imageUrl={message.quotedMsg.mediaUrl} />)
-            || message.quotedMsg?.body}
+          {(message.quotedMsg.mediaType === "image" && (
+            <ModalImageCors imageUrl={message.quotedMsg.mediaUrl} />
+          )) ||
+            message.quotedMsg?.body}
 
           {!message.quotedMsg.mediaType === "image" && message.quotedMsg?.body}
-
         </div>
       </div>
     );
   };
 
-  const handleDrag = event => {
+  const handleDrag = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
     if (event.type === "dragenter" || event.type === "dragover") {
-      const hasFiles = event.dataTransfer &&
+      const hasFiles =
+        event.dataTransfer &&
         event.dataTransfer.types &&
-        (event.dataTransfer.types.includes('Files') ||
-          event.dataTransfer.types.includes('application/x-moz-file'));
+        (event.dataTransfer.types.includes("Files") ||
+          event.dataTransfer.types.includes("application/x-moz-file"));
 
       if (hasFiles) {
         if (dragTimeout) {
@@ -1148,14 +1434,16 @@ const MessagesList = ({
         setDragActive(false);
       }
     }
-  }
+  };
 
   const isYouTubeLink = (url) => {
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const youtubeRegex =
+      // /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
     return youtubeRegex.test(url);
   };
 
-  const handleDrop = event => {
+  const handleDrop = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -1166,14 +1454,16 @@ const MessagesList = ({
 
     setDragActive(false);
 
-    if (event.dataTransfer.files &&
+    if (
+      event.dataTransfer.files &&
       event.dataTransfer.files.length > 0 &&
-      event.dataTransfer.files[0] instanceof File) {
+      event.dataTransfer.files[0] instanceof File
+    ) {
       if (onDrop) {
         onDrop(event.dataTransfer.files);
       }
     }
-  }
+  };
   const xmlRegex = /<([^>]+)>/g;
   const boldRegex = /\*(.*?)\*/g;
 
@@ -1186,8 +1476,59 @@ const MessagesList = ({
     return xmlString;
   };
 
-  const renderMessages = () => {
+  const renderReactions = (message) => {
+    if (!message.reactions || message.reactions.length === 0) {
+      return null;
+    }
 
+    return (
+      // <div
+      //   style={{
+      //     position: "absolute",
+      //     bottom: -10,
+      //     left: message.fromMe ? "auto" : 10,
+      //     right: message.fromMe ? 10 : "auto",
+      //     display: "flex",
+      //     gap: 6,
+      //     background: "#f0f0f0",
+      //     borderRadius: 12,
+      //     padding: "2px 6px",
+      //     fontSize: 13,
+      //     zIndex: 10,
+      //   }}
+      // >
+      //   {message.reactions.map((reaction) => (
+      //     <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
+      //       {reaction.emoji}
+      //     </span>
+      //   ))}
+      // </div>
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: -20,
+          left: 5, // 👈 sempre à esquerda
+          right: "auto", // 👈 nunca à direita
+          display: "flex",
+          gap: 6,
+          background: "#f0f0f0",
+          borderRadius: 12,
+          padding: "2px 6px",
+          fontSize: 13,
+          zIndex: 10,
+        }}
+      >
+        {message.reactions.map((reaction) => (
+          <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
+            {reaction.emoji}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const renderMessages = () => {
     if (messagesList.length > 0) {
       const viewMessagesList = messagesList.map((message, index) => {
         if (message.mediaType === "call_log") {
@@ -1214,9 +1555,21 @@ const MessagesList = ({
                 )}
 
                 <div>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 17" width="20" height="17">
-                    <path fill="#df3333" d="M18.2 12.1c-1.5-1.8-5-2.7-8.2-2.7s-6.7 1-8.2 2.7c-.7.8-.3 2.3.2 2.8.2.2.3.3.5.3 1.4 0 3.6-.7 3.6-.7.5-.2.8-.5.8-1v-1.3c.7-1.2 5.4-1.2 6.4-.1l.1.1v1.3c0 .2.1.4.2.6.1.2.3.3.5.4 0 0 2.2.7 3.6.7.2 0 1.4-2 .5-3.1zM5.4 3.2l4.7 4.6 5.8-5.7-.9-.8L10.1 6 6.4 2.3h2.5V1H4.1v4.8h1.3V3.2z"></path>
-                  </svg> <span>{i18n.t("ticketsList.missedCall")} {format(parseISO(message.createdAt), "HH:mm")}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 17"
+                    width="20"
+                    height="17"
+                  >
+                    <path
+                      fill="#df3333"
+                      d="M18.2 12.1c-1.5-1.8-5-2.7-8.2-2.7s-6.7 1-8.2 2.7c-.7.8-.3 2.3.2 2.8.2.2.3.3.5.3 1.4 0 3.6-.7 3.6-.7.5-.2.8-.5.8-1v-1.3c.7-1.2 5.4-1.2 6.4-.1l.1.1v1.3c0 .2.1.4.2.6.1.2.3.3.5.4 0 0 2.2.7 3.6.7.2 0 1.4-2 .5-3.1zM5.4 3.2l4.7 4.6 5.8-5.7-.9-.8L10.1 6 6.4 2.3h2.5V1H4.1v4.8h1.3V3.2z"
+                    ></path>
+                  </svg>{" "}
+                  <span>
+                    {i18n.t("ticketsList.missedCall")}{" "}
+                    {format(parseISO(message.createdAt), "HH:mm")}
+                  </span>
                 </div>
               </div>
             </React.Fragment>
@@ -1230,14 +1583,15 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
               <div
-                className={classes.messageLeft}
+                className={clsx(classes.messageLeft, {
+                  [classes.messageWithReaction]:
+                    message.reactions && message.reactions.length > 0,
+                })}
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
               >
                 {showSelectMessageCheckbox && (
-                  <SelectMessageCheckbox
-                    message={message}
-                  />
+                  <SelectMessageCheckbox message={message} />
                 )}
                 <IconButton
                   variant="contained"
@@ -1250,10 +1604,38 @@ const MessagesList = ({
                   <ExpandMore />
                 </IconButton>
 
+                <IconButton
+                  variant="contained"
+                  size="small"
+                  id="messageActionsButton"
+                  disabled={message.isDeleted}
+                  className={classes.messageActionsButton}
+                  onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+                >
+                  <ExpandMore />
+                </IconButton>
+
+                {/* ✅ BOTÃO DE REAÇÃO — AQUI */}
+                <div
+                  className={classes.reactionButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReactionAnchor({
+                      messageId: message.id,
+                      anchorEl: e.currentTarget,
+                    });
+                  }}
+                >
+                  <EmojiEmotionsOutlinedIcon fontSize="small" />
+                </div>
+
                 {message.isForwarded && (
                   <div>
-                    <span className={classes.forwardMessage}
-                    ><Reply style={{ color: "grey", transform: 'scaleX(-1)' }} /> Encaminhada
+                    <span className={classes.forwardMessage}>
+                      <Reply
+                        style={{ color: "grey", transform: "scaleX(-1)" }}
+                      />{" "}
+                      Encaminhada
                     </span>
                     <br />
                   </div>
@@ -1271,56 +1653,59 @@ const MessagesList = ({
 
                 {!lgpdDeleteMessage && message.isDeleted && (
                   <div>
-                    <span className={classes.deletedMessage}
-                    >🚫 Essa mensagem foi apagada pelo contato &nbsp;
+                    <span className={classes.deletedMessage}>
+                      🚫 Essa mensagem foi apagada pelo contato &nbsp;
                     </span>
                   </div>
                 )}
 
-                {(message.mediaUrl || message.mediaType === "locationMessage" || message.mediaType === "contactMessage" || message.mediaType === "template" || message.mediaType === "adMetaPreview"
-                ) && checkMessageMedia(message)}
+                {(message.mediaUrl ||
+                  message.mediaType === "locationMessage" ||
+                  message.mediaType === "contactMessage" ||
+                  message.mediaType === "template" ||
+                  message.mediaType === "adMetaPreview") &&
+                  checkMessageMedia(message)}
 
-                <div className={clsx(classes.textContentItem, {
-                  [classes.textContentItemDeleted]: message.isDeleted,
-                })}>
+                <div
+                  className={clsx(classes.textContentItem, {
+                    [classes.textContentItemDeleted]: message.isDeleted,
+                  })}
+                >
                   {message.quotedMsg && renderQuotedMessage(message)}
-                  {
-                    message.mediaType !== "adMetaPreview" && (
-                      (message.mediaUrl !== null && (message.mediaType === "image" || message.mediaType === "video") && getBasename(message.mediaUrl).trim() !== message.body.trim()) ||
-                      message.mediaType !== "audio" &&
-                      message.mediaType !== "image" &&
-                      message.mediaType !== "video" &&
-                      message.mediaType != "reactionMessage" &&
-                      message.mediaType != "locationMessage" &&
-                      message.mediaType !== "contactMessage" &&
-                      message.mediaType !== "template"
-                    ) && (
+                  {message.mediaType !== "adMetaPreview" &&
+                    ((message.mediaUrl !== null &&
+                      (message.mediaType === "image" ||
+                        message.mediaType === "video") &&
+                      getBasename(message.mediaUrl).trim() !==
+                        message.body.trim()) ||
+                      (message.mediaType !== "audio" &&
+                        message.mediaType !== "image" &&
+                        message.mediaType !== "video" &&
+                        message.mediaType !== "reactionMessage" &&
+                        message.mediaType !== "locationMessage" &&
+                        message.mediaType !== "contactMessage" &&
+                        message.mediaType !== "template")) && (
                       <>
                         {xmlRegex.test(message.body) && (
                           <span>{message.body}</span>
-
                         )}
                         {!xmlRegex.test(message.body) && (
-                          <MarkdownWrapper>{(lgpdDeleteMessage && message.isDeleted) ? "🚫 _Mensagem apagada_ " :
-                            message.body
-                          }</MarkdownWrapper>)}
-
+                          <MarkdownWrapper>
+                            {lgpdDeleteMessage && message.isDeleted
+                              ? "🚫 _Mensagem apagada_ "
+                              : message.body}
+                          </MarkdownWrapper>
+                        )}
                       </>
-
                     )}
 
-                  {message.quotedMsg && message.mediaType === "reactionMessage" && (
-                    <>
-                      <span style={{ marginLeft: "0px" }}>
-                        <MarkdownWrapper>
-                          {"" + message?.contact?.name + " reagiu... " + message.body}
-                        </MarkdownWrapper>
-                      </span>
-                    </>
-                  )}
+                  {renderReactions(message)}
 
                   <span className={classes.timestamp}>
-                    {message.isEdited ? "Editada " + format(parseISO(message.createdAt), "HH:mm") : format(parseISO(message.createdAt), "HH:mm")}
+                    {message.isEdited
+                      ? "Editada " +
+                        format(parseISO(message.createdAt), "HH:mm")
+                      : format(parseISO(message.createdAt), "HH:mm")}
                   </span>
                 </div>
               </div>
@@ -1333,14 +1718,25 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
               <div
-                className={message.isPrivate ? classes.messageRightPrivate : classes.messageRight}
+                className={
+                  // message.isPrivate
+                  //   ? classes.messageRightPrivate
+                  //   : classes.messageRight
+                  clsx(
+                    message.isPrivate
+                      ? classes.messageRightPrivate
+                      : classes.messageRight,
+                    {
+                      [classes.messageWithReaction]:
+                        message.reactions && message.reactions.length > 0,
+                    },
+                  )
+                }
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
               >
                 {showSelectMessageCheckbox && (
-                  <SelectMessageCheckbox
-                    message={message}
-                  />
+                  <SelectMessageCheckbox message={message} />
                 )}
 
                 <IconButton
@@ -1353,10 +1749,27 @@ const MessagesList = ({
                 >
                   <ExpandMore />
                 </IconButton>
+
+                <div
+                  className={classes.reactionButtonRight}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReactionAnchor({
+                      messageId: message.id,
+                      anchorEl: e.currentTarget,
+                    });
+                  }}
+                >
+                  <EmojiEmotionsOutlinedIcon fontSize="small" />
+                </div>
+
                 {message.isForwarded && (
                   <div>
-                    <span className={classes.forwardMessage}
-                    ><Reply style={{ color: "grey", transform: 'scaleX(-1)' }} /> Encaminhada
+                    <span className={classes.forwardMessage}>
+                      <Reply
+                        style={{ color: "grey", transform: "scaleX(-1)" }}
+                      />{" "}
+                      Encaminhada
                     </span>
                     <br />
                   </div>
@@ -1368,46 +1781,59 @@ const MessagesList = ({
                 )}
                 {!lgpdDeleteMessage && message.isDeleted && (
                   <div>
-                    <span className={classes.deletedMessage}
-                    >🚫 Essa mensagem foi apagada &nbsp;
+                    <span className={classes.deletedMessage}>
+                      🚫 Essa mensagem foi apagada &nbsp;
                     </span>
                   </div>
                 )}
-                {(message.mediaUrl || message.mediaType === "locationMessage" || message.mediaType === "contactMessage" || message.mediaType === "template"
-                ) && checkMessageMedia(message)}
+                {(message.mediaUrl ||
+                  message.mediaType === "locationMessage" ||
+                  message.mediaType === "contactMessage" ||
+                  message.mediaType === "template") &&
+                  checkMessageMedia(message)}
                 <div
                   className={clsx(classes.textContentItem, {
                     [classes.textContentItemDeleted]: message.isDeleted,
                   })}
                 >
-
                   {message.quotedMsg && renderQuotedMessage(message)}
 
-                  {
-                    ((message.mediaType === "image" || message.mediaType === "video") && getBasename(message.mediaUrl) === message.body) ||
-                    (message.mediaType !== "audio" && message.mediaType != "reactionMessage" && message.mediaType != "locationMessage" && message.mediaType !== "contactMessage" && message.mediaType !== "template") && (
+                  {((message.mediaType === "image" ||
+                    message.mediaType === "video") &&
+                    getBasename(message.mediaUrl) === message.body) ||
+                    (message.mediaType !== "audio" &&
+                      message.mediaType !== "reactionMessage" &&
+                      message.mediaType !== "locationMessage" &&
+                      message.mediaType !== "contactMessage" &&
+                      message.mediaType !== "template" && (
+                        <>
+                          {xmlRegex.test(message.body) && (
+                            <div>{formatXml(message.body)}</div>
+                          )}
+                          {!xmlRegex.test(message.body) && (
+                            <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                          )}
+                        </>
+                      ))}
+
+                  {/* {message.quotedMsg &&
+                    message.mediaType === "reactionMessage" && (
                       <>
-                        {xmlRegex.test(message.body) && (
-                          <div>{formatXml(message.body)}</div>
-
-                        )}
-                        {!xmlRegex.test(message.body) && (<MarkdownWrapper>{message.body}</MarkdownWrapper>)}
-
+                        <span style={{ marginLeft: "0px" }}>
+                          <MarkdownWrapper>
+                            {"Você reagiu... " + message.body}
+                          </MarkdownWrapper>
+                        </span>
                       </>
-                    )}
+                    )} */}
 
-                  {message.quotedMsg && message.mediaType === "reactionMessage" && (
-                    <>
-                      <span style={{ marginLeft: "0px" }}>
-                        <MarkdownWrapper>
-                          {"Você reagiu... " + message.body}
-                        </MarkdownWrapper>
-                      </span>
-                    </>
-                  )}
+                  {renderReactions(message)}
 
                   <span className={classes.timestamp}>
-                    {message.isEdited ? "Editada " + format(parseISO(message.createdAt), "HH:mm") : format(parseISO(message.createdAt), "HH:mm")}
+                    {message.isEdited
+                      ? "Editada " +
+                        format(parseISO(message.createdAt), "HH:mm")
+                      : format(parseISO(message.createdAt), "HH:mm")}
                     {renderMessageAck(message)}
                   </span>
                 </div>
@@ -1421,11 +1847,23 @@ const MessagesList = ({
       return <div>Diga olá para seu novo contato!</div>;
     }
   };
-const shouldBlurMessages = ticketStatus === "pending" && user.allowSeeMessagesInPendingTickets === "disabled";
+  const shouldBlurMessages =
+    ticketStatus === "pending" &&
+    user.allowSeeMessagesInPendingTickets === "disabled";
 
   return (
     <div className={classes.messagesListWrapper} onDragEnter={handleDrag}>
-      {dragActive && <div className={classes.dragElement} onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>Solte o arquivo aqui</div>}
+      {dragActive && (
+        <div
+          className={classes.dragElement}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          Solte o arquivo aqui
+        </div>
+      )}
       <MessageOptionsMenu
         message={selectedMessage}
         anchorEl={anchorEl}
@@ -1435,21 +1873,20 @@ const shouldBlurMessages = ticketStatus === "pending" && user.allowSeeMessagesIn
         whatsappId={whatsappId}
         queueId={queueId}
       />
-      
 
-<div
-  id="messagesList"
-  className={classes.messagesList}
-  onScroll={handleScroll}
-  style={{
-    filter: shouldBlurMessages ? "blur(4px)" : "none",
-    pointerEvents: shouldBlurMessages ? "none" : "auto"
-  }}
->
-  {messagesList.length > 0 ? renderMessages() : []}
-</div>
+      <div
+        id="messagesList"
+        className={classes.messagesList}
+        onScroll={handleScroll}
+        style={{
+          filter: shouldBlurMessages ? "blur(4px)" : "none",
+          pointerEvents: shouldBlurMessages ? "none" : "auto",
+        }}
+      >
+        {messagesList.length > 0 ? renderMessages() : []}
+      </div>
 
-      {(channel !== "whatsapp" && channel !== undefined) && (
+      {channel !== "whatsapp" && channel !== undefined && (
         <div
           style={{
             width: "100%",
@@ -1468,12 +1905,12 @@ const shouldBlurMessages = ticketStatus === "pending" && user.allowSeeMessagesIn
           )}
 
           <span>
-            Você tem 24h para responder após receber uma mensagem, de acordo
-            com as políticas da Meta.
+            Você tem 24h para responder após receber uma mensagem, de acordo com
+            as políticas da Meta.
           </span>
         </div>
       )}
-      
+
       {loading && (
         <div>
           <CircularProgress className={classes.circleLoading} />
