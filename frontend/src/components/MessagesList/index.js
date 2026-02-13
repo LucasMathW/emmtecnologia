@@ -18,7 +18,8 @@ import {
   IconButton,
   makeStyles,
 } from "@material-ui/core";
-
+import Popover from "@mui/material/Popover";
+import EmojiPicker from "emoji-picker-react";
 import {
   AccessTime,
   Done,
@@ -65,26 +66,50 @@ const useStyles = makeStyles((theme) => ({
     top: "50%",
     right: -32,
     transform: "translateY(-50%)",
-    background: "#fff",
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.secondary,
     borderRadius: "50%",
     padding: 4,
     boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
     cursor: "pointer",
     display: "none",
     zIndex: 20,
-
     "&:hover": {
-      background: "#f0f2f5",
+      backgroundColor: theme.palette.action.hover,
     },
   },
-
+  reactionAddButton: {
+    width: 32,
+    height: 32,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "50%",
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: "1",
+    padding: 0,
+    boxSizing: "border-box",
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? theme.palette.grey[700]
+        : theme.palette.grey[300],
+    color: theme.palette.text.primary,
+    transition: "background-color 0.15s ease, transform 0.1s ease",
+    "&:hover": {
+      backgroundColor: theme.palette.action.selected,
+      transform: "scale(1.05)",
+    },
+  },
   reactionButtonRight: {
     display: "none",
     position: "absolute",
     top: "50%",
-    left: -32, // 👈 fica fora do balão, à esquerda
+    left: -32,
     transform: "translateY(-50%)",
-    background: "#fff",
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.secondary,
     borderRadius: "50%",
     padding: 4,
     boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
@@ -92,14 +117,41 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 16,
     zIndex: 20,
     "&:hover": {
-      background: "#f0f2f5",
+      backgroundColor: theme.palette.action.hover,
     },
   },
-
-  messageWithReaction: {
-    marginBottom: 25, // ajuste fino aqui (16~22 costuma ficar bom)
+  reactionPopover: {
+    borderRadius: 28,
+    padding: "6px 8px",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.primary,
+    boxShadow: theme.shadows[4],
+    overflow: "hidden",
   },
-
+  reactionEmoji: {
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    fontSize: 20,
+    transition: "background-color 0.15s ease, transform 0.12s ease",
+    "&:hover": {
+      backgroundColor:
+        theme.palette.mode === "dark"
+          ? "rgba(255,255,255,0.14)"
+          : "rgba(0,0,0,0.08)",
+      transform: "scale(1.2)",
+    },
+  },
+  messageWithReaction: {
+    marginBottom: 25,
+  },
   messagesListWrapper: {
     overflow: "hidden",
     position: "relative",
@@ -110,7 +162,6 @@ const useStyles = makeStyles((theme) => ({
     minWidth: 300,
     minHeight: 200,
   },
-
   currentTick: {
     alignItems: "center",
     textAlign: "center",
@@ -121,7 +172,6 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: "10px",
     boxShadow: "1px 5px 10px #b3b3b3",
   },
-
   currentTicktText: {
     color: theme.palette.primary,
     fontWeight: "bold",
@@ -129,7 +179,6 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "center",
     marginLeft: "0px",
   },
-
   messagesList: {
     backgroundImage:
       theme.mode === "light"
@@ -165,7 +214,6 @@ const useStyles = makeStyles((theme) => ({
     left: "50%",
     marginTop: 12,
   },
-
   messageLeft: {
     marginRight: 20,
     marginTop: 2,
@@ -174,28 +222,23 @@ const useStyles = makeStyles((theme) => ({
     height: "auto",
     display: "block",
     position: "relative",
-
-    // 👇 ÁREA INVISÍVEL DE HOVER
     "&::before": {
       content: '""',
       position: "absolute",
       top: -8,
       bottom: -8,
-      left: -20, // 👈 expande hover pra fora do balão
-      right: -20, // 👈 expande hover pra fora do balão
+      left: -20,
+      right: -20,
     },
-
     "&:hover #messageActionsButton": {
       display: "flex",
       position: "absolute",
       top: 0,
       right: 0,
     },
-
     "&:hover $reactionButton": {
       display: "flex",
     },
-
     whiteSpace: "pre-wrap",
     backgroundColor: theme.mode === "light" ? "#ffffff" : "#202c33",
     color: theme.mode === "light" ? "#303030" : "#ffffff",
@@ -211,7 +254,6 @@ const useStyles = makeStyles((theme) => ({
     boxShadow:
       theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
-
   quotedContainerLeft: {
     margin: "-3px -80px 6px -6px",
     overflow: "hidden",
@@ -220,7 +262,6 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     position: "relative",
   },
-
   quotedMsg: {
     padding: 10,
     maxWidth: 300,
@@ -229,13 +270,11 @@ const useStyles = makeStyles((theme) => ({
     whiteSpace: "pre-wrap",
     overflow: "hidden",
   },
-
   quotedSideColorLeft: {
     flex: "none",
     width: "4px",
     backgroundColor: "#388aff",
   },
-
   messageRight: {
     marginLeft: 20,
     marginTop: 2,
@@ -276,7 +315,6 @@ const useStyles = makeStyles((theme) => ({
     boxShadow:
       theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
-
   messageRightPrivate: {
     marginLeft: 20,
     marginTop: 2,
@@ -309,7 +347,6 @@ const useStyles = makeStyles((theme) => ({
     boxShadow:
       theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
   },
-
   quotedContainerRight: {
     margin: "-3px -80px 6px -6px",
     overflowY: "hidden",
@@ -318,20 +355,17 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     position: "relative",
   },
-
   quotedMsgRight: {
     padding: 10,
     maxWidth: 300,
     height: "auto",
     whiteSpace: "pre-wrap",
   },
-
   quotedSideColorRight: {
     flex: "none",
     width: "4px",
     backgroundColor: "#35cd96",
   },
-
   messageActionsButton: {
     display: "none",
     position: "relative",
@@ -339,42 +373,36 @@ const useStyles = makeStyles((theme) => ({
     zIndex: 1,
     backgroundColor: "inherit",
     opacity: "90%",
-    "&:hover, &.Mui-focusVisible": { backgroundColor: "inherit" },
+    "&:hover, &.Mui-focusVisible": {
+      backgroundColor: "inherit",
+    },
   },
-
   messageContactName: {
     display: "flex",
     color: "#6bcbef",
     fontWeight: 500,
   },
-
   textContentItem: {
     overflowWrap: "break-word",
     padding: "3px 80px 6px 6px",
   },
-
   textContentItemDeleted: {
     fontStyle: "italic",
     color: "rgba(0, 0, 0, 0.36)",
     overflowWrap: "break-word",
     padding: "3px 80px 6px 6px",
   },
-
   messageMedia: {
-    // ✅ CORREÇÃO: objectFit removido para vídeos funcionarem melhor
-    // objectFit: "cover", // Removido pois pode causar problemas em vídeos
     width: 400,
     height: "auto",
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
-    // ✅ CORREÇÃO: Adicionar estilos específicos para vídeo
     "&[controls]": {
-      objectFit: "contain", // Para vídeos, usar contain em vez de cover
+      objectFit: "contain",
     },
   },
-
   timestamp: {
     fontSize: 11,
     position: "absolute",
@@ -382,7 +410,6 @@ const useStyles = makeStyles((theme) => ({
     right: 5,
     color: "#999",
   },
-
   forwardMessage: {
     fontSize: 12,
     fontStyle: "italic",
@@ -393,7 +420,6 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "center",
   },
-
   dailyTimestamp: {
     alignItems: "center",
     textAlign: "center",
@@ -404,33 +430,28 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: "10px",
     boxShadow: "0 1px 1px #b3b3b3",
   },
-
   dailyTimestampText: {
     color: "#808888",
     padding: 8,
     alignSelf: "center",
     marginLeft: "0px",
   },
-
   ackIcons: {
     fontSize: 18,
     verticalAlign: "middle",
     marginLeft: 4,
   },
-
   deletedIcon: {
     fontSize: 18,
     verticalAlign: "middle",
     marginRight: 4,
   },
-
   ackDoneAllIcon: {
     color: blue[500],
     fontSize: 18,
     verticalAlign: "middle",
     marginLeft: 4,
   },
-
   ackPlayedIcon: {
     color: green[500],
     fontSize: 18,
@@ -445,7 +466,6 @@ const useStyles = makeStyles((theme) => ({
     padding: 10,
     color: theme.mode === "light" ? theme.palette.light : theme.palette.dark,
   },
-
   messageCenter: {
     marginTop: 5,
     alignItems: "center",
@@ -466,7 +486,6 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: 0,
     boxShadow: "0 1px 1px #b3b3b3",
   },
-
   deletedMessage: {
     color: "#f55d65",
   },
@@ -491,39 +510,32 @@ const reducer = (state, action) => {
 
   if (action.type === "ADD_MESSAGE") {
     const newMessage = action.payload;
-    // console.log("DEBUG LUCAS =>", newMessage);
     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
-
     if (messageIndex !== -1) {
       state[messageIndex] = newMessage;
     } else {
       state.push(newMessage);
     }
-
     return [...state];
   }
 
   if (action.type === "UPDATE_MESSAGE") {
     const messageToUpdate = action.payload;
-
     return state.map((m) => {
       if (m.id !== messageToUpdate.id) return m;
-
       return {
-        ...m, // mantém tudo que o front já tem
-        ...messageToUpdate, // aplica body, isDeleted, isEdited
-        ticket: m.ticket, // força manter
-        contact: m.contact, // força manter
+        ...m,
+        ...messageToUpdate,
+        ticket: m.ticket,
+        contact: m.contact,
       };
     });
   }
 
   if (action.type === "DELETE_MESSAGE") {
     const messageId = action.payload;
-
     return state.map((m) => {
       if (m.id !== messageId) return m;
-
       return {
         ...m,
         isDeleted: true,
@@ -533,15 +545,10 @@ const reducer = (state, action) => {
 
   if (action.type === "REACTION_UPDATE") {
     const { messageId, reaction } = action.payload;
-
     return state.map((message) => {
       if (message.id !== messageId) return message;
-
       const reactions = message.reactions || [];
-
-      // remove reação anterior do mesmo usuário
       const filtered = reactions.filter((r) => r.userId !== reaction.userId);
-
       return {
         ...message,
         reactions: [...filtered, reaction],
@@ -551,57 +558,14 @@ const reducer = (state, action) => {
 
   if (action.type === "REACTION_REMOVE") {
     const { messageId, userId } = action.payload;
-
     return state.map((message) => {
       if (message.id !== messageId) return message;
-
       return {
         ...message,
         reactions: (message.reactions || []).filter((r) => r.userId !== userId),
       };
     });
   }
-
-  // if (action.type === "ADD_REACTION") {
-  //   const { messageId, reaction } = action.payload;
-
-  //   return state.map((message) => {
-  //     if (message.id !== messageId) return message;
-
-  //     const reactions = message.reactions || [];
-
-  //     // remove reação anterior do mesmo usuário
-  //     const filtered = reactions.filter((r) => r.userId !== reaction.userId);
-
-  //     // se clicou no mesmo emoji → remove
-  //     const alreadyReacted = reactions.find(
-  //       (r) => r.userId === reaction.userId && r.emoji === reaction.emoji,
-  //     );
-
-  //     return {
-  //       ...message,
-  //       reactions: alreadyReacted ? filtered : [...filtered, reaction],
-  //     };
-  //   });
-  // }
-
-  // if (action.type === "REMOVE_REACTION") {
-  //   const { messageId, userId } = action.payload;
-
-  //   return state.map((message) => {
-  //     if (message.id !== messageId) return message;
-
-  //     const reactions = message.reactions || [];
-
-  //     // Filtra apenas as reações que NÃO são do usuário que removeu
-  //     const filteredReactions = reactions.filter((r) => r.userId !== userId);
-
-  //     return {
-  //       ...message,
-  //       reactions: filteredReactions,
-  //     };
-  //   });
-  // }
 
   if (action.type === "RESET") {
     return [];
@@ -617,6 +581,8 @@ const MessagesList = ({
   ticketStatus,
 }) => {
   const classes = useStyles();
+  const [reactionBar, setReactionBar] = useState(null);
+  const [reactionPicker, setReactionPicker] = useState(null);
   const [messagesList, dispatch] = useReducer(reducer, []);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -624,35 +590,31 @@ const MessagesList = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const history = useHistory();
   const lastMessageRef = useRef();
-
+  const messageRef = useRef(null);
+  const messageRight = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState({});
   const { setReplyingMessage } = useContext(ReplyMessageContext);
   const [anchorEl, setAnchorEl] = useState(null);
   const messageOptionsMenuOpen = Boolean(anchorEl);
   const { ticketId } = useParams();
-
   const currentTicketId = useRef(ticketId);
   const { getAll } = useCompanySettings();
   const [dragActive, setDragActive] = useState(false);
   const [dragTimeout, setDragTimeout] = useState(null);
-
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
-
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
-
-  // Hook simplificado para PDF
   const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
-
   const { showSelectMessageCheckbox } = useContext(ForwardMessageContext);
   const { user, socket } = useContext(AuthContext);
   const companyId = user.companyId;
 
+  const QUICK_REACTIONS = ["😂", "❤️", "😮", "😢", "🙏", "👍"];
+
   useEffect(() => {
     async function fetchData() {
       const settings = await getAll(companyId);
-
       let settinglgpdDeleteMessage;
       let settingEnableLGPD;
 
@@ -660,6 +622,7 @@ const MessagesList = ({
         if (key === "lgpdDeleteMessage") settinglgpdDeleteMessage = value;
         if (key === "enableLGPD") settingEnableLGPD = value;
       }
+
       if (
         settingEnableLGPD === "enabled" &&
         settinglgpdDeleteMessage === "enabled"
@@ -685,6 +648,7 @@ const MessagesList = ({
           return;
         }
         if (isNil(ticketId)) return;
+
         try {
           const { data } = await api.get("/messages/" + ticketId, {
             params: {
@@ -694,7 +658,10 @@ const MessagesList = ({
           });
 
           if (currentTicketId.current === ticketId) {
-            dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
+            dispatch({
+              type: "LOAD_MESSAGES",
+              payload: data.messages,
+            });
             setHasMore(data.hasMore);
             setLoading(false);
             setLoadingMore(false);
@@ -712,6 +679,7 @@ const MessagesList = ({
 
       fetchMessages();
     }, 500);
+
     return () => {
       clearTimeout(delayDebounceFn);
     };
@@ -721,7 +689,6 @@ const MessagesList = ({
     if (ticketId === "undefined") {
       return;
     }
-
     const companyId = user.companyId;
 
     const connectEventMessagesList = () => {
@@ -733,7 +700,6 @@ const MessagesList = ({
 
       if (data.action === "reaction:update") {
         console.log("DEBUG LUCAS => reaction.update === update");
-
         dispatch({
           type: "REACTION_UPDATE",
           payload: {
@@ -745,7 +711,6 @@ const MessagesList = ({
 
       if (data.action === "reaction:remove") {
         console.log("DEBUG LUCAS => reaction.remove === remove");
-
         dispatch({
           type: "REACTION_REMOVE",
           payload: {
@@ -758,11 +723,9 @@ const MessagesList = ({
       const msg = data.message;
       if (!msg) return;
 
-      const chatTicketUuid = ticketId; // o que vem da URL
-
+      const chatTicketUuid = ticketId;
       const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
       const msgTicketId = msg.ticketId || msg.ticket?.id || null;
-
       const isSameChat =
         String(msgTicketUuid) === String(chatTicketUuid) ||
         String(msgTicketId) === String(chatTicketUuid);
@@ -783,13 +746,9 @@ const MessagesList = ({
 
       if (data.action === "tombstone") {
         console.log("DEBUG LUCAS => data.action === tombstone");
-
         dispatch({
           type: "UPDATE_MESSAGE",
-          payload: {
-            ...msg,
-            isDeleted: true,
-          },
+          payload: { ...msg, isDeleted: true },
         });
       }
 
@@ -797,26 +756,6 @@ const MessagesList = ({
         console.log("DEBUG LUCAS => data.action === delete");
         dispatch({ type: "DELETE_MESSAGE", payload: msg.id });
       }
-
-      //   if (data.action === "reaction") {
-      //     dispatch({
-      //       type: "ADD_REACTION",
-      //       payload: {
-      //         messageId: data.messageId,
-      //         reaction: data.reaction,
-      //       },
-      //     });
-      //   }
-
-      //   if (data.action === "reaction:remove") {
-      //     dispatch({
-      //       type: "REMOVE_REACTION",
-      //       payload: {
-      //         messageId: data.messageId,
-      //         userId: data.userId,
-      //       },
-      //     });
-      //   }
     };
 
     socket.on("connect", connectEventMessagesList);
@@ -854,23 +793,72 @@ const MessagesList = ({
   const handleScroll = (e) => {
     if (!hasMore) return;
     const { scrollTop } = e.currentTarget;
-
     if (scrollTop === 0) {
       document.getElementById("messagesList").scrollTop = 1;
     }
-
     if (loading) {
       return;
     }
-
     if (scrollTop < 50) {
       loadMore();
     }
   };
 
+  const openReactionBar = (message, anchorElement) => {
+    if (!anchorElement) return;
+
+    const messageContainer =
+      anchorElement.closest?.("[data-message-container]") || anchorElement;
+
+    const myReaction = message.reactions?.find((r) => r.userId === user.id);
+
+    setReactionBar({
+      messageId: message.id,
+      messageWid: message.wid,
+      anchorEl: messageContainer,
+      currentEmoji: myReaction?.emoji || "",
+      message,
+    });
+
+    // 🔍 LOGS CIRÚRGICOS
+    console.group("🧪 openReactionBar");
+    console.log("message.id:", message.id);
+    console.log("message.wid:", message.wid);
+    console.log("user.id:", user.id);
+    console.log("message.reactions:", message.reactions);
+    console.log("myReaction:", myReaction);
+    console.log("currentEmoji:", myReaction?.emoji || null);
+    console.groupEnd();
+  };
+
   const handleOpenMessageOptionsMenu = (e, message) => {
+    const messageContainer = e.currentTarget.closest(
+      "[data-message-container]",
+    );
     setAnchorEl(e.currentTarget);
-    setSelectedMessage(message);
+    setSelectedMessage({
+      ...message,
+      _reactionAnchorEl: messageContainer,
+    });
+  };
+
+  const handleSendReaction = async (message, clickedEmoji) => {
+    try {
+      const myReaction = message.reactions?.find((r) => r.userId === user.id);
+
+      const emojiToSend =
+        myReaction?.emoji === clickedEmoji
+          ? "" // 🔥 REMOVE
+          : clickedEmoji; // 🔁 CRIA / TROCA
+
+      console.log("emojiToSend =>", emojiToSend);
+
+      await api.post(`/messages/${message}/reaction`, {
+        emoji: emojiToSend,
+      });
+    } catch (err) {
+      toastError(err);
+    }
   };
 
   const handleCloseMessageOptionsMenu = (e) => {
@@ -884,9 +872,7 @@ const MessagesList = ({
 
   const getBasename = (filepath) => {
     if (!filepath) return "";
-    // Remove query strings e hashes
     const cleanPath = filepath.split("?")[0].split("#")[0];
-    // Pega o último segmento após /
     const segments = cleanPath.split("/");
     return segments[segments.length - 1];
   };
@@ -900,7 +886,6 @@ const MessagesList = ({
         );
         return true;
       }
-
       if (message.mediaUrl) {
         const audioExtensions = [
           ".mp3",
@@ -914,13 +899,11 @@ const MessagesList = ({
         const hasAudioExtension = audioExtensions.some((ext) =>
           url.includes(ext),
         );
-
         if (hasAudioExtension) {
           console.log("🎵 Detectado como áudio pela URL:", url);
           return true;
         }
       }
-
       if (message.body && typeof message.body === "string") {
         const body = message.body.toLowerCase();
         const isAudioBody =
@@ -929,23 +912,17 @@ const MessagesList = ({
           body.includes("🎵") ||
           body.includes("arquivo de áudio") ||
           body.includes("mensagem de voz");
-
         if (isAudioBody) {
           console.log("🎵 Detectado como áudio pelo body:", body);
           return true;
         }
       }
-
       return false;
     };
 
-    // Templates
     if (message.mediaType === "template") {
       return <Template message={message} />;
-    }
-
-    // Localização
-    else if (
+    } else if (
       message.mediaType === "locationMessage" &&
       message.body.split("|").length >= 2
     ) {
@@ -954,7 +931,6 @@ const MessagesList = ({
       let linkLocation = locationParts[1];
       let descriptionLocation =
         locationParts.length > 2 ? locationParts[2] : null;
-
       return (
         <LocationPreview
           image={imageLocation}
@@ -962,14 +938,10 @@ const MessagesList = ({
           description={descriptionLocation}
         />
       );
-    }
-
-    // Contatos
-    else if (message.mediaType === "contactMessage") {
+    } else if (message.mediaType === "contactMessage") {
       let array = message.body.split("\n");
       let obj = [];
       let contact = "";
-
       for (let index = 0; index < array.length; index++) {
         const v = array[index];
         let values = v.split(":");
@@ -982,7 +954,6 @@ const MessagesList = ({
           }
         }
       }
-
       return (
         <VcardPreview
           contact={contact}
@@ -993,18 +964,13 @@ const MessagesList = ({
         />
       );
     } else if (message.mediaType === "adMetaPreview") {
-      // Adicionado para renderizar o componente de preview de anúncio
       console.log("Entrou no MetaPreview");
-      // ✅ CORREÇÃO: Parse correto dos dados - formato: image|sourceUrl|title|body|messageUser
       let [image, sourceUrl, title, body, messageUser] =
         message.body.split("|");
-
-      // Fallback para messageUser se não estiver presente
       if (!messageUser || messageUser.trim() === "") {
         messageUser =
           "Olá! Tenho interesse e queria mais informações, por favor.";
       }
-
       return (
         <AdMetaPreview
           image={image}
@@ -1014,13 +980,9 @@ const MessagesList = ({
           messageUser={messageUser}
         />
       );
-    }
-
-    // PDF e Documentos - SÓ DOWNLOAD
-    else if (isPdfUrl(message.mediaUrl, message.body, message.mediaType)) {
+    } else if (isPdfUrl(message.mediaUrl, message.body, message.mediaType)) {
       console.log("📄 Renderizando como documento/PDF:", message.id);
       const pdfInfo = extractPdfInfoFromMessage(message);
-
       return (
         <PdfPreview
           url={pdfInfo.url}
@@ -1033,10 +995,7 @@ const MessagesList = ({
           }}
         />
       );
-    }
-
-    // Áudio
-    else if (isAudioMessage(message)) {
+    } else if (isAudioMessage(message)) {
       console.log("🎵 Renderizando como áudio:", message.id);
       return (
         <div
@@ -1045,28 +1004,26 @@ const MessagesList = ({
             maxWidth: "100%",
             padding: "8px",
             backgroundColor: "transparent",
-            boxSizing: "border-box", // ✅ INCLUI PADDING NA LARGURA
-            overflow: "hidden", // ✅ IMPEDE vazamento
+            boxSizing: "border-box",
+            overflow: "hidden",
           }}
         >
           <AudioModal url={message.mediaUrl} message={message} />
         </div>
       );
-    }
-
-    // Imagens
-    else if (message.mediaType === "image") {
+    } else if (message.mediaType === "image") {
       console.log("🖼️ Renderizando como imagem");
       return <ModalImageCors imageUrl={message.mediaUrl} />;
-    }
-
-    // Vídeos
-    else if (message.mediaType === "video") {
+    } else if (message.mediaType === "video") {
       console.log("🎥 Renderizando como vídeo");
-
       return (
-        <div style={{ maxWidth: "400px", width: "100%", position: "relative" }}>
-          {/* Loading indicator */}
+        <div
+          style={{
+            maxWidth: "400px",
+            width: "100%",
+            position: "relative",
+          }}
+        >
           {videoLoading && !videoError && (
             <div
               style={{
@@ -1088,7 +1045,6 @@ const MessagesList = ({
             </div>
           )}
 
-          {/* Vídeo player melhorado */}
           <video
             className={classes.messageMedia}
             src={message.mediaUrl}
@@ -1124,15 +1080,12 @@ const MessagesList = ({
               setVideoError(true);
             }}
           >
-            {/* ✅ CORREÇÃO: Múltiplos formatos para compatibilidade */}
             <source src={message.mediaUrl} type="video/mp4" />
             <source src={message.mediaUrl} type="video/webm" />
             <source src={message.mediaUrl} type="video/ogg" />
-            {/* Fallback para navegadores antigos */}
             Seu navegador não suporta reprodução de vídeo.
           </video>
 
-          {/* Error state */}
           {videoError && (
             <div
               style={{
@@ -1164,10 +1117,7 @@ const MessagesList = ({
           )}
         </div>
       );
-    }
-
-    // Outros tipos de arquivo
-    else if (message.mediaUrl) {
+    } else if (message.mediaUrl) {
       console.log("📎 Renderizando como download genérico");
       return (
         <>
@@ -1186,7 +1136,6 @@ const MessagesList = ({
         </>
       );
     }
-
     return null;
   };
 
@@ -1233,7 +1182,6 @@ const MessagesList = ({
     } else if (index < messagesList.length - 1) {
       let messageDay = parseISO(messagesList[index].createdAt);
       let previousMessageDay = parseISO(messagesList[index - 1].createdAt);
-
       if (!isSameDay(messageDay, previousMessageDay)) {
         return (
           <span
@@ -1331,7 +1279,6 @@ const MessagesList = ({
               {message.quotedMsg?.contact?.name}
             </span>
           )}
-
           {message.quotedMsg.mediaType === "audio" && (
             <div className={classes.downloadMedia}>
               <AudioModal url={message.quotedMsg.mediaUrl} />
@@ -1384,12 +1331,10 @@ const MessagesList = ({
               </Button>
             </div>
           )}
-
           {(message.quotedMsg.mediaType === "image" && (
             <ModalImageCors imageUrl={message.quotedMsg.mediaUrl} />
           )) ||
             message.quotedMsg?.body}
-
           {!message.quotedMsg.mediaType === "image" && message.quotedMsg?.body}
         </div>
       </div>
@@ -1411,13 +1356,11 @@ const MessagesList = ({
         if (dragTimeout) {
           clearTimeout(dragTimeout);
         }
-
         const timeout = setTimeout(() => {
           if (event.dataTransfer.items && event.dataTransfer.items.length > 0) {
             setDragActive(true);
           }
         }, 100);
-
         setDragTimeout(timeout);
       }
     } else if (event.type === "dragleave") {
@@ -1425,11 +1368,9 @@ const MessagesList = ({
         clearTimeout(dragTimeout);
         setDragTimeout(null);
       }
-
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX;
       const y = event.clientY;
-
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
         setDragActive(false);
       }
@@ -1438,7 +1379,6 @@ const MessagesList = ({
 
   const isYouTubeLink = (url) => {
     const youtubeRegex =
-      // /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
       /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
     return youtubeRegex.test(url);
   };
@@ -1451,7 +1391,6 @@ const MessagesList = ({
       clearTimeout(dragTimeout);
       setDragTimeout(null);
     }
-
     setDragActive(false);
 
     if (
@@ -1464,13 +1403,12 @@ const MessagesList = ({
       }
     }
   };
+
   const xmlRegex = /<([^>]+)>/g;
   const boldRegex = /\*(.*?)\*/g;
 
   const formatXml = (xmlString) => {
-    // Verifica se o XML contém a assinatura com nome do atendente
     if (boldRegex.test(xmlString)) {
-      // Formata o texto dentro da assinatura em negrito
       xmlString = xmlString.replace(boldRegex, "**$1**");
     }
     return xmlString;
@@ -1480,36 +1418,13 @@ const MessagesList = ({
     if (!message.reactions || message.reactions.length === 0) {
       return null;
     }
-
     return (
-      // <div
-      //   style={{
-      //     position: "absolute",
-      //     bottom: -10,
-      //     left: message.fromMe ? "auto" : 10,
-      //     right: message.fromMe ? 10 : "auto",
-      //     display: "flex",
-      //     gap: 6,
-      //     background: "#f0f0f0",
-      //     borderRadius: 12,
-      //     padding: "2px 6px",
-      //     fontSize: 13,
-      //     zIndex: 10,
-      //   }}
-      // >
-      //   {message.reactions.map((reaction) => (
-      //     <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
-      //       {reaction.emoji}
-      //     </span>
-      //   ))}
-      // </div>
-
       <div
         style={{
           position: "absolute",
           bottom: -20,
-          left: 5, // 👈 sempre à esquerda
-          right: "auto", // 👈 nunca à direita
+          left: 5,
+          right: "auto",
           display: "flex",
           gap: 6,
           background: "#f0f0f0",
@@ -1553,7 +1468,6 @@ const MessagesList = ({
                     {message.contact?.name}
                   </span>
                 )}
-
                 <div>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1583,6 +1497,8 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
               <div
+                data-message-container
+                data-message-id={message.id}
                 className={clsx(classes.messageLeft, {
                   [classes.messageWithReaction]:
                     message.reactions && message.reactions.length > 0,
@@ -1603,7 +1519,6 @@ const MessagesList = ({
                 >
                   <ExpandMore />
                 </IconButton>
-
                 <IconButton
                   variant="contained"
                   size="small"
@@ -1615,15 +1530,11 @@ const MessagesList = ({
                   <ExpandMore />
                 </IconButton>
 
-                {/* ✅ BOTÃO DE REAÇÃO — AQUI */}
                 <div
                   className={classes.reactionButton}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setReactionAnchor({
-                      messageId: message.id,
-                      anchorEl: e.currentTarget,
-                    });
+                    openReactionBar(message, e.currentTarget);
                   }}
                 >
                   <EmojiEmotionsOutlinedIcon fontSize="small" />
@@ -1633,18 +1544,23 @@ const MessagesList = ({
                   <div>
                     <span className={classes.forwardMessage}>
                       <Reply
-                        style={{ color: "grey", transform: "scaleX(-1)" }}
+                        style={{
+                          color: "grey",
+                          transform: "scaleX(-1)",
+                        }}
                       />{" "}
                       Encaminhada
                     </span>
                     <br />
                   </div>
                 )}
+
                 {isGroup && (
                   <span className={classes.messageContactName}>
                     {message.contact?.name}
                   </span>
                 )}
+
                 {isYouTubeLink(message.body) && (
                   <>
                     <YouTubePreview videoUrl={message.body} />
@@ -1672,6 +1588,7 @@ const MessagesList = ({
                   })}
                 >
                   {message.quotedMsg && renderQuotedMessage(message)}
+
                   {message.mediaType !== "adMetaPreview" &&
                     ((message.mediaUrl !== null &&
                       (message.mediaType === "image" ||
@@ -1718,20 +1635,17 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
               <div
-                className={
-                  // message.isPrivate
-                  //   ? classes.messageRightPrivate
-                  //   : classes.messageRight
-                  clsx(
-                    message.isPrivate
-                      ? classes.messageRightPrivate
-                      : classes.messageRight,
-                    {
-                      [classes.messageWithReaction]:
-                        message.reactions && message.reactions.length > 0,
-                    },
-                  )
-                }
+                data-message-container
+                data-message-id={message.id}
+                className={clsx(
+                  message.isPrivate
+                    ? classes.messageRightPrivate
+                    : classes.messageRight,
+                  {
+                    [classes.messageWithReaction]:
+                      message.reactions && message.reactions.length > 0,
+                  },
+                )}
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
               >
@@ -1754,10 +1668,7 @@ const MessagesList = ({
                   className={classes.reactionButtonRight}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setReactionAnchor({
-                      messageId: message.id,
-                      anchorEl: e.currentTarget,
-                    });
+                    openReactionBar(message, e.currentTarget);
                   }}
                 >
                   <EmojiEmotionsOutlinedIcon fontSize="small" />
@@ -1767,18 +1678,23 @@ const MessagesList = ({
                   <div>
                     <span className={classes.forwardMessage}>
                       <Reply
-                        style={{ color: "grey", transform: "scaleX(-1)" }}
+                        style={{
+                          color: "grey",
+                          transform: "scaleX(-1)",
+                        }}
                       />{" "}
                       Encaminhada
                     </span>
                     <br />
                   </div>
                 )}
+
                 {isYouTubeLink(message.body) && (
                   <>
                     <YouTubePreview videoUrl={message.body} />
                   </>
                 )}
+
                 {!lgpdDeleteMessage && message.isDeleted && (
                   <div>
                     <span className={classes.deletedMessage}>
@@ -1786,11 +1702,13 @@ const MessagesList = ({
                     </span>
                   </div>
                 )}
+
                 {(message.mediaUrl ||
                   message.mediaType === "locationMessage" ||
                   message.mediaType === "contactMessage" ||
                   message.mediaType === "template") &&
                   checkMessageMedia(message)}
+
                 <div
                   className={clsx(classes.textContentItem, {
                     [classes.textContentItemDeleted]: message.isDeleted,
@@ -1816,17 +1734,6 @@ const MessagesList = ({
                         </>
                       ))}
 
-                  {/* {message.quotedMsg &&
-                    message.mediaType === "reactionMessage" && (
-                      <>
-                        <span style={{ marginLeft: "0px" }}>
-                          <MarkdownWrapper>
-                            {"Você reagiu... " + message.body}
-                          </MarkdownWrapper>
-                        </span>
-                      </>
-                    )} */}
-
                   {renderReactions(message)}
 
                   <span className={classes.timestamp}>
@@ -1847,6 +1754,7 @@ const MessagesList = ({
       return <div>Diga olá para seu novo contato!</div>;
     }
   };
+
   const shouldBlurMessages =
     ticketStatus === "pending" &&
     user.allowSeeMessagesInPendingTickets === "disabled";
@@ -1864,6 +1772,7 @@ const MessagesList = ({
           Solte o arquivo aqui
         </div>
       )}
+
       <MessageOptionsMenu
         message={selectedMessage}
         anchorEl={anchorEl}
@@ -1872,7 +1781,90 @@ const MessagesList = ({
         isGroup={isGroup}
         whatsappId={whatsappId}
         queueId={queueId}
+        onReact={openReactionBar}
       />
+
+      <Popover
+        open={Boolean(reactionBar)}
+        anchorEl={reactionBar?.anchorEl}
+        onClose={() => setReactionBar(null)}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+        transformOrigin={{
+          vertical: "bottom",
+          horizontal: "center",
+        }}
+        disablePortal
+        sx={{
+          "& .MuiPaper-root": {
+            borderRadius: 28,
+            padding: "6px 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            overflow: "hidden",
+          },
+        }}
+      >
+        {QUICK_REACTIONS.map((emoji) => (
+          <span
+            key={emoji}
+            className={classes.reactionEmoji}
+            onClick={() => {
+              handleSendReaction(reactionBar.messageWid, emoji);
+              setReactionBar(null);
+              setReactionBar(null);
+            }}
+          >
+            {emoji}
+          </span>
+        ))}
+
+        <span
+          className={classes.reactionAddButton}
+          onClick={() => {
+            setReactionPicker(reactionBar);
+            setReactionBar(null);
+          }}
+        >
+          +
+        </span>
+      </Popover>
+
+      <Popover
+        open={Boolean(reactionPicker)}
+        anchorEl={reactionPicker?.anchorEl}
+        onClose={() => setReactionPicker(null)}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: 620,
+              maxWidth: "none",
+              overflow: "hidden",
+              borderRadius: 2,
+            },
+          },
+        }}
+      >
+        <EmojiPicker
+          onEmojiClick={(emojiData) => {
+            handleSendReaction(reactionPicker.messageWid, emojiData.emoji);
+            setReactionPicker(null);
+          }}
+          height={380}
+          width={280}
+        />
+      </Popover>
 
       <div
         id="messagesList"
@@ -1903,7 +1895,6 @@ const MessagesList = ({
           ) : (
             <WhatsApp />
           )}
-
           <span>
             Você tem 24h para responder após receber uma mensagem, de acordo com
             as políticas da Meta.
