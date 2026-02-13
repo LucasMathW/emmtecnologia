@@ -63,6 +63,7 @@ import CreateLogTicketService from "../TicketServices/CreateLogTicketService";
 import Whatsapp from "../../models/Whatsapp";
 import QueueIntegrations from "../../models/QueueIntegrations";
 import ShowFileService from "../FileServices/ShowService";
+import { WbotSession } from "../../@types/WbotSession";
 
 import OpenAI from "openai";
 import ffmpeg from "fluent-ffmpeg";
@@ -1104,7 +1105,6 @@ export const verifyMessage = async (
   isPrivate?: boolean,
   isForwarded: boolean = false
 ) => {
-  console.log("DEBUG LUCAS => VerifyMesssage");
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg);
   const body = getBodyMessage(msg);
@@ -1690,7 +1690,6 @@ const verifyQueue = async (
   if (choosenQueue) {
     try {
       const userQueue = await ListUserQueueServices(choosenQueue.id);
-      console.log("userQueue", userQueue.userId);
       if (userQueue.userId > -1) {
         randomUserId = userQueue.userId;
       }
@@ -2594,14 +2593,14 @@ export const flowbuilderIntegration = async (
   );
 
   // DEBUG - Verificar configurações de fluxo
-  console.log(
-    `[FLOW-DEBUG] Configurações de fluxo - flowIdNotPhrase: ${whatsapp.flowIdNotPhrase}, flowIdWelcome: ${whatsapp.flowIdWelcome}`
-  );
+  // console.log(
+  //   `[FLOW-DEBUG] Configurações de fluxo - flowIdNotPhrase: ${whatsapp.flowIdNotPhrase}, flowIdWelcome: ${whatsapp.flowIdWelcome}`
+  // );
 
-  // *** PRIORIDADE MÁXIMA: CAMPANHAS SEMPRE SÃO VERIFICADAS PRIMEIRO ***
-  console.log(
-    `[CAMPANHAS] Verificando campanhas para: "${body}" na conexão ${whatsapp.id} (${whatsapp.name})`
-  );
+  // // *** PRIORIDADE MÁXIMA: CAMPANHAS SEMPRE SÃO VERIFICADAS PRIMEIRO ***
+  // console.log(
+  //   `[CAMPANHAS] Verificando campanhas para: "${body}" na conexão ${whatsapp.id} (${whatsapp.name})`
+  // );
 
   try {
     // Buscar campanhas ativas da empresa
@@ -2883,19 +2882,19 @@ export const flowbuilderIntegration = async (
   };
 
   // *** FLUXO flowIdNotPhrase: APENAS para contatos NOVOS na primeira mensagem SEM match de campanha ***
-  console.log(`[FLOW-DEBUG] Verificando condições para flowIdNotPhrase:`);
-  console.log(
-    `[FLOW-DEBUG] - hasAnyPhraseMatch: ${hasAnyPhraseMatch(
-      listPhrase,
-      body,
-      whatsapp.id
-    )}`
-  );
-  console.log(
-    `[FLOW-DEBUG] - whatsapp.flowIdNotPhrase: ${whatsapp.flowIdNotPhrase}`
-  );
-  console.log(`[FLOW-DEBUG] - messageCount: ${messageCount}`);
-  console.log(`[FLOW-DEBUG] - isNewContact: ${isNewContact}`);
+  // console.log(`[FLOW-DEBUG] Verificando condições para flowIdNotPhrase:`);
+  // console.log(
+  //   `[FLOW-DEBUG] - hasAnyPhraseMatch: ${hasAnyPhraseMatch(
+  //     listPhrase,
+  //     body,
+  //     whatsapp.id
+  //   )}`
+  // );
+  // console.log(
+  //   `[FLOW-DEBUG] - whatsapp.flowIdNotPhrase: ${whatsapp.flowIdNotPhrase}`
+  // );
+  // console.log(`[FLOW-DEBUG] - messageCount: ${messageCount}`);
+  // console.log(`[FLOW-DEBUG] - isNewContact: ${isNewContact}`);
 
   // Evitar reexecutar o fluxo de primeiro contato no mesmo ticket
   const firstContactFlagKey = `first-contact-executed:${ticket.id}`;
@@ -3765,7 +3764,7 @@ const handleMessage = async (
   companyId: number,
   isImported: boolean = false
 ): Promise<void> => {
-  console.log("DEBUG LUCAS => handleMessage");
+  // console.log("DEBUG LUCAS => handleMessage (mensagem pasa por aqu)");
   let campaignExecuted = false;
 
   if (isImported) {
@@ -5444,137 +5443,6 @@ const filterMessages = (msg: WAMessage): boolean => {
   return true;
 };
 
-// const handleBaileysReaction = async (
-//   message: WAMessageSafe,
-//   wbot: WASocket,
-//   companyId: number
-// ) => {
-//   try {
-//     const nsp = getIO().of(`/${companyId}`);
-
-//     const reaction = message.message?.reactionMessage;
-//     if (!reaction) return;
-
-//     const reactedMsgWid = reaction.key?.id;
-//     const emoji = reaction.text || "";
-
-//     if (!reactedMsgWid) return;
-
-//     // 🔥 Descobre quem reagiu (LID vs número real)
-//     const rawJid =
-//       message.key.remoteJidAlt ||
-//       reaction.key.remoteJidAlt ||
-//       reaction.key.participant ||
-//       message.key.participant ||
-//       reaction.key.remoteJid ||
-//       message.key.remoteJid;
-
-//     if (!rawJid) return;
-
-//     const normalizedJid = normalizeJid(rawJid);
-//     const number = normalizedJid.replace(/\D/g, "");
-
-//     // 🔥 Busca contato (cliente)
-//     const contact = await Contact.findOne({
-//       where: {
-//         number,
-//         companyId
-//       }
-//     });
-
-//     // 🔥 Busca mensagem reagida
-//     const msg = await Message.findOne({
-//       where: {
-//         wid: reactedMsgWid,
-//         companyId
-//       },
-//       include: [
-//         {
-//           model: Ticket,
-//           as: "ticket",
-//           attributes: ["id"]
-//         }
-//       ]
-//     });
-
-//     const room = `company-${companyId}-chat-${msg.ticket.id}`;
-
-//     if (!msg || !contact) {
-//       console.log("Reaction ignorada:", reactedMsgWid, number);
-//       return;
-//     }
-
-//     // 🔥 Descobre se quem reagiu foi o dono da conexão (agente)
-//     let userId: number;
-//     let fromJid: string;
-
-//     // 🔥 Número do WhatsApp conectado
-//     const whatsapp = await Whatsapp.findByPk(wbot.id);
-//     const agentNumber = whatsapp.number;
-
-//     // 🔥 Busca o usuário humano pelo número
-//     const agentUser = await User.findOne({
-//       where: {
-//         whatsappId: whatsapp.id,
-//         companyId
-//       }
-//     });
-
-//     if (!agentUser) {
-//       console.log(
-//         "Usuário do WhatsApp da empresa não encontrado:",
-//         agentNumber
-//       );
-//       return;
-//     }
-
-//     if (message.key.fromMe) {
-//       userId = agentUser.id;
-//       fromJid = `${whatsapp.number}@s.whatsapp.net`;
-//     } else {
-//       userId = contact.id;
-//       fromJid = normalizedJid;
-//     }
-
-//     const payload = {
-//       messageId: msg.id,
-//       userId,
-//       emoji
-//     };
-
-//     // ❌ REMOÇÃO
-//     if (emoji === "") {
-//       await MessageReaction.destroy({
-//         where: {
-//           messageId: msg.id,
-//           userId
-//         }
-//       });
-
-//       nsp.to(room).emit("reaction:remove", payload);
-//       nsp.emit("reaction:remove", payload);
-
-//       console.log("Reaction removida:", reactedMsgWid, userId);
-//       return;
-//     }
-
-//     // ❤️ UPSERT
-//     await MessageReaction.upsert({
-//       messageId: msg.id,
-//       userId,
-//       fromJid,
-//       emoji
-//     });
-
-//     nsp.to(room).emit("reaction:update", payload); // quem está no chat
-//     nsp.emit("reaction:update", payload); // quem acabou de entrar
-
-//     console.log("Reaction salva:", reactedMsgWid, emoji, userId);
-//   } catch (err) {
-//     console.error("Erro ao processar reaction Baileys:", err);
-//   }
-// };
-import { WbotSession } from "../../@types/WbotSession";
 const handleBaileysReaction = async (
   message: WAMessageSafe,
   // wbot: WASocket,
@@ -5663,14 +5531,6 @@ const handleBaileysReaction = async (
       return;
     }
 
-    // 🔥 UPSERT (estado final: reação ativa)
-    // await MessageReaction.upsert({
-    //   messageId: msg.id,
-    //   userId,
-    //   fromJid,
-    //   emoji
-    // });
-
     const [messageReaction, created] = await MessageReaction.findOrCreate({
       where: {
         messageId: msg.id,
@@ -5704,6 +5564,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
+
+    console.log("REACOES VINDA DO USUARIO DO CHAT");
 
     for (const message of rawMessages) {
       // 🔥 1️⃣ Reaction
@@ -5809,6 +5671,12 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         }
       }
     });
+  });
+
+  wbot.ev.on("messages.reaction", async reactions => {
+    for (const reaction of reactions) {
+      await handleBaileysReaction(reaction, wbot, companyId);
+    }
   });
 
   wbot.ev.on("messages.update", (messageUpdate: WAMessageUpdate[]) => {
