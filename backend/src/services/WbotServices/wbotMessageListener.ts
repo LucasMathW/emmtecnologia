@@ -5445,7 +5445,6 @@ const filterMessages = (msg: WAMessage): boolean => {
 
 const handleBaileysReaction = async (
   message: WAMessageSafe,
-  // wbot: WASocket,
   wbot: WbotSession,
   companyId: number
 ) => {
@@ -5564,8 +5563,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
-
-    console.log("REACOES VINDA DO USUARIO DO CHAT");
 
     for (const message of rawMessages) {
       // 🔥 1️⃣ Reaction
