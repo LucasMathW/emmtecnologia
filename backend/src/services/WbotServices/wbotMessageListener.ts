@@ -5502,8 +5502,9 @@ const handleBaileysReaction = async (
     // 🔥 Resolve userId (agente x contato)
     let userId: number;
     let fromJid: string;
+    const isFromMe = message.key.fromMe;
 
-    if (message.key.fromMe) {
+    if (isFromMe) {
       userId = agentUser.id;
       fromJid = `${whatsapp.number}@s.whatsapp.net`;
     } else {
@@ -5520,7 +5521,7 @@ const handleBaileysReaction = async (
       nsp.emit(`company-${companyId}-appMessage`, {
         action: "reaction:remove",
         messageId: msg.id,
-        userId,
+        reaction: { userId, emoji, fromMe: isFromMe, fromJid },
         ticketId: msg.ticketId
       });
 
@@ -5530,17 +5531,17 @@ const handleBaileysReaction = async (
     // 🔁 UPSERT
     const [reactionRow] = await MessageReaction.findOrCreate({
       where: { messageId: msg.id, userId },
-      defaults: { emoji }
+      defaults: { emoji, fromJid }
     });
 
-    if (reactionRow.emoji !== emoji) {
-      await reactionRow.update({ emoji });
+    if (reactionRow.emoji !== emoji || reactionRow.fromJid !== fromJid) {
+      await reactionRow.update({ emoji, fromJid });
     }
 
     nsp.emit(`company-${companyId}-appMessage`, {
       action: "reaction:update",
       messageId: msg.id,
-      reaction: { userId, emoji },
+      reaction: { userId, emoji, fromMe: isFromMe, fromJid },
       ticketId: msg.ticketId
     });
   } catch (err) {
