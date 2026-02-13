@@ -545,10 +545,17 @@ const reducer = (state, action) => {
 
   if (action.type === "REACTION_UPDATE") {
     const { messageId, reaction } = action.payload;
+
     return state.map((message) => {
       if (message.id !== messageId) return message;
+
       const reactions = message.reactions || [];
-      const filtered = reactions.filter((r) => r.userId !== reaction.userId);
+
+      const filtered = reactions.filter(
+        (r) =>
+          !(r.fromMe === reaction.fromMe && r.fromJid === reaction.fromJid),
+      );
+
       return {
         ...message,
         reactions: [...filtered, reaction],
@@ -557,12 +564,16 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "REACTION_REMOVE") {
-    const { messageId, userId } = action.payload;
+    const { messageId, fromMe, fromJid } = action.payload;
+
     return state.map((message) => {
       if (message.id !== messageId) return message;
+
       return {
         ...message,
-        reactions: (message.reactions || []).filter((r) => r.userId !== userId),
+        reactions: (message.reactions || []).filter(
+          (r) => !(r.fromMe === fromMe && r.fromJid === fromJid),
+        ),
       };
     });
   }
@@ -696,10 +707,7 @@ const MessagesList = ({
     };
 
     const onAppMessageMessagesList = (data) => {
-      console.log("EVENTO:", data);
-
       if (data.action === "reaction:update") {
-        console.log("DEBUG LUCAS => reaction.update === update");
         dispatch({
           type: "REACTION_UPDATE",
           payload: {
@@ -710,12 +718,13 @@ const MessagesList = ({
       }
 
       if (data.action === "reaction:remove") {
-        console.log("DEBUG LUCAS => reaction.remove === remove");
         dispatch({
           type: "REACTION_REMOVE",
           payload: {
             messageId: data.messageId,
-            userId: data.userId,
+            // userId: data.userId,
+            fromMe: data.reaction.fromMe,
+            fromJid: data.reaction.fromJid,
           },
         });
       }
@@ -735,7 +744,6 @@ const MessagesList = ({
       }
 
       if (data.action === "create") {
-        console.log("DEBUG LUCAS => data.action === create");
         dispatch({ type: "ADD_MESSAGE", payload: msg });
         scrollToBottom();
       }
@@ -745,7 +753,6 @@ const MessagesList = ({
       }
 
       if (data.action === "tombstone") {
-        console.log("DEBUG LUCAS => data.action === tombstone");
         dispatch({
           type: "UPDATE_MESSAGE",
           payload: { ...msg, isDeleted: true },
@@ -753,7 +760,6 @@ const MessagesList = ({
       }
 
       if (data.action === "delete") {
-        console.log("DEBUG LUCAS => data.action === delete");
         dispatch({ type: "DELETE_MESSAGE", payload: msg.id });
       }
     };
@@ -810,7 +816,7 @@ const MessagesList = ({
     const messageContainer =
       anchorElement.closest?.("[data-message-container]") || anchorElement;
 
-    const myReaction = message.reactions?.find((r) => r.userId === user.id);
+    const myReaction = message.reactions?.find((r) => r.fromMe === true);
 
     setReactionBar({
       messageId: message.id,
@@ -819,16 +825,6 @@ const MessagesList = ({
       currentEmoji: myReaction?.emoji || "",
       message,
     });
-
-    // 🔍 LOGS CIRÚRGICOS
-    console.group("🧪 openReactionBar");
-    console.log("message.id:", message.id);
-    console.log("message.wid:", message.wid);
-    console.log("user.id:", user.id);
-    console.log("message.reactions:", message.reactions);
-    console.log("myReaction:", myReaction);
-    console.log("currentEmoji:", myReaction?.emoji || null);
-    console.groupEnd();
   };
 
   const handleOpenMessageOptionsMenu = (e, message) => {
@@ -844,16 +840,16 @@ const MessagesList = ({
 
   const handleSendReaction = async (message, clickedEmoji) => {
     try {
-      const myReaction = message.reactions?.find((r) => r.userId === user.id);
+      const myReaction = message.reactions?.find((r) => r.fromMe === true);
+
+      console.log("myReaction", myReaction);
 
       const emojiToSend =
         myReaction?.emoji === clickedEmoji
           ? "" // 🔥 REMOVE
           : clickedEmoji; // 🔁 CRIA / TROCA
 
-      console.log("emojiToSend =>", emojiToSend);
-
-      await api.post(`/messages/${message}/reaction`, {
+      await api.post(`/messages/${message.wid}/reaction`, {
         emoji: emojiToSend,
       });
     } catch (err) {
@@ -1813,7 +1809,7 @@ const MessagesList = ({
             key={emoji}
             className={classes.reactionEmoji}
             onClick={() => {
-              handleSendReaction(reactionBar.messageWid, emoji);
+              handleSendReaction(reactionBar.message, emoji);
               setReactionBar(null);
               setReactionBar(null);
             }}
@@ -1858,7 +1854,7 @@ const MessagesList = ({
       >
         <EmojiPicker
           onEmojiClick={(emojiData) => {
-            handleSendReaction(reactionPicker.messageWid, emojiData.emoji);
+            handleSendReaction(reactionPicker.message, emojiData.emoji);
             setReactionPicker(null);
           }}
           height={380}
