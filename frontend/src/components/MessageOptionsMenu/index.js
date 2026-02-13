@@ -2,6 +2,13 @@ import React, { useState, useContext } from "react";
 
 import MenuItem from "@material-ui/core/MenuItem";
 
+import { ListItemIcon, ListItemText, useTheme } from "@material-ui/core";
+import EmojiEmotionsOutlinedIcon from "@material-ui/icons/EmojiEmotionsOutlined";
+import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
+import EditOutlinedIcon from "@material-ui/icons/EditOutlined";
+import ReplyIcon from "@material-ui/icons/Reply";
+import ForwardIcon from "@material-ui/icons/Forward";
+
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import ConfirmationModal from "../ConfirmationModal";
@@ -27,28 +34,37 @@ const MessageOptionsMenu = ({
   anchorEl,
   isGroup,
   queueId,
-  whatsappId
+  whatsappId,
+  onReact,
 }) => {
+  const theme = useTheme();
   const { setReplyingMessage } = useContext(ReplyMessageContext);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const { user } = useContext(AuthContext);
   const editingContext = useContext(EditMessageContext);
-  const setEditingMessage = editingContext ? editingContext.setEditingMessage : null;
+  const setEditingMessage = editingContext
+    ? editingContext.setEditingMessage
+    : null;
   const { setTabOpen } = useContext(TicketsContext);
   const history = useHistory();
 
   const [openAlert, setOpenAlert] = useState(false);
   const [userTicketOpen, setUserTicketOpen] = useState("");
   const [queueTicketOpen, setQueueTicketOpen] = useState("");
-  const [acceptTicketWithouSelectQueueOpen, setAcceptTicketWithouSelectQueueOpen] = useState(false);
+  const [
+    acceptTicketWithouSelectQueueOpen,
+    setAcceptTicketWithouSelectQueueOpen,
+  ] = useState(false);
 
   const [ticketOpen, setTicketOpen] = useState(null);
 
-  const { showSelectMessageCheckbox,
+  const {
+    showSelectMessageCheckbox,
     setShowSelectMessageCheckbox,
     selectedMessages,
     forwardMessageModalOpen,
-    setForwardMessageModalOpen } = useContext(ForwardMessageContext);
+    setForwardMessageModalOpen,
+  } = useContext(ForwardMessageContext);
 
   const handleSaveTicket = async (contactId) => {
     if (!contactId) return;
@@ -59,7 +75,7 @@ const MessageOptionsMenu = ({
         userId: user?.id,
         status: "open",
         queueId: queueId,
-        whatsappId: whatsappId
+        whatsappId: whatsappId,
       });
 
       setTicketOpen(ticket);
@@ -113,18 +129,7 @@ const MessageOptionsMenu = ({
   const handleEditMessage = async () => {
     setEditingMessage(message);
     handleClose();
-  }
-  // const handleForwardMessage = (msg) => {
-  //   setForwardModalOpen(true);
-  //   setForwardMessage(msg);
-  //   handleClose();
-  // };
-  // const handleCloseForwardModal = () => {
-
-  //   //setSelectedSchedule(null);
-  //   setForwardModalOpen(false);
-  //   handleClose();
-  // };
+  };
 
   const hanldeReplyMessage = () => {
     setReplyingMessage(message);
@@ -191,21 +196,59 @@ const MessageOptionsMenu = ({
         onClose={handleClose}
       >
         {message.fromMe && (
-          <MenuItem key="delete" onClick={handleOpenConfirmationModal}>
-            {i18n.t("messageOptionsMenu.delete")}
+          <MenuItem onClick={handleDeleteMessage}>
+            <ListItemIcon style={{ color: theme.palette.error.main }}>
+              <DeleteOutlineIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary={i18n.t("messageOptionsMenu.delete")}
+              primaryTypographyProps={{
+                style: { color: theme.palette.error.main },
+              }}
+            />
           </MenuItem>
         )}
+
         {message.fromMe && isWithinFifteenMinutes() && (
-          <MenuItem key="edit" onClick={handleEditMessage}>
-            {i18n.t("messageOptionsMenu.edit")}
+          <MenuItem onClick={handleEditMessage}>
+            <ListItemIcon>
+              <EditOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary={i18n.t("messageOptionsMenu.edit")} />
           </MenuItem>
         )}
+
         <MenuItem onClick={hanldeReplyMessage}>
-          {i18n.t("messageOptionsMenu.reply")}
+          <ListItemIcon>
+            <ReplyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary={i18n.t("messageOptionsMenu.reply")} />
         </MenuItem>
+
+        <MenuItem
+          onClick={(e) => {
+            handleClose();
+            onReact(
+              message,
+              document.querySelector(
+                `[data-message-container][data-message-id="${message.id}"]`,
+              ),
+            );
+          }}
+        >
+          <ListItemIcon>
+            <EmojiEmotionsOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Reagir" />
+        </MenuItem>
+
         <MenuItem onClick={handleSetShowSelectCheckbox}>
-          {i18n.t("messageOptionsMenu.forward")}
+          <ListItemIcon>
+            <ForwardIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary={i18n.t("messageOptionsMenu.forward")} />
         </MenuItem>
+
         {!message.fromMe && isGroup && (
           <MenuItem onClick={() => handleSaveTicket(message?.contact?.id)}>
             {i18n.t("messageOptionsMenu.talkTo")}
