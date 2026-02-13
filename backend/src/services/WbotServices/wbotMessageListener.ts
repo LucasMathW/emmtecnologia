@@ -5463,7 +5463,7 @@ const handleBaileysReaction = async (
     // 🔥 Descobre quem reagiu
     const rawJid =
       message.key.remoteJidAlt ||
-      reaction.key.remoteJidAlt ||
+      (reaction.key as any).remoteJidAlt ||
       reaction.key.participant ||
       message.key.participant ||
       reaction.key.remoteJid ||
