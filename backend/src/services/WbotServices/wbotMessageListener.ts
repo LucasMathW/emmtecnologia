@@ -5861,12 +5861,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       const nameGroup = group.subject || number;
 
       let profilePicUrl: string = "";
-      // try {
-      //   profilePicUrl = await wbot.profilePictureUrl(group.id, "image");
-      // } catch (e) {
-      //   Sentry.captureException(e);
-      //   profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-      // }
+
       const contactData = {
         name: nameGroup,
         number: number,
