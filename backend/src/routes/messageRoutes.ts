@@ -46,16 +46,4 @@ messageRoutes.post(
   MsgReactionController.store
 );
 
-messageRoutes.get(
-  "/messages/:messageId/reaction",
-  isAuth,
-  MsgReactionController.index
-);
-
-messageRoutes.delete(
-  "/messages/:messageId/reaction",
-  isAuth,
-  MsgReactionController.remove
-);
-
 export default messageRoutes;

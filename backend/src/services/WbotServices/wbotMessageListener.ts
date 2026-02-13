@@ -5438,9 +5438,9 @@ const filterMessages = (msg: WAMessage): boolean => {
       WAMessageStubType.CIPHERTEXT
     ].includes(msg.messageStubType)
   )
-    return false;
+    // return false;
 
-  return true;
+    return true;
 };
 
 const handleBaileysReaction = async (
@@ -5488,10 +5488,6 @@ const handleBaileysReaction = async (
 
     if (!msg || !contact) return;
 
-    // 🔥 Resolve userId (agente x contato)
-    let userId: number;
-    let fromJid: string;
-
     const whatsapp = await Whatsapp.findByPk(wbot.id);
 
     const agentUser = await User.findOne({
@@ -5503,6 +5499,10 @@ const handleBaileysReaction = async (
 
     if (!agentUser) return;
 
+    // 🔥 Resolve userId (agente x contato)
+    let userId: number;
+    let fromJid: string;
+
     if (message.key.fromMe) {
       userId = agentUser.id;
       fromJid = `${whatsapp.number}@s.whatsapp.net`;
@@ -5511,13 +5511,10 @@ const handleBaileysReaction = async (
       fromJid = normalizedJid;
     }
 
-    // 🔥 REMOÇÃO (estado final: sem reação)
+    // 🔥 REMOÇÃO CONFIRMADA PELO WHATSAPP
     if (!emoji) {
       await MessageReaction.destroy({
-        where: {
-          messageId: msg.id,
-          userId
-        }
+        where: { messageId: msg.id, userId }
       });
 
       nsp.emit(`company-${companyId}-appMessage`, {
@@ -5530,28 +5527,20 @@ const handleBaileysReaction = async (
       return;
     }
 
-    const [messageReaction, created] = await MessageReaction.findOrCreate({
-      where: {
-        messageId: msg.id,
-        userId
-      },
-      defaults: {
-        fromJid,
-        emoji
-      }
+    // 🔁 UPSERT
+    const [reactionRow] = await MessageReaction.findOrCreate({
+      where: { messageId: msg.id, userId },
+      defaults: { emoji }
     });
 
-    if (!created && messageReaction.emoji !== emoji) {
-      await messageReaction.update({ emoji });
+    if (reactionRow.emoji !== emoji) {
+      await reactionRow.update({ emoji });
     }
 
     nsp.emit(`company-${companyId}-appMessage`, {
       action: "reaction:update",
       messageId: msg.id,
-      reaction: {
-        userId,
-        emoji
-      },
+      reaction: { userId, emoji },
       ticketId: msg.ticketId
     });
   } catch (err) {
