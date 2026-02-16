@@ -107,6 +107,7 @@ import { handlePresenceUpdate } from "./HandlePresenceUpdate";
 import { Console } from "console";
 import { ms } from "date-fns/locale";
 import { WAMessageSafe } from "../../@types/WAMessageSafe";
+import ticketFinalizationReasonRoutes from "../../routes/ticketFinalizationReasonRoutes";
 
 let ffmpegPath: string;
 if (os.platform() === "win32") {
@@ -5456,9 +5457,9 @@ const handleBaileysReaction = async (
     if (!reaction) return;
 
     const reactedMsgWid = reaction.key?.id;
-    const emoji = reaction.text || "";
-
     if (!reactedMsgWid) return;
+
+    const emoji = reaction.text || "";
 
     // 🔥 Descobre quem reagiu
     const rawJid =
@@ -5490,12 +5491,22 @@ const handleBaileysReaction = async (
 
     const whatsapp = await Whatsapp.findByPk(wbot.id);
 
+    const ticket = await Ticket.findOne({
+      where: {
+        id: msg.ticketId
+      }
+    });
+
+    console.log(`ticket:${ticket.id}`);
+
     const agentUser = await User.findOne({
       where: {
-        whatsappId: whatsapp.id,
+        id: ticket.userId,
         companyId
       }
     });
+
+    console.log(`agentUser:${agentUser.id}`);
 
     if (!agentUser) return;
 
@@ -5505,7 +5516,7 @@ const handleBaileysReaction = async (
     const isFromMe = message.key.fromMe;
 
     if (isFromMe) {
-      userId = agentUser.id;
+      userId = agentUser.id; //\\\\\\\\\\\\\\\\\
       fromJid = `${whatsapp.number}@s.whatsapp.net`;
     } else {
       userId = contact.id;
@@ -5557,7 +5568,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     for (const message of rawMessages) {
       // 🔥 1️⃣ Reaction
       if (message.message?.reactionMessage) {
-        console.log("recao da messagem");
+        console.log("recao da messagem ==>", message);
 
         await handleBaileysReaction(message, wbot, companyId);
         continue; // pula para próxima mensagem
