@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { isSameDay, parseISO, format } from "date-fns";
 import clsx from "clsx";
-import { isNil } from "lodash";
+import { isNil, toPairs } from "lodash";
 import { blue, green } from "@material-ui/core/colors";
 import {
   Button,
@@ -57,7 +57,7 @@ import { useParams, useHistory } from "react-router-dom";
 import { downloadResource } from "../../utils";
 import Template from "./templates";
 import { usePdfViewer } from "../../hooks/usePdfViewer";
-import { NewLineKind } from "typescript";
+import { getEffectiveConstraintOfTypeParameter, NewLineKind } from "typescript";
 import EmojiEmotionsOutlinedIcon from "@material-ui/icons/EmojiEmotionsOutlined";
 
 const useStyles = makeStyles((theme) => ({
@@ -149,6 +149,13 @@ const useStyles = makeStyles((theme) => ({
       transform: "scale(1.2)",
     },
   },
+
+  reactionEmojiActive: {
+    backgroundColor: "#e4e6eb",
+    transform: "scale(1.15)",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
+  },
+
   messageWithReaction: {
     marginBottom: 25,
   },
@@ -564,7 +571,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "REACTION_REMOVE") {
-    const { messageId, fromMe, fromJid } = action.payload;
+    const { messageId, userId } = action.payload;
 
     return state.map((message) => {
       if (message.id !== messageId) return message;
@@ -572,7 +579,7 @@ const reducer = (state, action) => {
       return {
         ...message,
         reactions: (message.reactions || []).filter(
-          (r) => !(r.fromMe === fromMe && r.fromJid === fromJid),
+          (r) => r.userId !== userId && r.user?.id !== userId,
         ),
       };
     });
@@ -722,9 +729,9 @@ const MessagesList = ({
           type: "REACTION_REMOVE",
           payload: {
             messageId: data.messageId,
-            // userId: data.userId,
-            fromMe: data.reaction.fromMe,
-            fromJid: data.reaction.fromJid,
+            userId: data.reaction.userId || data.reaction.user?.id,
+            // fromMe: data.reaction.fromMe,
+            // fromJid: data.reaction.fromJid,
           },
         });
       }
@@ -816,14 +823,10 @@ const MessagesList = ({
     const messageContainer =
       anchorElement.closest?.("[data-message-container]") || anchorElement;
 
-    const myReaction = message.reactions?.find((r) => r.fromMe === true);
-
     setReactionBar({
       messageId: message.id,
       messageWid: message.wid,
       anchorEl: messageContainer,
-      currentEmoji: myReaction?.emoji || "",
-      message,
     });
   };
 
@@ -840,18 +843,29 @@ const MessagesList = ({
 
   const handleSendReaction = async (message, clickedEmoji) => {
     try {
-      const myReaction = message.reactions?.find((r) => r.fromMe === true);
+      const myReaction = message.reactions?.find(
+        (r) => r.userId === user.id || r.user?.id === user.id,
+      );
 
       console.log("myReaction", myReaction);
 
-      const emojiToSend =
-        myReaction?.emoji === clickedEmoji
-          ? "" // 🔥 REMOVE
-          : clickedEmoji; // 🔁 CRIA / TROCA
+      const isRemoving = myReaction?.emoji === clickedEmoji;
+
+      const emojiToSend = isRemoving ? "" : clickedEmoji;
 
       await api.post(`/messages/${message.wid}/reaction`, {
         emoji: emojiToSend,
       });
+
+      if (isRemoving && myReaction) {
+        dispatch({
+          type: "REACTION_REMOVE",
+          payload: {
+            messageId: message.id,
+            userId: user.id,
+          },
+        });
+      }
     } catch (err) {
       toastError(err);
     }
@@ -1804,29 +1818,58 @@ const MessagesList = ({
           },
         }}
       >
-        {QUICK_REACTIONS.map((emoji) => (
-          <span
-            key={emoji}
-            className={classes.reactionEmoji}
-            onClick={() => {
-              handleSendReaction(reactionBar.message, emoji);
-              setReactionBar(null);
-              setReactionBar(null);
-            }}
-          >
-            {emoji}
-          </span>
-        ))}
+        {(() => {
+          const reactionMessage =
+            messagesList.find((m) => m.id === reactionBar?.messageId) || null;
 
-        <span
-          className={classes.reactionAddButton}
-          onClick={() => {
-            setReactionPicker(reactionBar);
-            setReactionBar(null);
-          }}
-        >
-          +
-        </span>
+          const myReaction =
+            reactionMessage?.reactions?.find(
+              (r) => r.userId === user.id || r.user?.id === user.id,
+            ) || null;
+
+          console.log("REACTIONS APÓS REFRESH:", reactionMessage?.reactions);
+          console.log("USER LOGADO:", user);
+
+          const myEmoji = myReaction?.emoji || null;
+
+          const messageForReaction = reactionMessage
+            ? {
+                ...reactionMessage,
+                wid: reactionBar?.messageWid,
+              }
+            : null;
+
+          return (
+            <>
+              {QUICK_REACTIONS.map((emoji) => {
+                const isActive = myEmoji === emoji;
+
+                return (
+                  <span
+                    key={emoji}
+                    className={`${classes.reactionEmoji} ${isActive ? classes.reactionEmojiActive : ""}`}
+                    onClick={() => {
+                      if (!messageForReaction) return;
+                      handleSendReaction(messageForReaction, emoji);
+                      setReactionBar(null);
+                    }}
+                  >
+                    {emoji}
+                  </span>
+                );
+              })}
+              <span
+                className={classes.reactionAddButton}
+                onClick={() => {
+                  setReactionPicker(reactionBar);
+                  setReactionBar(null);
+                }}
+              >
+                +
+              </span>
+            </>
+          );
+        })()}
       </Popover>
 
       <Popover
