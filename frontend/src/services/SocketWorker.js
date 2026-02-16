@@ -1,36 +1,37 @@
 import io from "socket.io-client";
 import api from "../services/api";
 
-
 class SocketWorker {
-  constructor(companyId , userId) {
-    const sessionToken = api.defaults.headers.Authorization
+  constructor(companyId, userId) {
+    const sessionToken = api.defaults.headers.Authorization;
 
     if (!SocketWorker.instance) {
-      this.companyId = companyId
-      this.userId = userId
-      this.token = sessionToken
+      this.companyId = companyId;
+      this.userId = userId;
+      this.token = sessionToken;
       this.socket = null;
       this.configureSocket();
       this.eventListeners = {}; // Armazena os ouvintes de eventos registrados
       SocketWorker.instance = this;
-
-    } 
+    }
 
     return SocketWorker.instance;
   }
 
   configureSocket() {
-    this.socket = io(`${process.env.REACT_APP_BACKEND_URL}/${this?.companyId}` , {
-      autoConnect: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: Infinity,
-      // transports: ["websocket", "polling", "flashsocket"],
-      // pingTimeout: 18000,
-      // pingInterval: 18000,
-      query: { userId: this.userId, token: this.token }
-    });
+    this.socket = io(
+      `${process.env.REACT_APP_BACKEND_URL}/${this?.companyId}`,
+      {
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: Infinity,
+        // transports: ["websocket", "polling", "flashsocket"],
+        // pingTimeout: 18000,
+        // pingInterval: 18000,
+        query: { userId: this.userId, token: this.token },
+      },
+    );
 
     this.socket.on("connect", () => {
       console.log("Conectado ao servidor Socket.IO");
@@ -44,9 +45,19 @@ class SocketWorker {
 
   // Adiciona um ouvinte de eventos
   on(event, callback) {
-
     this.connect();
-    this.socket.on(event, callback);
+
+    const wrappedCallback = (...args) => {
+      // console.log("[SOCKET ON]", {
+      //   socketId: this.socket?.id,
+      //   event,
+      //   payload: args,
+      // });
+
+      callback(...args);
+    };
+
+    this.socket.on(event, wrappedCallback);
 
     // Armazena o ouvinte no objeto de ouvintes
     if (!this.eventListeners[event]) {
@@ -70,12 +81,14 @@ class SocketWorker {
       if (callback) {
         // Desconecta um ouvinte específico
         this.socket.off(event, callback);
-        this.eventListeners[event] = this.eventListeners[event].filter(cb => cb !== callback);
+        this.eventListeners[event] = this.eventListeners[event].filter(
+          (cb) => cb !== callback,
+        );
       } else {
         // console.log("DELETOU EVENTOS DO SOCKET:", this.eventListeners[event]);
 
         // Desconecta todos os ouvintes do evento
-        this.eventListeners[event].forEach(cb => this.socket.off(event, cb));
+        this.eventListeners[event].forEach((cb) => this.socket.off(event, cb));
         delete this.eventListeners[event];
       }
       // console.log("EVENTOS DO SOCKET:", this.eventListeners);
@@ -85,8 +98,8 @@ class SocketWorker {
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
-      this.socket = null
-      this.instance = null
+      this.socket = null;
+      this.instance = null;
       console.log("Socket desconectado manualmente");
     }
   }
@@ -107,9 +120,7 @@ class SocketWorker {
     }
   }
 
-  forceReconnect() {
-
-  }
+  forceReconnect() {}
 }
 
 // const instance = (companyId, userId) => new SocketWorker(companyId,userId);
