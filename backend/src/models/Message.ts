@@ -134,6 +134,10 @@ class Message extends Model<Message> {
     as: "reactions"
   })
   reactions: MessageReaction[];
+
+  @Default(false)
+  @Column
+  transcribed: boolean;
 }
 
 export default Message;
