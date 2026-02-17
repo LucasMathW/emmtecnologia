@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import Message from "../../models/Message";
+import Setting from "../../models/Setting";
 
 import axios from "axios";
 import FormData from "form-data";
@@ -26,10 +27,21 @@ const TranscribeAudioMessageToText = async (
       throw new Error("Mensagem não encontrada");
     }
 
+    const setting = await Setting.findOne({
+      where: { key: "openaiTranscribeApiKey" }
+    });
+
     const data = new FormData();
     let config;
 
     console.log(`msg.mediaUrl: ${msg.mediaUrl}`);
+
+    const openaikey = setting?.value || process.env.TRANSCRIBE_API_KEY;
+    console.log(`[DEBUG LUCAS, OPENAIKEY][${openaikey}]`);
+
+    if (!openaikey) {
+      throw new Error("Chave Não configurada!");
+    }
 
     // Verifica se a mediaUrl é uma URL válida
     if (msg.mediaUrl.startsWith("http")) {
@@ -54,14 +66,14 @@ const TranscribeAudioMessageToText = async (
         url: `${process.env.TRANSCRIBE_URL}/transcriptions`,
         headers: {
           // "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.TRANSCRIBE_API_KEY}`,
+          Authorization: `Bearer ${openaikey}`,
           ...data.getHeaders()
         },
         data: data
       };
     } else {
       console.log(`{Não é url}`);
-      // Se não for URL, mantém o comportamento atual
+
       const urlParts = new URL(msg.mediaUrl);
       const pathParts = urlParts.pathname.split("/");
       const fileName = pathParts[pathParts.length - 1];
@@ -92,10 +104,6 @@ const TranscribeAudioMessageToText = async (
 
     const transcriptionText =
       typeof res.data === "string" ? res.data : res.data?.text ?? "";
-
-    //data { text: "ola quero um suporte" }
-
-    // olá quidero um suporte
 
     await msg.update({
       body: transcriptionText,
