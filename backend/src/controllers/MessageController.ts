@@ -1299,8 +1299,6 @@ export const transcribeAudioMessage = async (
   const { companyId } = req.user;
   const { wid } = req.body;
 
-  console.log("URL =>>", req.url);
-
   const transcribedText = await TranscribeAudioMessageToText(
     wid,
     companyId.toString()
