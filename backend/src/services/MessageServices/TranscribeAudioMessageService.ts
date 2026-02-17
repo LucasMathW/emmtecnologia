@@ -107,7 +107,7 @@ const TranscribeAudioMessageToText = async (
 
     await msg.update({
       body: transcriptionText,
-      transcrito: true
+      transcribed: true
     });
 
     return transcriptionText;
