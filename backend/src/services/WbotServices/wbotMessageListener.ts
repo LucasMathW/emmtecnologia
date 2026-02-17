@@ -5516,7 +5516,7 @@ const handleBaileysReaction = async (
     const isFromMe = message.key.fromMe;
 
     if (isFromMe) {
-      userId = agentUser.id; //\\\\\\\\\\\\\\\\\
+      userId = agentUser.id;
       fromJid = `${whatsapp.number}@s.whatsapp.net`;
     } else {
       userId = contact.id;
