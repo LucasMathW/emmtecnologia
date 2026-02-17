@@ -9,90 +9,91 @@ const LS_NAME = "audioMessageRate";
 // ✅ CORREÇÃO: Estilos específicos para controlar tamanho e aparência
 const useStyles = makeStyles((theme) => ({
   audioContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    maxWidth: '380px', // ✅ Limita largura máxima
-    minWidth: '300px',  // ✅ Largura mínima
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    maxWidth: "380px", // ✅ Limita largura máxima
+    minWidth: "300px", // ✅ Largura mínima
     padding: 0,
     margin: 0,
-    backgroundColor: 'transparent',
-    border: 'none'
+    backgroundColor: "transparent",
+    border: "none",
   },
   audioPlayerContainer: {
-    position: 'relative',
-    width: '100%',
-    height: '40px', // ✅ Altura fixa
-    marginBottom: theme.spacing(1)
+    position: "relative",
+    width: "100%",
+    height: "40px", // ✅ Altura fixa
+    marginBottom: theme.spacing(1),
   },
   audioPlayer: {
-    width: '100%',
-    height: '40px', // ✅ Altura específica
-    outline: 'none',
-    border: 'none',
-    backgroundColor: 'transparent',
+    width: "100%",
+    height: "40px", // ✅ Altura específica
+    outline: "none",
+    border: "none",
+    backgroundColor: "transparent",
     // ✅ Remove aparência padrão problemática
-    '&::-webkit-media-controls-panel': {
-      backgroundColor: 'transparent',
+    "&::-webkit-media-controls-panel": {
+      backgroundColor: "transparent",
     },
-    '&::-webkit-media-controls-current-time-display, &::-webkit-media-controls-time-remaining-display': {
-      fontSize: '12px'
-    }
+    "&::-webkit-media-controls-current-time-display, &::-webkit-media-controls-time-remaining-display":
+      {
+        fontSize: "12px",
+      },
   },
   controlsContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    gap: theme.spacing(1)
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    gap: theme.spacing(1),
   },
   transcriptionContainer: {
-    width: '100%',
+    width: "100%",
     marginTop: theme.spacing(1),
     // ✅ CORREÇÃO: Centralizar o botão
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
   },
   transcriptionText: {
-    fontSize: '0.875rem',
+    fontSize: "0.875rem",
     lineHeight: 1.4,
-    wordBreak: 'break-word',
+    wordBreak: "break-word",
     padding: theme.spacing(1),
     backgroundColor: theme.palette.action.hover,
     borderRadius: theme.shape.borderRadius,
     border: `1px solid ${theme.palette.divider}`,
-    width: '100%',
-    boxSizing: 'border-box'
+    width: "100%",
+    boxSizing: "border-box",
   },
   transcribeButton: {
-    fontSize: '0.75rem',
+    fontSize: "0.75rem",
     padding: theme.spacing(0.5, 1),
-    minWidth: 'auto',
-    height: '32px',
+    minWidth: "auto",
+    height: "32px",
     // ✅ CORREÇÃO: Centralizar o botão
-    alignSelf: 'center'
+    alignSelf: "center",
   },
   rateButton: {
-    position: 'absolute',
-    top: '2px',
-    right: '8px',
-    fontSize: '0.7rem',
-    minWidth: 'auto',
-    padding: '1px 6px',
-    height: '18px',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    color: 'white',
-    borderRadius: '9px',
+    position: "absolute",
+    top: "2px",
+    right: "8px",
+    fontSize: "0.7rem",
+    minWidth: "auto",
+    padding: "1px 6px",
+    height: "18px",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    color: "white",
+    borderRadius: "9px",
     zIndex: 10,
     lineHeight: 1,
-    '&:hover': {
-      backgroundColor: 'rgba(0,0,0,0.8)'
+    "&:hover": {
+      backgroundColor: "rgba(0,0,0,0.8)",
     },
     // ✅ Remover estilos de botão padrão
-    border: 'none',
-    textTransform: 'none',
-    boxShadow: 'none'
-  }
+    border: "none",
+    textTransform: "none",
+    boxShadow: "none",
+  },
 }));
 
 const AudioModal = ({ url, message, disableTranscription = false }) => {
@@ -100,15 +101,20 @@ const AudioModal = ({ url, message, disableTranscription = false }) => {
   const classes = useStyles();
   const audioRef = useRef(null);
   const [audioRate, setAudioRate] = useState(
-    parseFloat(localStorage.getItem(LS_NAME) || "1")
+    parseFloat(localStorage.getItem(LS_NAME) || "1"),
   );
   const [showButtonRate, setShowButtonRate] = useState(false);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const [transcription, setTranscription] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
+  // console.log("MESSAGE AUDIO:", message);
+
   const body = message?.body ?? "";
-  const transcrito = message?.transcrito ?? false;
+  const transcrito = message?.transcribed ?? false;
+
+  console.log("trancrible =>", transcrito);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -190,15 +196,15 @@ const AudioModal = ({ url, message, disableTranscription = false }) => {
     <div className={classes.audioContainer}>
       {/* ✅ Container do player igual ao original */}
       <div className={classes.audioPlayerContainer}>
-        <audio 
-          ref={audioRef} 
-          controls 
+        <audio
+          ref={audioRef}
+          controls
           className={classes.audioPlayer}
           preload="metadata"
         >
           {getAudioSource()}
         </audio>
-        
+
         {/* ✅ Botão de velocidade igual ao original */}
         {showButtonRate && (
           <Button
@@ -218,8 +224,12 @@ const AudioModal = ({ url, message, disableTranscription = false }) => {
           <div className={classes.transcriptionContainer}>
             {!transcrito ? (
               transcription ? (
-                <Typography className={classes.transcriptionText} variant="body2">
-                  <strong>Transcrição:</strong> {transcription}
+                <Typography
+                  className={classes.transcriptionText}
+                  variant="body2"
+                >
+                  {/* <strong>Transcriçãoooo:</strong>*/}
+                  {transcription}
                 </Typography>
               ) : (
                 <Button
