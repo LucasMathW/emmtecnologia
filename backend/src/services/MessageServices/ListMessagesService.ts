@@ -121,7 +121,8 @@ const ListMessagesService = async ({
       "isForwarded",
       "isEdited",
       "isPrivate",
-      "companyId"
+      "companyId",
+      "transcribed"
     ],
     limit,
     include: [
