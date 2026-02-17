@@ -8,7 +8,7 @@ import Select from "@material-ui/core/Select";
 import FormHelperText from "@material-ui/core/FormHelperText";
 
 import useSettings from "../../hooks/useSettings";
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer, toast } from "react-toastify";
 import { makeStyles } from "@material-ui/core/styles";
 import { grey, blue } from "@material-ui/core/colors";
 
@@ -54,12 +54,12 @@ const useStyles = makeStyles((theme) => ({
     textAlign: "left",
   },
   tab: {
-    backgroundColor: theme.mode === 'light' ? "#f2f2f2" : "#7f7f7f",
+    backgroundColor: theme.mode === "light" ? "#f2f2f2" : "#7f7f7f",
     borderRadius: 4,
     width: "100%",
     "& .MuiTabs-flexContainer": {
-      justifyContent: "center"
-    }
+      justifyContent: "center",
+    },
   },
 }));
 
@@ -78,56 +78,72 @@ export default function Options(props) {
   const [loadingUserCreation, setLoadingUserCreation] = useState(false);
 
   const [SendGreetingAccepted, setSendGreetingAccepted] = useState("enabled");
-  const [loadingSendGreetingAccepted, setLoadingSendGreetingAccepted] = useState(false);
+  const [loadingSendGreetingAccepted, setLoadingSendGreetingAccepted] =
+    useState(false);
 
   const [UserRandom, setUserRandom] = useState("enabled");
   const [loadingUserRandom, setLoadingUserRandom] = useState(false);
 
   const [SettingsTransfTicket, setSettingsTransfTicket] = useState("enabled");
-  const [loadingSettingsTransfTicket, setLoadingSettingsTransfTicket] = useState(false);
+  const [loadingSettingsTransfTicket, setLoadingSettingsTransfTicket] =
+    useState(false);
 
   const [AcceptCallWhatsapp, setAcceptCallWhatsapp] = useState("enabled");
-  const [loadingAcceptCallWhatsapp, setLoadingAcceptCallWhatsapp] = useState(false);
+  const [loadingAcceptCallWhatsapp, setLoadingAcceptCallWhatsapp] =
+    useState(false);
 
   const [sendSignMessage, setSendSignMessage] = useState("enabled");
   const [loadingSendSignMessage, setLoadingSendSignMessage] = useState(false);
 
-  const [sendGreetingMessageOneQueues, setSendGreetingMessageOneQueues] = useState("enabled");
-  const [loadingSendGreetingMessageOneQueues, setLoadingSendGreetingMessageOneQueues] = useState(false);
+  const [sendGreetingMessageOneQueues, setSendGreetingMessageOneQueues] =
+    useState("enabled");
+  const [
+    loadingSendGreetingMessageOneQueues,
+    setLoadingSendGreetingMessageOneQueues,
+  ] = useState(false);
 
   const [sendQueuePosition, setSendQueuePosition] = useState("enabled");
-  const [loadingSendQueuePosition, setLoadingSendQueuePosition] = useState(false);
+  const [loadingSendQueuePosition, setLoadingSendQueuePosition] =
+    useState(false);
 
-  const [sendFarewellWaitingTicket, setSendFarewellWaitingTicket] = useState("enabled");
-  const [loadingSendFarewellWaitingTicket, setLoadingSendFarewellWaitingTicket] = useState(false);
+  const [sendFarewellWaitingTicket, setSendFarewellWaitingTicket] =
+    useState("enabled");
+  const [
+    loadingSendFarewellWaitingTicket,
+    setLoadingSendFarewellWaitingTicket,
+  ] = useState(false);
 
-  const [acceptAudioMessageContact, setAcceptAudioMessageContact] = useState("enabled");
-  const [loadingAcceptAudioMessageContact, setLoadingAcceptAudioMessageContact] = useState(false);
+  const [acceptAudioMessageContact, setAcceptAudioMessageContact] =
+    useState("enabled");
+  const [
+    loadingAcceptAudioMessageContact,
+    setLoadingAcceptAudioMessageContact,
+  ] = useState(false);
 
   //PAYMENT METHODS
-  const [eficlientidType, setEfiClientidType] = useState('');
+  const [eficlientidType, setEfiClientidType] = useState("");
   const [loadingEfiClientidType, setLoadingEfiClientidType] = useState(false);
 
-  const [eficlientsecretType, setEfiClientsecretType] = useState('');
+  const [eficlientsecretType, setEfiClientsecretType] = useState("");
   const [loadingEfiClientsecretType, setLoadingEfiClientsecretType] =
     useState(false);
 
-  const [efichavepixType, setEfiChavepixType] = useState('');
+  const [efichavepixType, setEfiChavepixType] = useState("");
   const [loadingEfiChavepixType, setLoadingEfiChavepixType] = useState(false);
 
-  const [mpaccesstokenType, setmpaccesstokenType] = useState('');
+  const [mpaccesstokenType, setmpaccesstokenType] = useState("");
   const [loadingmpaccesstokenType, setLoadingmpaccesstokenType] =
     useState(false);
 
-  const [stripeprivatekeyType, setstripeprivatekeyType] = useState('');
+  const [stripeprivatekeyType, setstripeprivatekeyType] = useState("");
   const [loadingstripeprivatekeyType, setLoadingstripeprivatekeyType] =
     useState(false);
 
-  const [asaastokenType, setasaastokenType] = useState('');
+  const [asaastokenType, setasaastokenType] = useState("");
   const [loadingasaastokenType, setLoadingasaastokenType] = useState(false);
 
   //OPENAI API KEY TRANSCRIÇÃO DE ÁUDIO
-  const [openaitokenType, setopenaitokenType] = useState('');
+  const [openaitokenType, setopenaitokenType] = useState("");
   const [loadingopenaitokenType, setLoadingopenaitokenType] = useState(false);
 
   //LGPD
@@ -141,7 +157,8 @@ export default function Options(props) {
   const [loadingLGPDLink, setLoadingLGPDLink] = useState(false);
 
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState("disabled");
-  const [loadingLGPDDeleteMessage, setLoadingLGPDDeleteMessage] = useState(false);
+  const [loadingLGPDDeleteMessage, setLoadingLGPDDeleteMessage] =
+    useState(false);
 
   //LIMITAR DOWNLOAD
   // const [downloadLimit, setdownloadLimit] = useState("64");
@@ -154,36 +171,46 @@ export default function Options(props) {
   const [loadingLGPDHideNumber, setLoadingLGPDHideNumber] = useState(false);
 
   // Tag obrigatoria
-  const [requiredTag, setRequiredTag] = useState("enabled")
-  const [loadingRequiredTag, setLoadingRequiredTag] = useState(false)
+  const [requiredTag, setRequiredTag] = useState("enabled");
+  const [loadingRequiredTag, setLoadingRequiredTag] = useState(false);
 
   // Fechar ticket ao transferir para outro setor
-  const [closeTicketOnTransfer, setCloseTicketOnTransfer] = useState(false)
-  const [loadingCloseTicketOnTransfer, setLoadingCloseTicketOnTransfer] = useState(false)
+  const [closeTicketOnTransfer, setCloseTicketOnTransfer] = useState(false);
+  const [loadingCloseTicketOnTransfer, setLoadingCloseTicketOnTransfer] =
+    useState(false);
 
   // Usar carteira de clientes
-  const [directTicketsToWallets, setDirectTicketsToWallets] = useState(false)
-  const [loadingDirectTicketsToWallets, setLoadingDirectTicketsToWallets] = useState(false)
+  const [directTicketsToWallets, setDirectTicketsToWallets] = useState(false);
+  const [loadingDirectTicketsToWallets, setLoadingDirectTicketsToWallets] =
+    useState(false);
 
   // Sigla para inserir no copiar contatos
   const [copyContactPrefix, setCopyContactPrefix] = useState("");
-const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
+  const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] =
+    useState(false);
 
   //MENSAGENS CUSTOMIZADAS
   const [transferMessage, setTransferMessage] = useState("");
   const [loadingTransferMessage, setLoadingTransferMessage] = useState(false);
 
   const [greetingAcceptedMessage, setGreetingAcceptedMessage] = useState("");
-  const [loadingGreetingAcceptedMessage, setLoadingGreetingAcceptedMessage] = useState(false);
+  const [loadingGreetingAcceptedMessage, setLoadingGreetingAcceptedMessage] =
+    useState(false);
 
-  const [AcceptCallWhatsappMessage, setAcceptCallWhatsappMessage] = useState("");
-  const [loadingAcceptCallWhatsappMessage, setLoadingAcceptCallWhatsappMessage] = useState(false);
+  const [AcceptCallWhatsappMessage, setAcceptCallWhatsappMessage] =
+    useState("");
+  const [
+    loadingAcceptCallWhatsappMessage,
+    setLoadingAcceptCallWhatsappMessage,
+  ] = useState(false);
 
   const [sendQueuePositionMessage, setSendQueuePositionMessage] = useState("");
-  const [loadingSendQueuePositionMessage, setLoadingSendQueuePositionMessage] = useState(false);
+  const [loadingSendQueuePositionMessage, setLoadingSendQueuePositionMessage] =
+    useState(false);
 
   const [showNotificationPending, setShowNotificationPending] = useState(false);
-  const [loadingShowNotificationPending, setLoadingShowNotificationPending] = useState(false);
+  const [loadingShowNotificationPending, setLoadingShowNotificationPending] =
+    useState(false);
 
   const { update: updateUserCreation, getAll } = useSettings();
 
@@ -195,6 +222,7 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
   const { update: updatempaccesstoken } = useSettings();
   const { update: updatestripeprivatekey } = useSettings();
   const { update: updateasaastoken } = useSettings();
+  const { update: updateopenaitoken } = useSettings();
 
   const { update } = useCompanySettings();
 
@@ -202,11 +230,8 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
     return user.super;
   };
 
-
   useEffect(() => {
-
     if (Array.isArray(oldSettings) && oldSettings.length) {
-
       const userPar = oldSettings.find((s) => s.key === "userCreation");
 
       if (userPar) {
@@ -219,39 +244,51 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
       //  setdownloadLimit(downloadLimit.value);
       // }
 
-      const copyContactPrefix = oldSettings.find((s) => s.key === 'copyContactPrefix');
+      const copyContactPrefix = oldSettings.find(
+        (s) => s.key === "copyContactPrefix",
+      );
       if (copyContactPrefix) {
         setCopyContactPrefix(copyContactPrefix.value);
       }
 
-      const eficlientidType = oldSettings.find((s) => s.key === 'eficlientid');
+      const eficlientidType = oldSettings.find((s) => s.key === "eficlientid");
       if (eficlientidType) {
         setEfiClientidType(eficlientidType.value);
       }
 
-      const eficlientsecretType = oldSettings.find((s) => s.key === 'eficlientsecret');
+      const eficlientsecretType = oldSettings.find(
+        (s) => s.key === "eficlientsecret",
+      );
       if (eficlientsecretType) {
         setEfiClientsecretType(eficlientsecretType.value);
       }
 
-      const efichavepixType = oldSettings.find((s) => s.key === 'efichavepix');
+      const efichavepixType = oldSettings.find((s) => s.key === "efichavepix");
       if (efichavepixType) {
         setEfiChavepixType(efichavepixType.value);
       }
 
-      const mpaccesstokenType = oldSettings.find((s) => s.key === 'mpaccesstoken');
+      const mpaccesstokenType = oldSettings.find(
+        (s) => s.key === "mpaccesstoken",
+      );
       if (mpaccesstokenType) {
         setmpaccesstokenType(mpaccesstokenType.value);
       }
 
-      const asaastokenType = oldSettings.find((s) => s.key === 'asaastoken');
+      const asaastokenType = oldSettings.find((s) => s.key === "asaastoken");
       if (asaastokenType) {
         setasaastokenType(asaastokenType.value);
       }
 
-    }
-  }, [oldSettings])
+      const openaiToken = oldSettings.find(
+        (s) => s.key === "openaiTranscribeApiKey",
+      );
 
+      if (openaiToken) {
+        setopenaitokenType(openaiToken.value);
+      }
+    }
+  }, [oldSettings]);
 
   useEffect(() => {
     for (const [key, value] of Object.entries(settings)) {
@@ -260,15 +297,18 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
       if (key === "chatBotType") setChatBotType(value);
       if (key === "acceptCallWhatsapp") setAcceptCallWhatsapp(value);
       if (key === "userRandom") setUserRandom(value);
-      if (key === "sendGreetingMessageOneQueues") setSendGreetingMessageOneQueues(value);
+      if (key === "sendGreetingMessageOneQueues")
+        setSendGreetingMessageOneQueues(value);
       if (key === "sendSignMessage") setSendSignMessage(value);
-      if (key === "sendFarewellWaitingTicket") setSendFarewellWaitingTicket(value);
+      if (key === "sendFarewellWaitingTicket")
+        setSendFarewellWaitingTicket(value);
       if (key === "sendGreetingAccepted") setSendGreetingAccepted(value);
       if (key === "sendQueuePosition") setSendQueuePosition(value);
-      if (key === "acceptAudioMessageContact") setAcceptAudioMessageContact(value);
+      if (key === "acceptAudioMessageContact")
+        setAcceptAudioMessageContact(value);
       if (key === "enableLGPD") setEnableLGPD(value);
       if (key === "requiredTag") setRequiredTag(value);
-      if (key === "lgpdDeleteMessage") setLGPDDeleteMessage(value)
+      if (key === "lgpdDeleteMessage") setLGPDDeleteMessage(value);
       if (key === "lgpdHideNumber") setLGPDHideNumber(value);
       if (key === "lgpdConsent") setLGPDConsent(value);
       if (key === "lgpdMessage") setLGPDMessage(value);
@@ -278,8 +318,10 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
       if (key === "closeTicketOnTransfer") setCloseTicketOnTransfer(value);
       if (key === "transferMessage") setTransferMessage(value);
       if (key === "greetingAcceptedMessage") setGreetingAcceptedMessage(value);
-      if (key === "AcceptCallWhatsappMessage") setAcceptCallWhatsappMessage(value);
-      if (key === "sendQueuePositionMessage") setSendQueuePositionMessage(value);
+      if (key === "AcceptCallWhatsappMessage")
+        setAcceptCallWhatsappMessage(value);
+      if (key === "sendQueuePositionMessage")
+        setSendQueuePositionMessage(value);
       if (key === "showNotificationPending") setShowNotificationPending(value);
       if (key === "copyContactPrefix") setCopyContactPrefix(value);
     }
@@ -309,31 +351,31 @@ const [loadingCopyContactPrefix, setLoadingCopyContactPrefix] = useState(false);
     setEfiClientidType(value);
     setLoadingEfiClientidType(true);
     await updateeficlientid({
-      key: 'eficlientid',
+      key: "eficlientid",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingEfiClientidType(false);
   }
 
-async function handleCopyContactPrefix(value) {
-  setCopyContactPrefix(value);
-  setLoadingCopyContactPrefix(true);
-  await update({
-    column: "copyContactPrefix",
-    data: value
-  });
-  setLoadingCopyContactPrefix(false);
-}
+  async function handleCopyContactPrefix(value) {
+    setCopyContactPrefix(value);
+    setLoadingCopyContactPrefix(true);
+    await update({
+      column: "copyContactPrefix",
+      data: value,
+    });
+    setLoadingCopyContactPrefix(false);
+  }
 
   async function handleChangeEfiClientsecret(value) {
     setEfiClientsecretType(value);
     setLoadingEfiClientsecretType(true);
     await updateeficlientsecret({
-      key: 'eficlientsecret',
+      key: "eficlientsecret",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingEfiClientsecretType(false);
   }
 
@@ -341,10 +383,10 @@ async function handleCopyContactPrefix(value) {
     setEfiChavepixType(value);
     setLoadingEfiChavepixType(true);
     await updateefichavepix({
-      key: 'efichavepix',
+      key: "efichavepix",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingEfiChavepixType(false);
   }
 
@@ -352,10 +394,10 @@ async function handleCopyContactPrefix(value) {
     setmpaccesstokenType(value);
     setLoadingmpaccesstokenType(true);
     await updatempaccesstoken({
-      key: 'mpaccesstoken',
+      key: "mpaccesstoken",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingmpaccesstokenType(false);
   }
 
@@ -363,21 +405,34 @@ async function handleCopyContactPrefix(value) {
     setstripeprivatekeyType(value);
     setLoadingstripeprivatekeyType(true);
     await updatestripeprivatekey({
-      key: 'stripeprivatekey',
+      key: "stripeprivatekey",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingstripeprivatekeyType(false);
+  }
+
+  async function handleChangeOpenAiToken(value) {
+    setopenaitokenType(value);
+    setLoadingopenaitokenType(true);
+
+    await updateopenaitoken({
+      key: "openaiTranscribeApiKey",
+      value,
+    });
+
+    toast.success("Chave OpenAI atualizada com sucesso.");
+    setLoadingopenaitokenType(false);
   }
 
   async function handleChangeasaastoken(value) {
     setasaastokenType(value);
     setLoadingasaastokenType(true);
     await updateasaastoken({
-      key: 'asaastoken',
+      key: "asaastoken",
       value,
     });
-    toast.success('Operação atualizada com sucesso.');
+    toast.success("Operação atualizada com sucesso.");
     setLoadingasaastokenType(false);
   }
 
@@ -386,7 +441,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingUserRating(true);
     await update({
       column: "userRating",
-      data: value
+      data: value,
     });
     setLoadingUserRating(false);
   }
@@ -396,7 +451,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingScheduleType(true);
     await update({
       column: "scheduleType",
-      data: value
+      data: value,
     });
     setLoadingScheduleType(false);
     if (typeof scheduleTypeChanged === "function") {
@@ -409,7 +464,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingCopyContactPrefix(true);
     await update({
       column: "copyContactPrefix",
-      data: value
+      data: value,
     });
     setLoadingCopyContactPrefix(false);
   }
@@ -418,7 +473,7 @@ async function handleCopyContactPrefix(value) {
     setChatBotType(value);
     await update({
       column: "chatBotType",
-      data: value
+      data: value,
     });
     if (typeof scheduleTypeChanged === "function") {
       setChatBotType(value);
@@ -430,7 +485,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingLGPDMessage(true);
     await update({
       column: "lgpdMessage",
-      data: value
+      data: value,
     });
     setLoadingLGPDMessage(false);
   }
@@ -440,7 +495,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingTransferMessage(true);
     await update({
       column: "transferMessage",
-      data: value
+      data: value,
     });
     setLoadingTransferMessage(false);
   }
@@ -450,7 +505,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingGreetingAcceptedMessage(true);
     await update({
       column: "greetingAcceptedMessage",
-      data: value
+      data: value,
     });
     setLoadingGreetingAcceptedMessage(false);
   }
@@ -460,7 +515,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingAcceptCallWhatsappMessage(true);
     await update({
       column: "AcceptCallWhatsappMessage",
-      data: value
+      data: value,
     });
     setLoadingAcceptCallWhatsappMessage(false);
   }
@@ -470,7 +525,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendQueuePositionMessage(true);
     await update({
       column: "sendQueuePositionMessage",
-      data: value
+      data: value,
     });
     setLoadingSendQueuePositionMessage(false);
   }
@@ -480,7 +535,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingShowNotificationPending(true);
     await update({
       column: "showNotificationPending",
-      data: value
+      data: value,
     });
     setLoadingShowNotificationPending(false);
   }
@@ -490,7 +545,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingLGPDLink(true);
     await update({
       column: "lgpdLink",
-      data: value
+      data: value,
     });
     setLoadingLGPDLink(false);
   }
@@ -500,7 +555,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingLGPDDeleteMessage(true);
     await update({
       column: "lgpdDeleteMessage",
-      data: value
+      data: value,
     });
     setLoadingLGPDDeleteMessage(false);
   }
@@ -510,7 +565,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingLGPDConsent(true);
     await update({
       column: "lgpdConsent",
-      data: value
+      data: value,
     });
     setLoadingLGPDConsent(false);
   }
@@ -520,7 +575,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingLGPDHideNumber(true);
     await update({
       column: "lgpdHideNumber",
-      data: value
+      data: value,
     });
     setLoadingLGPDHideNumber(false);
   }
@@ -530,7 +585,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendGreetingAccepted(true);
     await update({
       column: "sendGreetingAccepted",
-      data: value
+      data: value,
     });
     setLoadingSendGreetingAccepted(false);
   }
@@ -540,7 +595,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingUserRandom(true);
     await update({
       column: "userRandom",
-      data: value
+      data: value,
     });
     setLoadingUserRandom(false);
   }
@@ -550,7 +605,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSettingsTransfTicket(true);
     await update({
       column: "sendMsgTransfTicket",
-      data: value
+      data: value,
     });
     setLoadingSettingsTransfTicket(false);
   }
@@ -560,7 +615,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingAcceptCallWhatsapp(true);
     await update({
       column: "acceptCallWhatsapp",
-      data: value
+      data: value,
     });
     setLoadingAcceptCallWhatsapp(false);
   }
@@ -570,7 +625,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendSignMessage(true);
     await update({
       column: "sendSignMessage",
-      data: value
+      data: value,
     });
     localStorage.setItem("sendSignMessage", value === "enabled" ? true : false); //atualiza localstorage para sessão
     setLoadingSendSignMessage(false);
@@ -581,7 +636,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendGreetingMessageOneQueues(true);
     await update({
       column: "sendGreetingMessageOneQueues",
-      data: value
+      data: value,
     });
     setLoadingSendGreetingMessageOneQueues(false);
   }
@@ -591,7 +646,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendQueuePosition(true);
     await update({
       column: "sendQueuePosition",
-      data: value
+      data: value,
     });
     setLoadingSendQueuePosition(false);
   }
@@ -601,7 +656,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingSendFarewellWaitingTicket(true);
     await update({
       column: "sendFarewellWaitingTicket",
-      data: value
+      data: value,
     });
     setLoadingSendFarewellWaitingTicket(false);
   }
@@ -611,7 +666,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingAcceptAudioMessageContact(true);
     await update({
       column: "acceptAudioMessageContact",
-      data: value
+      data: value,
     });
     setLoadingAcceptAudioMessageContact(false);
   }
@@ -621,7 +676,7 @@ async function handleCopyContactPrefix(value) {
     setLoadingEnableLGPD(true);
     await update({
       column: "enableLGPD",
-      data: value
+      data: value,
     });
     setLoadingEnableLGPD(false);
   }
@@ -659,9 +714,8 @@ async function handleCopyContactPrefix(value) {
   return (
     <>
       <Grid spacing={3} container>
-
         {/* CRIAÇÃO DE COMPANY/USERS */}
-        {isSuper() ?
+        {isSuper() ? (
           <Grid xs={12} sm={6} md={4} item>
             <FormControl className={classes.selectContainer}>
               <InputLabel id="UserCreation-label">
@@ -687,7 +741,7 @@ async function handleCopyContactPrefix(value) {
               </FormHelperText>
             </FormControl>
           </Grid>
-          : null}
+        ) : null}
 
         {/* LIMITAR DOWNLOAD */}
         {/* {isSuper() ?
@@ -723,7 +777,9 @@ async function handleCopyContactPrefix(value) {
         {/* AVALIAÇÕES */}
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="ratings-label">{i18n.t("settings.settings.options.evaluations")}</InputLabel>
+            <InputLabel id="ratings-label">
+              {i18n.t("settings.settings.options.evaluations")}
+            </InputLabel>
             <Select
               labelId="ratings-label"
               value={userRating}
@@ -739,7 +795,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingUserRating && i18n.t("settings.settings.options.evaluations")}
+              {loadingUserRating &&
+                i18n.t("settings.settings.options.evaluations")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -757,13 +814,22 @@ async function handleCopyContactPrefix(value) {
                 handleScheduleType(e.target.value);
               }}
             >
-              <MenuItem value={"disabled"}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={"queue"}>{i18n.t("settings.settings.options.queueManagement")}</MenuItem>
-              <MenuItem value={"company"}>{i18n.t("settings.settings.options.companyManagement")}</MenuItem>
-              <MenuItem value={"connection"}>{i18n.t("settings.settings.options.connectionManagement")}</MenuItem>
+              <MenuItem value={"disabled"}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={"queue"}>
+                {i18n.t("settings.settings.options.queueManagement")}
+              </MenuItem>
+              <MenuItem value={"company"}>
+                {i18n.t("settings.settings.options.companyManagement")}
+              </MenuItem>
+              <MenuItem value={"connection"}>
+                {i18n.t("settings.settings.options.connectionManagement")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingScheduleType && i18n.t("settings.settings.options.updating")}
+              {loadingScheduleType &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -789,7 +855,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSendGreetingAccepted && i18n.t("settings.settings.options.updating")}
+              {loadingSendGreetingAccepted &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -815,7 +882,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingUserRandom && i18n.t("settings.settings.options.updating")}
+              {loadingUserRandom &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -841,7 +909,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSettingsTransfTicket && i18n.t("settings.settings.options.updating")}
+              {loadingSettingsTransfTicket &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -849,7 +918,9 @@ async function handleCopyContactPrefix(value) {
         {/* TIPO DO BOT */}
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="schedule-type-label">{i18n.t("settings.settings.options.chatBotType")}</InputLabel>
+            <InputLabel id="schedule-type-label">
+              {i18n.t("settings.settings.options.chatBotType")}
+            </InputLabel>
             <Select
               labelId="schedule-type-label"
               value={chatBotType}
@@ -860,7 +931,8 @@ async function handleCopyContactPrefix(value) {
               <MenuItem value={"text"}>Texto</MenuItem>
             </Select>
             <FormHelperText>
-              {loadingScheduleType && i18n.t("settings.settings.options.updating")}
+              {loadingScheduleType &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -886,7 +958,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingAcceptCallWhatsapp && i18n.t("settings.settings.options.updating")}
+              {loadingAcceptCallWhatsapp &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -912,7 +985,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSendSignMessage && i18n.t("settings.settings.options.updating")}
+              {loadingSendSignMessage &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -938,7 +1012,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSendGreetingMessageOneQueues && i18n.t("settings.settings.options.updating")}
+              {loadingSendGreetingMessageOneQueues &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -964,7 +1039,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSendQueuePosition && i18n.t("settings.settings.options.updating")}
+              {loadingSendQueuePosition &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -990,7 +1066,8 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingSendFarewellWaitingTicket && i18n.t("settings.settings.options.updating")}
+              {loadingSendFarewellWaitingTicket &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -1014,14 +1091,18 @@ async function handleCopyContactPrefix(value) {
               </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingAcceptAudioMessageContact && i18n.t("settings.settings.options.updating")}
+              {loadingAcceptAudioMessageContact &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
 
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="enableLGPD-label"> {i18n.t("settings.settings.options.enableLGPD")}</InputLabel>
+            <InputLabel id="enableLGPD-label">
+              {" "}
+              {i18n.t("settings.settings.options.enableLGPD")}
+            </InputLabel>
             <Select
               labelId="enableLGPD-label"
               value={enableLGPD}
@@ -1029,18 +1110,26 @@ async function handleCopyContactPrefix(value) {
                 handleEnableLGPD(e.target.value);
               }}
             >
-              <MenuItem value={"disabled"}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={"enabled"}>{i18n.t("settings.settings.options.enabled")}</MenuItem>
+              <MenuItem value={"disabled"}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={"enabled"}>
+                {i18n.t("settings.settings.options.enabled")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingEnableLGPD && i18n.t("settings.settings.options.updating")}
+              {loadingEnableLGPD &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
 
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="requiredTag-label"> {i18n.t("settings.settings.options.requiredTag")}</InputLabel>
+            <InputLabel id="requiredTag-label">
+              {" "}
+              {i18n.t("settings.settings.options.requiredTag")}
+            </InputLabel>
             <Select
               labelId="requiredTag-label"
               value={requiredTag}
@@ -1048,17 +1137,25 @@ async function handleCopyContactPrefix(value) {
                 handleRequiredTag(e.target.value);
               }}
             >
-              <MenuItem value={"disabled"}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={"enabled"}>{i18n.t("settings.settings.options.enabled")}</MenuItem>
+              <MenuItem value={"disabled"}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={"enabled"}>
+                {i18n.t("settings.settings.options.enabled")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingRequiredTag && i18n.t("settings.settings.options.updating")}
+              {loadingRequiredTag &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="closeTicketOnTransfer-label"> {i18n.t("settings.settings.options.closeTicketOnTransfer")}</InputLabel>
+            <InputLabel id="closeTicketOnTransfer-label">
+              {" "}
+              {i18n.t("settings.settings.options.closeTicketOnTransfer")}
+            </InputLabel>
             <Select
               labelId="closeTicketOnTransfer-label"
               value={closeTicketOnTransfer}
@@ -1066,18 +1163,26 @@ async function handleCopyContactPrefix(value) {
                 handleCloseTicketOnTransfer(e.target.value);
               }}
             >
-              <MenuItem value={false}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={true}>{i18n.t("settings.settings.options.enabled")}</MenuItem>
+              <MenuItem value={false}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={true}>
+                {i18n.t("settings.settings.options.enabled")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingCloseTicketOnTransfer && i18n.t("settings.settings.options.updating")}
+              {loadingCloseTicketOnTransfer &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
 
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="showNotificationPending-label"> {i18n.t("settings.settings.options.showNotificationPending")}</InputLabel>
+            <InputLabel id="showNotificationPending-label">
+              {" "}
+              {i18n.t("settings.settings.options.showNotificationPending")}
+            </InputLabel>
             <Select
               labelId="showNotificationPending-label"
               value={showNotificationPending}
@@ -1085,17 +1190,25 @@ async function handleCopyContactPrefix(value) {
                 handleShowNotificationPending(e.target.value);
               }}
             >
-              <MenuItem value={false}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={true}>{i18n.t("settings.settings.options.enabled")}</MenuItem>
+              <MenuItem value={false}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={true}>
+                {i18n.t("settings.settings.options.enabled")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingShowNotificationPending && i18n.t("settings.settings.options.updating")}
+              {loadingShowNotificationPending &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.selectContainer}>
-            <InputLabel id="DirectTicketsToWallets-label"> {i18n.t("settings.settings.options.DirectTicketsToWallets")}</InputLabel>
+            <InputLabel id="DirectTicketsToWallets-label">
+              {" "}
+              {i18n.t("settings.settings.options.DirectTicketsToWallets")}
+            </InputLabel>
             <Select
               labelId="DirectTicketsToWallets-label"
               value={directTicketsToWallets}
@@ -1103,33 +1216,37 @@ async function handleCopyContactPrefix(value) {
                 handleDirectTicketsToWallets(e.target.value);
               }}
             >
-              <MenuItem value={false}>{i18n.t("settings.settings.options.disabled")}</MenuItem>
-              <MenuItem value={true}>{i18n.t("settings.settings.options.enabled")}</MenuItem>
+              <MenuItem value={false}>
+                {i18n.t("settings.settings.options.disabled")}
+              </MenuItem>
+              <MenuItem value={true}>
+                {i18n.t("settings.settings.options.enabled")}
+              </MenuItem>
             </Select>
             <FormHelperText>
-              {loadingDirectTicketsToWallets && i18n.t("settings.settings.options.updating")}
+              {loadingDirectTicketsToWallets &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
       </Grid>
       <br></br>
 
-
       {/* CONFIGURAÇÃO SIGLA PARA CÓPIA DE CONTATOS */}
       <Grid spacing={3} container style={{ marginBottom: 10 }}>
-                  <Tabs
-            indicatorColor='primary'
-            textColor='primary'
-            scrollButtons='on'
-            variant='scrollable'
-            className={classes.tab}
-            style={{
-              marginBottom: 20,
-              marginTop: 20,
-            }}
-          >
-            <Tab label='Configuração de Sigla para Copia de Contato' />
-          </Tabs>
+        <Tabs
+          indicatorColor="primary"
+          textColor="primary"
+          scrollButtons="on"
+          variant="scrollable"
+          className={classes.tab}
+          style={{
+            marginBottom: 20,
+            marginTop: 20,
+          }}
+        >
+          <Tab label="Configuração de Sigla para Copia de Contato" />
+        </Tabs>
         <Grid xs={12} sm={6} md={6} item>
           <FormControl className={classes.selectContainer}>
             <TextField
@@ -1139,27 +1256,28 @@ async function handleCopyContactPrefix(value) {
               label={i18n.t("settings.settings.options.copyContactPrefix")}
               variant="outlined"
               value={copyContactPrefix}
-              placeholder={i18n.t("settings.settings.options.copyContactPrefixPlaceholder")}
+              placeholder={i18n.t(
+                "settings.settings.options.copyContactPrefixPlaceholder",
+              )}
               onChange={async (e) => {
                 handleCopyContactPrefix(e.target.value);
               }}
-                InputLabelProps={{
-    shrink: true,
-  }}
+              InputLabelProps={{
+                shrink: true,
+              }}
             />
             <FormHelperText>
-              {loadingCopyContactPrefix && i18n.t("settings.settings.options.updating")}
+              {loadingCopyContactPrefix &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
       </Grid>
 
-      
       {/*-----------------LGPD-----------------*/}
       {enableLGPD === "enabled" && (
         <>
-          <Grid spacing={3} container
-            style={{ marginBottom: 10 }}>
+          <Grid spacing={3} container style={{ marginBottom: 10 }}>
             <Tabs
               value={0}
               indicatorColor="primary"
@@ -1168,10 +1286,7 @@ async function handleCopyContactPrefix(value) {
               variant="scrollable"
               className={classes.tab}
             >
-              <Tab
-
-                label={i18n.t("settings.settings.LGPD.title")} />
-
+              <Tab label={i18n.t("settings.settings.LGPD.title")} />
             </Tabs>
           </Grid>
           <Grid spacing={1} container>
@@ -1189,10 +1304,10 @@ async function handleCopyContactPrefix(value) {
                   onChange={async (e) => {
                     handleLGPDMessage(e.target.value);
                   }}
-                >
-                </TextField>
+                ></TextField>
                 <FormHelperText>
-                  {loadinglgpdMessage && i18n.t("settings.settings.options.updating")}
+                  {loadinglgpdMessage &&
+                    i18n.t("settings.settings.options.updating")}
                 </FormHelperText>
               </FormControl>
             </Grid>
@@ -1208,17 +1323,19 @@ async function handleCopyContactPrefix(value) {
                   onChange={async (e) => {
                     handleLGPDLink(e.target.value);
                   }}
-                >
-                </TextField>
+                ></TextField>
                 <FormHelperText>
-                  {loadingLGPDLink && i18n.t("settings.settings.options.updating")}
+                  {loadingLGPDLink &&
+                    i18n.t("settings.settings.options.updating")}
                 </FormHelperText>
               </FormControl>
             </Grid>
             {/* LGPD Manter ou nao mensagem deletada pelo contato */}
             <Grid xs={12} sm={6} md={4} item>
               <FormControl className={classes.selectContainer}>
-                <InputLabel id="lgpdDeleteMessage-label">{i18n.t("settings.settings.LGPD.obfuscateMessageDelete")}</InputLabel>
+                <InputLabel id="lgpdDeleteMessage-label">
+                  {i18n.t("settings.settings.LGPD.obfuscateMessageDelete")}
+                </InputLabel>
                 <Select
                   labelId="lgpdDeleteMessage-label"
                   value={lgpdDeleteMessage}
@@ -1226,11 +1343,16 @@ async function handleCopyContactPrefix(value) {
                     handleLGPDDeleteMessage(e.target.value);
                   }}
                 >
-                  <MenuItem value={"disabled"}>{i18n.t("settings.settings.LGPD.disabled")}</MenuItem>
-                  <MenuItem value={"enabled"}>{i18n.t("settings.settings.LGPD.enabled")}</MenuItem>
+                  <MenuItem value={"disabled"}>
+                    {i18n.t("settings.settings.LGPD.disabled")}
+                  </MenuItem>
+                  <MenuItem value={"enabled"}>
+                    {i18n.t("settings.settings.LGPD.enabled")}
+                  </MenuItem>
                 </Select>
                 <FormHelperText>
-                  {loadingLGPDDeleteMessage && i18n.t("settings.settings.options.updating")}
+                  {loadingLGPDDeleteMessage &&
+                    i18n.t("settings.settings.options.updating")}
                 </FormHelperText>
               </FormControl>
             </Grid>
@@ -1247,11 +1369,16 @@ async function handleCopyContactPrefix(value) {
                     handleLGPDConsent(e.target.value);
                   }}
                 >
-                  <MenuItem value={"disabled"}>{i18n.t("settings.settings.LGPD.disabled")}</MenuItem>
-                  <MenuItem value={"enabled"}>{i18n.t("settings.settings.LGPD.enabled")}</MenuItem>
+                  <MenuItem value={"disabled"}>
+                    {i18n.t("settings.settings.LGPD.disabled")}
+                  </MenuItem>
+                  <MenuItem value={"enabled"}>
+                    {i18n.t("settings.settings.LGPD.enabled")}
+                  </MenuItem>
                 </Select>
                 <FormHelperText>
-                  {loadingLGPDConsent && i18n.t("settings.settings.options.updating")}
+                  {loadingLGPDConsent &&
+                    i18n.t("settings.settings.options.updating")}
                 </FormHelperText>
               </FormControl>
             </Grid>
@@ -1268,11 +1395,16 @@ async function handleCopyContactPrefix(value) {
                     handleLGPDHideNumber(e.target.value);
                   }}
                 >
-                  <MenuItem value={"disabled"}>{i18n.t("settings.settings.LGPD.disabled")}</MenuItem>
-                  <MenuItem value={"enabled"}>{i18n.t("settings.settings.LGPD.enabled")}</MenuItem>
+                  <MenuItem value={"disabled"}>
+                    {i18n.t("settings.settings.LGPD.disabled")}
+                  </MenuItem>
+                  <MenuItem value={"enabled"}>
+                    {i18n.t("settings.settings.LGPD.enabled")}
+                  </MenuItem>
                 </Select>
                 <FormHelperText>
-                  {loadingLGPDHideNumber && i18n.t("settings.settings.options.updating")}
+                  {loadingLGPDHideNumber &&
+                    i18n.t("settings.settings.options.updating")}
                 </FormHelperText>
               </FormControl>
             </Grid>
@@ -1281,206 +1413,243 @@ async function handleCopyContactPrefix(value) {
       )}
 
       <Grid spacing={3} container>
-        {isSuper() ?
+        {isSuper() ? (
           <Tabs
-            indicatorColor='primary'
-            textColor='primary'
-            scrollButtons='on'
-            variant='scrollable'
+            indicatorColor="primary"
+            textColor="primary"
+            scrollButtons="on"
+            variant="scrollable"
             className={classes.tab}
             style={{
               marginBottom: 20,
               marginTop: 20,
             }}
           >
-            <Tab label='Configuração Pix Efí (GerenciaNet)' />
+            <Tab label="Configuração Pix Efí (GerenciaNet)" />
           </Tabs>
-          : null}
+        ) : null}
       </Grid>
 
       <Grid spacing={3} container style={{ marginBottom: 10 }}>
         <Grid xs={12} sm={6} md={6} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='eficlientid'
-                name='eficlientid'
-                margin='dense'
-                label='Client ID'
-                variant='outlined'
+                id="eficlientid"
+                name="eficlientid"
+                margin="dense"
+                label="Client ID"
+                variant="outlined"
                 value={eficlientidType}
                 onChange={async (e) => {
                   handleChangeEfiClientid(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingEfiClientidType && 'Atualizando...'}
+                {loadingEfiClientidType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
         <Grid xs={12} sm={6} md={6} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='eficlientsecret'
-                name='eficlientsecret'
-                margin='dense'
-                label='Client Secret'
-                variant='outlined'
+                id="eficlientsecret"
+                name="eficlientsecret"
+                margin="dense"
+                label="Client Secret"
+                variant="outlined"
                 value={eficlientsecretType}
                 onChange={async (e) => {
                   handleChangeEfiClientsecret(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingEfiClientsecretType && 'Atualizando...'}
+                {loadingEfiClientsecretType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
         <Grid xs={12} sm={12} md={12} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='efichavepix'
-                name='efichavepix'
-                margin='dense'
-                label='Chave PIX'
-                variant='outlined'
+                id="efichavepix"
+                name="efichavepix"
+                margin="dense"
+                label="Chave PIX"
+                variant="outlined"
                 value={efichavepixType}
                 onChange={async (e) => {
                   handleChangeEfiChavepix(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingEfiChavepixType && 'Atualizando...'}
+                {loadingEfiChavepixType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
       </Grid>
 
       <Grid spacing={3} container>
-        {isSuper() ?
+        {isSuper() ? (
           <Tabs
-            indicatorColor='primary'
-            textColor='primary'
-            scrollButtons='on'
-            variant='scrollable'
+            indicatorColor="primary"
+            textColor="primary"
+            scrollButtons="on"
+            variant="scrollable"
             className={classes.tab}
             style={{
               marginBottom: 20,
               marginTop: 20,
             }}
           >
-            <Tab label='Mercado Pago' />
+            <Tab label="Mercado Pago" />
           </Tabs>
-          : null}
+        ) : null}
       </Grid>
 
       <Grid spacing={3} container style={{ marginBottom: 10 }}>
         <Grid xs={12} sm={12} md={12} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='mpaccesstoken'
-                name='mpaccesstoken'
-                margin='dense'
-                label='Access Token'
-                variant='outlined'
+                id="mpaccesstoken"
+                name="mpaccesstoken"
+                margin="dense"
+                label="Access Token"
+                variant="outlined"
                 value={mpaccesstokenType}
                 onChange={async (e) => {
                   handleChangempaccesstoken(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingmpaccesstokenType && 'Atualizando...'}
+                {loadingmpaccesstokenType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
       </Grid>
 
       <Grid spacing={3} container>
-        {isSuper() ?
+        {isSuper() && (
           <Tabs
-            indicatorColor='primary'
-            textColor='primary'
-            scrollButtons='on'
-            variant='scrollable'
+            indicatorColor="primary"
+            textColor="primary"
+            scrollButtons="on"
+            variant="scrollable"
+            className={classes.tab}
+            style={{ marginBottom: 20, marginTop: 20 }}
+          >
+            <Tab label="OpenAI – Transcrição de Áudio" />
+          </Tabs>
+        )}
+      </Grid>
+
+      <Grid spacing={3} container style={{ marginBottom: 10 }}>
+        <Grid xs={12} sm={12} md={12} item>
+          {isSuper() && (
+            <FormControl className={classes.selectContainer}>
+              <TextField
+                id="openaiTranscribeApiKey"
+                name="openaiTranscribeApiKey"
+                margin="dense"
+                label="OpenAI API Key (Whisper / Transcrição)"
+                variant="outlined"
+                type="password"
+                value={openaitokenType}
+                onChange={(e) => handleChangeOpenAiToken(e.target.value)}
+              />
+              <FormHelperText>
+                {loadingopenaitokenType && "Atualizando..."}
+              </FormHelperText>
+            </FormControl>
+          )}
+        </Grid>
+      </Grid>
+
+      <Grid spacing={3} container>
+        {isSuper() ? (
+          <Tabs
+            indicatorColor="primary"
+            textColor="primary"
+            scrollButtons="on"
+            variant="scrollable"
             className={classes.tab}
             style={{
               marginBottom: 20,
               marginTop: 20,
             }}
           >
-            <Tab label='Stripe' />
+            <Tab label="Stripe" />
           </Tabs>
-          : null}
+        ) : null}
       </Grid>
 
       <Grid spacing={3} container style={{ marginBottom: 10 }}>
         <Grid xs={12} sm={12} md={12} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='stripeprivatekey'
-                name='stripeprivatekey'
-                margin='dense'
-                label='Stripe Private Key'
-                variant='outlined'
+                id="stripeprivatekey"
+                name="stripeprivatekey"
+                margin="dense"
+                label="Stripe Private Key"
+                variant="outlined"
                 value={stripeprivatekeyType}
                 onChange={async (e) => {
                   handleChangestripeprivatekey(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingstripeprivatekeyType && 'Atualizando...'}
+                {loadingstripeprivatekeyType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
       </Grid>
 
       <Grid spacing={3} container>
-        {isSuper() ?
+        {isSuper() ? (
           <Tabs
-            indicatorColor='primary'
-            textColor='primary'
-            scrollButtons='on'
-            variant='scrollable'
+            indicatorColor="primary"
+            textColor="primary"
+            scrollButtons="on"
+            variant="scrollable"
             className={classes.tab}
             style={{
               marginBottom: 20,
               marginTop: 20,
             }}
           >
-            <Tab label='ASAAS' />
+            <Tab label="ASAAS" />
           </Tabs>
-          : null}
+        ) : null}
       </Grid>
 
       <Grid spacing={3} container style={{ marginBottom: 10 }}>
         <Grid xs={12} sm={12} md={12} item>
-          {isSuper() ?
+          {isSuper() ? (
             <FormControl className={classes.selectContainer}>
               <TextField
-                id='asaastoken'
-                name='asaastoken'
-                margin='dense'
-                label='Token Asaas'
-                variant='outlined'
+                id="asaastoken"
+                name="asaastoken"
+                margin="dense"
+                label="Token Asaas"
+                variant="outlined"
                 value={asaastokenType}
                 onChange={async (e) => {
                   handleChangeasaastoken(e.target.value);
                 }}
               ></TextField>
               <FormHelperText>
-                {loadingasaastokenType && 'Atualizando...'}
+                {loadingasaastokenType && "Atualizando..."}
               </FormHelperText>
             </FormControl>
-            : null}
+          ) : null}
         </Grid>
       </Grid>
 
@@ -1500,10 +1669,10 @@ async function handleCopyContactPrefix(value) {
               onChange={async (e) => {
                 handletransferMessage(e.target.value);
               }}
-            >
-            </TextField>
+            ></TextField>
             <FormHelperText>
-              {loadingTransferMessage && i18n.t("settings.settings.options.updating")}
+              {loadingTransferMessage &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -1516,17 +1685,19 @@ async function handleCopyContactPrefix(value) {
               margin="dense"
               multiline
               rows={3}
-              label={i18n.t("settings.settings.customMessages.greetingAcceptedMessage")}
+              label={i18n.t(
+                "settings.settings.customMessages.greetingAcceptedMessage",
+              )}
               variant="outlined"
               value={greetingAcceptedMessage}
               required={SendGreetingAccepted === "enabled"}
               onChange={async (e) => {
                 handleGreetingAcceptedMessage(e.target.value);
               }}
-            >
-            </TextField>
+            ></TextField>
             <FormHelperText>
-              {loadingGreetingAcceptedMessage && i18n.t("settings.settings.options.updating")}
+              {loadingGreetingAcceptedMessage &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -1539,17 +1710,19 @@ async function handleCopyContactPrefix(value) {
               margin="dense"
               multiline
               rows={3}
-              label={i18n.t("settings.settings.customMessages.AcceptCallWhatsappMessage")}
+              label={i18n.t(
+                "settings.settings.customMessages.AcceptCallWhatsappMessage",
+              )}
               variant="outlined"
               required={AcceptCallWhatsapp === "disabled"}
               value={AcceptCallWhatsappMessage}
               onChange={async (e) => {
                 handleAcceptCallWhatsappMessage(e.target.value);
               }}
-            >
-            </TextField>
+            ></TextField>
             <FormHelperText>
-              {loadingAcceptCallWhatsappMessage && i18n.t("settings.settings.options.updating")}
+              {loadingAcceptCallWhatsappMessage &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -1563,16 +1736,18 @@ async function handleCopyContactPrefix(value) {
               multiline
               required={sendQueuePosition === "enabled"}
               rows={3}
-              label={i18n.t("settings.settings.customMessages.sendQueuePositionMessage")}
+              label={i18n.t(
+                "settings.settings.customMessages.sendQueuePositionMessage",
+              )}
               variant="outlined"
               value={sendQueuePositionMessage}
               onChange={async (e) => {
                 handlesendQueuePositionMessage(e.target.value);
               }}
-            >
-            </TextField>
+            ></TextField>
             <FormHelperText>
-              {loadingSendQueuePositionMessage && i18n.t("settings.settings.options.updating")}
+              {loadingSendQueuePositionMessage &&
+                i18n.t("settings.settings.options.updating")}
             </FormHelperText>
           </FormControl>
         </Grid>
