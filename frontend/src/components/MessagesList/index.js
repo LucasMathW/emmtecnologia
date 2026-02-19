@@ -551,17 +551,26 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "REACTION_UPDATE") {
+    console.log();
     const { messageId, reaction } = action.payload;
 
     return state.map((message) => {
-      if (message.id !== messageId) return message;
+      if (String(message.id) !== String(messageId)) return message;
 
-      const reactions = message.reactions || [];
+      const reactions = Array.isArray(message.reactions)
+        ? message.reactions
+        : [];
 
       const filtered = reactions.filter(
-        (r) =>
-          !(r.fromMe === reaction.fromMe && r.fromJid === reaction.fromJid),
+        (r) => String(r.userId) !== String(reaction.userId),
       );
+
+      if (!reaction.emoji) {
+        return {
+          ...message,
+          reactions: filtered,
+        };
+      }
 
       return {
         ...message,
@@ -570,20 +579,40 @@ const reducer = (state, action) => {
     });
   }
 
-  if (action.type === "REACTION_REMOVE") {
-    const { messageId, userId } = action.payload;
+  // if (action.type === "REACTION_UPDATE") {
+  //   const { messageId, reaction } = action.payload;
 
-    return state.map((message) => {
-      if (message.id !== messageId) return message;
+  //   return state.map((message) => {
+  //     if (String(message.id) !== String(messageId)) return message;
 
-      return {
-        ...message,
-        reactions: (message.reactions || []).filter(
-          (r) => r.userId !== userId && r.user?.id !== userId,
-        ),
-      };
-    });
-  }
+  //     const reactions = message.reactions || [];
+
+  //     // remove reação antiga do mesmo usuário
+  //     const updatedReactions = reactions.filter(
+  //       (r) => String(r.userId) !== String(reaction.userId),
+  //     );
+
+  //     return {
+  //       ...message,
+  //       reactions: [...updatedReactions, reaction],
+  //     };
+  //   });
+  // }
+
+  // if (action.type === "REACTION_REMOVE") {
+  //   const { messageId, reaction } = action.payload;
+
+  //   return state.map((message) => {
+  //     if (String(message.id) !== String(messageId)) return message;
+
+  //     return {
+  //       ...message,
+  //       reactions: (message.reactions || []).filter(
+  //         (r) => String(r.userId) !== String(reaction.userId),
+  //       ),
+  //     };
+  //   });
+  // }
 
   if (action.type === "RESET") {
     return [];
@@ -715,6 +744,7 @@ const MessagesList = ({
 
     const onAppMessageMessagesList = (data) => {
       if (data.action === "reaction:update") {
+        console.log("UPDATE DE REACAO");
         dispatch({
           type: "REACTION_UPDATE",
           payload: {
@@ -723,19 +753,6 @@ const MessagesList = ({
           },
         });
       }
-
-      if (data.action === "reaction:remove") {
-        dispatch({
-          type: "REACTION_REMOVE",
-          payload: {
-            messageId: data.messageId,
-            userId: data.reaction.userId || data.reaction.user?.id,
-            // fromMe: data.reaction.fromMe,
-            // fromJid: data.reaction.fromJid,
-          },
-        });
-      }
-
       const msg = data.message;
       if (!msg) return;
 
@@ -843,11 +860,17 @@ const MessagesList = ({
 
   const handleSendReaction = async (message, clickedEmoji) => {
     try {
-      const myReaction = message.reactions?.find(
-        (r) => r.userId === user.id || r.user?.id === user.id,
-      );
+      console.log(`clickeEmoji:${clickedEmoji}`);
 
-      console.log("myReaction", myReaction);
+      // const myReaction = message.reactions?.find(
+      //   (r) => r.userId === user.id || r.user?.id === user.id,
+      // );
+
+      const myReaction = Array.isArray(message?.reactions)
+        ? message.reactions.find(
+            (r) => r.userId === user.id || r.user?.id === user.id,
+          )
+        : null;
 
       const isRemoving = myReaction?.emoji === clickedEmoji;
 
@@ -857,15 +880,15 @@ const MessagesList = ({
         emoji: emojiToSend,
       });
 
-      if (isRemoving && myReaction) {
-        dispatch({
-          type: "REACTION_REMOVE",
-          payload: {
-            messageId: message.id,
-            userId: user.id,
-          },
-        });
-      }
+      // if (isRemoving && myReaction) {
+      //   dispatch({
+      //     type: "REACTION_UPDATE",
+      //     payload: {
+      //       messageId: message.id,
+      //       reaction: message.reaction,
+      //     },
+      //   });
+      // }
     } catch (err) {
       toastError(err);
     }
@@ -1428,6 +1451,19 @@ const MessagesList = ({
     if (!message.reactions || message.reactions.length === 0) {
       return null;
     }
+
+    const myReactions = message.reactions.filter(
+      (r) => String(r.userId) === String(user.id),
+    );
+
+    const contactReactions = message.reactions.filter(
+      (r) => String(r.userId) !== String(user.id),
+    );
+
+    const orderedReactions = [...myReactions, ...contactReactions];
+
+    const total = orderedReactions.length;
+
     return (
       <div
         style={{
@@ -1444,11 +1480,31 @@ const MessagesList = ({
           zIndex: 10,
         }}
       >
-        {message.reactions.map((reaction) => (
+        {orderedReactions.map((reaction) => (
           <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
             {reaction.emoji}
           </span>
         ))}
+
+        {/* Contador total (apenas se > 1) */}
+        {total > 1 && (
+          <span
+            style={{
+              marginLeft: 4,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#555",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 16,
+              lineHeight: 1,
+              transform: "translateY(1px)", // 🔥 micro ajuste fino
+            }}
+          >
+            {total}
+          </span>
+        )}
       </div>
     );
   };
@@ -1819,16 +1875,17 @@ const MessagesList = ({
         }}
       >
         {(() => {
-          const reactionMessage =
-            messagesList.find((m) => m.id === reactionBar?.messageId) || null;
+          // const reactionMessage =
+          //   messagesList.find((m) => m.id === reactionBar?.messageId) || null;
+
+          const reactionMessage = Array.isArray(messagesList)
+            ? messagesList.find((m) => m.id === reactionBar?.messageId)
+            : null;
 
           const myReaction =
             reactionMessage?.reactions?.find(
               (r) => r.userId === user.id || r.user?.id === user.id,
             ) || null;
-
-          console.log("REACTIONS APÓS REFRESH:", reactionMessage?.reactions);
-          console.log("USER LOGADO:", user);
 
           const myEmoji = myReaction?.emoji || null;
 
@@ -1849,7 +1906,7 @@ const MessagesList = ({
                     key={emoji}
                     className={`${classes.reactionEmoji} ${isActive ? classes.reactionEmojiActive : ""}`}
                     onClick={() => {
-                      if (!messageForReaction) return;
+                      // if (!messageForReaction) return;
                       handleSendReaction(messageForReaction, emoji);
                       setReactionBar(null);
                     }}
@@ -1895,14 +1952,38 @@ const MessagesList = ({
           },
         }}
       >
-        <EmojiPicker
-          onEmojiClick={(emojiData) => {
-            handleSendReaction(reactionPicker.message, emojiData.emoji);
-            setReactionPicker(null);
-          }}
-          height={380}
-          width={280}
-        />
+        {(() => {
+          const reactionMessage = Array.isArray(messagesList)
+            ? messagesList.find((m) => m.id === reactionPicker?.messageId)
+            : null;
+
+          const myReaction =
+            reactionMessage?.reactions?.find(
+              (r) => r.userId === user.id || r.user?.id === user.id,
+            ) || null;
+
+          const myEmoji = myReaction?.emoji || null;
+
+          const messageForReaction = reactionMessage
+            ? {
+                ...reactionMessage,
+                wid: reactionPicker?.messageWid,
+              }
+            : null;
+
+          return (
+            <>
+              <EmojiPicker
+                onEmojiClick={(emojiData) => {
+                  handleSendReaction(messageForReaction, emojiData.emoji);
+                  setReactionPicker(null);
+                }}
+                height={380}
+                width={280}
+              />
+            </>
+          );
+        })()}
       </Popover>
 
       <div
