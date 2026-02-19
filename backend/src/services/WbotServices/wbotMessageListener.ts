@@ -3963,8 +3963,6 @@ const handleMessage = async (
 
     const contact = await verifyContact(msgContact, wbot, companyId);
 
-    // console.log("DEBUG LUCAS =>", contact);
-
     let unreadMessages = 0;
 
     if (msg.key.fromMe) {
@@ -5475,10 +5473,6 @@ const handleBaileysReaction = async (
     const normalizedJid = normalizeJid(rawJid);
     const number = normalizedJid.replace(/\D/g, "");
 
-    const contact = await Contact.findOne({
-      where: { number, companyId }
-    });
-
     const msg = await Message.findOne({
       where: {
         wid: reactedMsgWid,
@@ -5487,52 +5481,52 @@ const handleBaileysReaction = async (
       attributes: ["id", "ticketId"]
     });
 
-    if (!msg || !contact) return;
+    if (!msg) return;
 
-    const whatsapp = await Whatsapp.findByPk(wbot.id);
-
-    const ticket = await Ticket.findOne({
-      where: {
-        id: msg.ticketId
-      }
-    });
-
-    console.log(`ticket:${ticket.id}`);
-
-    const agentUser = await User.findOne({
-      where: {
-        id: ticket.userId,
-        companyId
-      }
-    });
-
-    console.log(`agentUser:${agentUser.id}`);
-
-    if (!agentUser) return;
-
-    // 🔥 Resolve userId (agente x contato)
     let userId: number;
     let fromJid: string;
+
     const isFromMe = message.key.fromMe;
 
     if (isFromMe) {
+      // 🔥 reação do agente
+      const ticket = await Ticket.findByPk(msg.ticketId);
+      if (!ticket) return;
+
+      const agentUser = await User.findOne({
+        where: {
+          id: ticket.userId,
+          companyId
+        }
+      });
+
+      if (!agentUser) return;
+
       userId = agentUser.id;
-      fromJid = `${whatsapp.number}@s.whatsapp.net`;
+      fromJid = ticket.whatsapp?.number
+        ? `${ticket.whatsapp.number}@s.whatsapp.net`
+        : normalizedJid;
     } else {
+      // 🔥 reação do contato
+      const contact = await Contact.findOne({
+        where: { number, companyId }
+      });
+
+      if (!contact) return;
+
       userId = contact.id;
       fromJid = normalizedJid;
     }
 
-    // 🔥 REMOÇÃO CONFIRMADA PELO WHATSAPP
     if (!emoji) {
       await MessageReaction.destroy({
         where: { messageId: msg.id, userId }
       });
 
       nsp.emit(`company-${companyId}-appMessage`, {
-        action: "reaction:remove",
+        action: "reaction:update",
         messageId: msg.id,
-        reaction: { userId, emoji, fromMe: isFromMe, fromJid },
+        reaction: { userId, emoji: "", fromJid },
         ticketId: msg.ticketId
       });
 
@@ -5552,7 +5546,7 @@ const handleBaileysReaction = async (
     nsp.emit(`company-${companyId}-appMessage`, {
       action: "reaction:update",
       messageId: msg.id,
-      reaction: { userId, emoji, fromMe: isFromMe, fromJid },
+      reaction: { userId, emoji, fromJid },
       ticketId: msg.ticketId
     });
   } catch (err) {
@@ -5714,6 +5708,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", data => {
+    console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
     const presences = data.presences || {};
 
     for (const remoteJid in presences) {
@@ -5721,11 +5716,14 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
       if (!presence.lastKnownPresence) continue;
 
-      let status: "typing" | "paused" | "online" | "offline";
+      let status: "typing" | "recording" | "paused" | "online" | "offline";
 
       switch (presence.lastKnownPresence) {
         case "composing":
           status = "typing";
+          break;
+        case "recording":
+          status = "recording";
           break;
         case "paused":
           status = "paused";
