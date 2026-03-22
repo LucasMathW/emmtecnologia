@@ -1,4 +1,10 @@
-import React, { useContext, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useHistory } from "react-router-dom";
 
 import { Can } from "../Can";
@@ -115,11 +121,14 @@ const TicketActionButtonsCustom = ({
   ] = useState(false);
   const [showTicketLogOpen, setShowTicketLogOpen] = useState(false);
   const [openTicketMessageDialog, setOpenTicketMessageDialog] = useState(false);
-  const [disableBot, setDisableBot] = useState(ticket.contact.disableBot);
+  // const [disableBot, setDisableBot] = useState(ticket.contact.disableBot);
+  const [disableBot, setDisableBot] = useState(
+    ticket?.contact?.disableBot ?? false,
+  );
 
   const [showSchedules, setShowSchedules] = useState(false);
   const [enableIntegration, setEnableIntegration] = useState(
-    ticket.useIntegration
+    ticket.useIntegration,
   );
 
   const [openAlert, setOpenAlert] = useState(false);
@@ -148,11 +157,11 @@ const TicketActionButtonsCustom = ({
   // Estados para copiar telefone e respostas rápidas
   const [quickMessageModalOpen, setQuickMessageModalOpen] = useState(false);
 
-  console.log("DEBUG user:", user);
-  console.log(
-    "DEBUG user.finalizacaoComValorVendaAtiva:",
-    user?.finalizacaoComValorVendaAtiva
-  );
+  // console.log("DEBUG user:", user);
+  // console.log(
+  //   "DEBUG user.finalizacaoComValorVendaAtiva:",
+  //   user?.finalizacaoComValorVendaAtiva
+  // );
 
   useEffect(() => {
     fetchData();
@@ -178,7 +187,7 @@ const TicketActionButtonsCustom = ({
     const planConfigs = await getPlanCompany(undefined, companyId);
 
     console.log("DEBUG planConfigs:", planConfigs);
-    
+
     if (isMounted.current) {
       setShowSchedules(planConfigs.plan.useSchedules);
       setShowWavoipCall(planConfigs.plan.wavoip);
@@ -205,7 +214,7 @@ const TicketActionButtonsCustom = ({
   const fetchDirectTicketsToWalletsSetting = async () => {
     try {
       const setting = await getSetting({
-        column: "DirectTicketsToWallets"
+        column: "DirectTicketsToWallets",
       });
       if (isMounted.current) {
         setDirectTicketsToWallets(setting.DirectTicketsToWallets);
@@ -227,7 +236,7 @@ const TicketActionButtonsCustom = ({
       }
 
       // Remove todos os caracteres não numéricos e copia o número puro
-      const phoneNumber = contact.number.replace(/\D/g, '');
+      const phoneNumber = contact.number.replace(/\D/g, "");
 
       // Verifica se tem pelo menos 8 dígitos (número mínimo válido)
       if (phoneNumber.length >= 8) {
@@ -237,7 +246,7 @@ const TicketActionButtonsCustom = ({
         toast.error(i18n.t("ticketInfo.invalidPhoneFormat"));
       }
     } catch (err) {
-      console.error('Erro ao copiar telefone:', err);
+      console.error("Erro ao copiar telefone:", err);
       toast.error(i18n.t("ticketInfo.copyError"));
     }
   };
@@ -257,7 +266,7 @@ const TicketActionButtonsCustom = ({
     handleCloseQuickMessageModal();
 
     if (selectedMessage.mediaPath) {
-      const event = new CustomEvent('insertQuickMessage', {
+      const event = new CustomEvent("insertQuickMessage", {
         detail: {
           quickMessage: {
             id: selectedMessage.id,
@@ -265,16 +274,16 @@ const TicketActionButtonsCustom = ({
             shortcode: selectedMessage.shortcode || "",
             mediaPath: selectedMessage.mediaPath,
             mediaType: selectedMessage.mediaType,
-            value: selectedMessage.message || ""
-          }
+            value: selectedMessage.message || "",
+          },
         },
-        bubbles: false
+        bubbles: false,
       });
 
       window.dispatchEvent(event);
     } else {
       // Para texto, também usar evento
-      const event = new CustomEvent('insertQuickMessage', {
+      const event = new CustomEvent("insertQuickMessage", {
         detail: {
           quickMessage: {
             id: selectedMessage.id,
@@ -282,10 +291,10 @@ const TicketActionButtonsCustom = ({
             shortcode: selectedMessage.shortcode || "",
             mediaPath: null,
             mediaType: null,
-            value: selectedMessage.message || ""
-          }
+            value: selectedMessage.message || "",
+          },
         },
-        bubbles: false
+        bubbles: false,
       });
 
       window.dispatchEvent(event);
@@ -415,7 +424,11 @@ const TicketActionButtonsCustom = ({
     setNewTicketModalOpen(false);
     if (newTicket) {
       // Se um novo ticket foi criado, redirecionar para ele
-      setCurrentTicket({ id: newTicket.id, uuid: newTicket.uuid, code: uuidv4() });
+      setCurrentTicket({
+        id: newTicket.id,
+        uuid: newTicket.uuid,
+        code: uuidv4(),
+      });
       history.push(`/tickets/${newTicket.uuid}`);
     }
   };
@@ -441,7 +454,7 @@ const TicketActionButtonsCustom = ({
     }
     if (!setting.greetingAcceptedMessage) {
       toast.warning(
-        i18n.t("messagesList.header.buttons.greetingAcceptedMessage")
+        i18n.t("messagesList.header.buttons.greetingAcceptedMessage"),
       );
       return;
     }
@@ -553,9 +566,9 @@ const TicketActionButtonsCustom = ({
 
   //Wavoip historic
   const saveHistoricalLink = async (payload) => {
-    console.log('payload request historical', JSON.stringify(payload));
+    console.log("payload request historical", JSON.stringify(payload));
     const callHistorical = await api.post(`/call/historical/wavoip`, payload);
-  }
+  };
   //Wavoip conect
   const handleOpenWavoipCall = async () => {
     if (!ticket?.whatsapp?.wavoip || !ticket?.contact?.number) {
@@ -570,22 +583,25 @@ const TicketActionButtonsCustom = ({
 
     try {
       await saveHistoricalLink({
-        "user_id": ticket?.user?.id || null,
-        "token_wavoip": token,
-        "whatsapp_id": ticket?.whatsapp?.id || null,
-        "contact_id": ticket?.contact?.id || null,
-        "company_id": ticket?.company?.id || null,
-        "phone_to": phone,
-        "name": name,
-        "url": url,
-        "createdAt": new Date()
+        user_id: ticket?.user?.id || null,
+        token_wavoip: token,
+        whatsapp_id: ticket?.whatsapp?.id || null,
+        contact_id: ticket?.contact?.id || null,
+        company_id: ticket?.company?.id || null,
+        phone_to: phone,
+        name: name,
+        url: url,
+        createdAt: new Date(),
       });
-
     } catch (e) {
-      console.log('erro ao tentar salvar historico', e)
+      console.log("erro ao tentar salvar historico", e);
     }
 
-    window.open(url, "wavoip", "toolbar=no,scrollbars=no,resizable=no,top=500,left=500,width=500,height=700");
+    window.open(
+      url,
+      "wavoip",
+      "toolbar=no,scrollbars=no,resizable=no,top=500,left=500,width=500,height=700",
+    );
   };
 
   const handleExportToPDF = () => {
@@ -594,8 +610,9 @@ const TicketActionButtonsCustom = ({
 
     const pdfOptions = {
       margin: 1,
-      filename: `${i18n.t("whatsappModalRel.form.reportFilename")}${ticket.id
-        }.pdf`,
+      filename: `${i18n.t("whatsappModalRel.form.reportFilename")}${
+        ticket.id
+      }.pdf`,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
@@ -620,7 +637,7 @@ const TicketActionButtonsCustom = ({
     try {
       if (ticket?.whatsapp?.integrationTypeId) {
         const { data: integration } = await api.get(
-          `/queueIntegration/${ticket.whatsapp.integrationTypeId}`
+          `/queueIntegration/${ticket.whatsapp.integrationTypeId}`,
         );
 
         if (integration) {
@@ -642,7 +659,7 @@ const TicketActionButtonsCustom = ({
         null,
         "closed",
         user?.id,
-        ticket?.queue?.id
+        ticket?.queue?.id,
       );
 
       if (isMounted.current) {
@@ -716,7 +733,7 @@ const TicketActionButtonsCustom = ({
   const handleUpdateTicketStatusWithData = async (
     ticketData,
     sendFarewellMessage,
-    finalizacaoMessage
+    finalizacaoMessage,
   ) => {
     try {
       await api.put(`/tickets/${ticket.id}`, {
@@ -733,8 +750,9 @@ const TicketActionButtonsCustom = ({
 
   // Tooltip dinâmico para copiar telefone
   const getCopyPhoneTooltip = () => {
-    const usePrefixWhenCopy = localStorage.getItem('usePrefixWhenCopy') === 'true';
-    const prefix = localStorage.getItem('contactCopyPrefix') || '';
+    const usePrefixWhenCopy =
+      localStorage.getItem("usePrefixWhenCopy") === "true";
+    const prefix = localStorage.getItem("contactCopyPrefix") || "";
 
     let copyTooltip = i18n.t("ticketInfo.copyPhone");
     if (usePrefixWhenCopy && prefix) {
@@ -881,10 +899,11 @@ const TicketActionButtonsCustom = ({
               </IconButton>
 
               {/* Botão de vincular à carteira só aparece se NÃO houver carteira vinculada E se a configuração DirectTicketsToWallets estiver ativa */}
-              {directTicketsToWallets && !(
-                ticket.contact?.contactWallets &&
-                ticket.contact.contactWallets.length > 0
-              ) && (
+              {directTicketsToWallets &&
+                !(
+                  ticket.contact?.contactWallets &&
+                  ticket.contact.contactWallets.length > 0
+                ) && (
                   <IconButton
                     className={classes.bottomButtonVisibilityIcon}
                     onClick={handleLinkToWallet}
@@ -928,7 +947,7 @@ const TicketActionButtonsCustom = ({
             {confirmationOpen && (
               <ConfirmationModal
                 title={`${i18n.t(
-                  "ticketOptionsMenu.confirmationModal.title"
+                  "ticketOptionsMenu.confirmationModal.title",
                 )} #${ticket.id}?`}
                 open={confirmationOpen}
                 onClose={setConfirmationOpen}
@@ -1019,89 +1038,89 @@ const TicketActionButtonsCustom = ({
         {(!user.finalizacaoComValorVendaAtiva ||
           user.finalizacaoComValorVendaAtiva === false ||
           user.finalizacaoComValorVendaAtiva === "false") && (
-            <Formik
-              enableReinitialize={true}
-              validationSchema={SessionSchema}
-              innerRef={formRef}
-              onSubmit={(values, actions) => {
-                setTimeout(() => {
-                  actions.setSubmitting(false);
-                  actions.resetForm();
-                }, 400);
-              }}
-            >
-              {({
-                values,
-                touched,
-                errors,
-                isSubmitting,
-                setFieldValue,
-                resetForm,
-              }) => (
-                <Dialog
-                  open={open}
-                  onClose={handleClose}
-                  aria-labelledby="alert-dialog-title"
-                  aria-describedby="alert-dialog-description"
-                >
-                  <Form>
-                    <DialogActions className={classes.botoes}>
+          <Formik
+            enableReinitialize={true}
+            validationSchema={SessionSchema}
+            innerRef={formRef}
+            onSubmit={(values, actions) => {
+              setTimeout(() => {
+                actions.setSubmitting(false);
+                actions.resetForm();
+              }, 400);
+            }}
+          >
+            {({
+              values,
+              touched,
+              errors,
+              isSubmitting,
+              setFieldValue,
+              resetForm,
+            }) => (
+              <Dialog
+                open={open}
+                onClose={handleClose}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+              >
+                <Form>
+                  <DialogActions className={classes.botoes}>
+                    <Button
+                      onClick={() => handleFinalizarTicket("semDespedida")}
+                      style={{
+                        background: theme.palette.primary.main,
+                        color: "white",
+                      }}
+                    >
+                      {i18n.t(
+                        "messagesList.header.dialogRatingWithoutFarewellMsg",
+                      )}
+                    </Button>
+
+                    <Button
+                      onClick={() => handleFinalizarTicket("comDespedida")}
+                      style={{
+                        background: theme.palette.primary.main,
+                        color: "white",
+                      }}
+                    >
+                      {i18n.t("messagesList.header.dialogRatingCancel")}
+                    </Button>
+
+                    {showTestButton && (
                       <Button
-                        onClick={() => handleFinalizarTicket("semDespedida")}
+                        onClick={handleTestButton}
                         style={{
                           background: theme.palette.primary.main,
                           color: "white",
                         }}
                       >
                         {i18n.t(
-                          "messagesList.header.dialogRatingWithoutFarewellMsg"
+                          "whatsappModalRel.form.resolveAndTriggerIntegration",
                         )}
                       </Button>
-
-                      <Button
-                        onClick={() => handleFinalizarTicket("comDespedida")}
-                        style={{
-                          background: theme.palette.primary.main,
-                          color: "white",
-                        }}
-                      >
-                        {i18n.t("messagesList.header.dialogRatingCancel")}
-                      </Button>
-
-                      {showTestButton && (
-                        <Button
-                          onClick={handleTestButton}
-                          style={{
-                            background: theme.palette.primary.main,
-                            color: "white",
-                          }}
-                        >
-                          {i18n.t(
-                            "whatsappModalRel.form.resolveAndTriggerIntegration"
-                          )}
-                        </Button>
-                      )}
-                    </DialogActions>
-                  </Form>
-                </Dialog>
-              )}
-            </Formik>
-          )}
+                    )}
+                  </DialogActions>
+                </Form>
+              </Dialog>
+            )}
+          </Formik>
+        )}
       </>
       {openFinalizacaoVenda &&
         (console.log("DEBUG JSX: Renderizando FinalizacaoVendaModal"),
-          (
-            <FinalizacaoVendaModal
-              open={openFinalizacaoVenda}
-              onClose={() => setOpenFinalizacaoVenda(false)}
-              ticket={ticket}
-              onFinalizar={(ticketData) => {
-                setOpenFinalizacaoVenda(false);
-                setTicketDataToFinalize(ticketData);
-                setShowFinalizacaoOptions(true);
-              }}
-            />
-          ))}
+        (
+          <FinalizacaoVendaModal
+            open={openFinalizacaoVenda}
+            onClose={() => setOpenFinalizacaoVenda(false)}
+            ticket={ticket}
+            onFinalizar={(ticketData) => {
+              setOpenFinalizacaoVenda(false);
+              setTicketDataToFinalize(ticketData);
+              setShowFinalizacaoOptions(true);
+            }}
+          />
+        ))}
       {showFinalizacaoOptions && (
         <Dialog
           open={showFinalizacaoOptions}
@@ -1118,7 +1137,7 @@ const TicketActionButtonsCustom = ({
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   false,
-                  null
+                  null,
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}
@@ -1131,7 +1150,7 @@ const TicketActionButtonsCustom = ({
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   true,
-                  null
+                  null,
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}

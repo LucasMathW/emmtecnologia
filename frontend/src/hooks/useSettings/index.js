@@ -1,3 +1,4 @@
+import { Token } from "@mui/icons-material";
 import api, { openApi } from "../../services/api";
 
 const useSettings = () => {
@@ -16,7 +17,12 @@ const useSettings = () => {
       method: "PUT",
       data,
     });
-    console.log(responseData);
+
+    const companyId = localStorage.getItem("companyId") || "global";
+    const cacheKey = `setting_${companyId}_${data.key}`;
+
+    localStorage.setItem(cacheKey, JSON.stringify(responseData.value));
+
     return responseData;
   };
 
@@ -29,12 +35,58 @@ const useSettings = () => {
   };
 
   const getPublicSetting = async (key, companyId = null) => {
-    const params = companyId ? { companyId } : {};
+    // console.log(`key:${key}`);
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCompanyId = urlParams.get("companyId");
+
+    if (!companyId && urlCompanyId) {
+      companyId = parseInt(urlCompanyId, 10);
+    }
+
+    if (!companyId) {
+      const storedCompanyId = localStorage.getItem("companyId");
+      if (storedCompanyId) {
+        companyId = parseInt(storedCompanyId, 10);
+      }
+    }
+
+    const cacheKey = `setting_${companyId || "global"}_${key}`;
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached !== null) {
+      try {
+        const parsed = JSON.parse(cached);
+
+        if (parsed !== "" && parsed !== null && parsed !== undefined) {
+          return parsed;
+        }
+
+        localStorage.removeItem(cacheKey);
+      } catch (error) {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
+    const params = {
+      token: process.env.REACT_APP_ENV_TOKEN,
+    };
+
+    if (companyId) {
+      params.companyId = companyId;
+    }
+
     const { data } = await openApi.request({
       url: `/public-settings/${key}`,
       method: "GET",
       params,
     });
+
+    if (data !== "" && data !== null && data !== undefined) {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } else {
+      localStorage.removeItem(cacheKey);
+    }
+
     return data;
   };
 

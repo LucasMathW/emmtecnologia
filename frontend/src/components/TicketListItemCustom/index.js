@@ -228,10 +228,12 @@ const useStyles = makeStyles((theme) => ({
     "&:hover": {
       opacity: 0.8,
     },
-  }
+  },
 }));
 
 const TicketListItemCustom = ({ setTabOpen, ticket }) => {
+  // console.log("Ticket:", ticket.id, "Presence:", ticket.presence);
+
   const classes = useStyles();
   const theme = useTheme();
   const history = useHistory();
@@ -254,6 +256,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
   const [showFinalizacaoOptions, setShowFinalizacaoOptions] = useState(false);
 
   const [imageModalOpen, setImageModalOpen] = useState(false); // Estado para o modal da imagem
+  const [presence, setPresence] = useState(null);
 
   const { ticketId } = useParams();
   const isMounted = useRef(true);
@@ -306,7 +309,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         //verificar se tem uma tag
         try {
           const contactTags = await api.get(
-            `/contactTags/${ticket.contact.id}`
+            `/contactTags/${ticket.contact.id}`,
           );
           if (!contactTags.data.tags) {
             toast.warning(i18n.t("messagesList.header.buttons.requiredTag"));
@@ -467,7 +470,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     }
     if (!setting.greetingAcceptedMessage) {
       toast.warning(
-        i18n.t("messagesList.header.buttons.greetingAcceptedMessage")
+        i18n.t("messagesList.header.buttons.greetingAcceptedMessage"),
       );
       return;
     }
@@ -499,7 +502,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
   const handleUpdateTicketStatusWithData = async (
     ticketData,
     sendFarewellMessage,
-    finalizacaoMessage
+    finalizacaoMessage,
   ) => {
     try {
       await api.put(`/tickets/${ticket.id}`, {
@@ -521,10 +524,40 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
   };
 
   // Lógica de permissão para mensagens pending - MOVIDA PARA DEPOIS DE TODAS AS FUNÇÕES
-  const shouldBlurMessages = ticket.status === "pending" && user?.allowSeeMessagesInPendingTickets === "disabled";
+  const shouldBlurMessages =
+    ticket.status === "pending" &&
+    user?.allowSeeMessagesInPendingTickets === "disabled";
 
   // Função para renderizar a mensagem com base na permissão - MOVIDA PARA DEPOIS DE TODAS AS FUNÇÕES
   const renderLastMessage = () => {
+    if (ticket.presence === "typing") {
+      return (
+        <Typography style={{ color: "green", fontSize: 16 }}>
+          Digitando...
+        </Typography>
+      );
+    }
+
+    if (ticket.presence === "recording") {
+      return (
+        <Typography style={{ color: "green", fontSize: 16 }}>
+          Gravando áudio...
+        </Typography>
+      );
+    }
+
+    if (ticket.reactionPreview) {
+      const { emoji, messagePreview, reactionUserId } = ticket.reactionPreview;
+
+      const isFromMe = reactionUserId === user?.id;
+
+      const text = isFromMe
+        ? `Você reagiu com ${emoji} a: "${messagePreview}"`
+        : `Reagiu com ${emoji} a: "${messagePreview}"`;
+
+      return <MarkdownWrapper>{truncate(text, 40)}</MarkdownWrapper>;
+    }
+
     if (shouldBlurMessages) {
       return (
         <MarkdownWrapper>
@@ -533,6 +566,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       );
     }
 
+    // Se não tiver presence, renderiza mensagem normal
     if (!ticket.lastMessage) {
       return <br />;
     }
@@ -546,9 +580,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     }
 
     return (
-      <MarkdownWrapper>
-        {truncate(ticket.lastMessage, 40)}
-      </MarkdownWrapper>
+      <MarkdownWrapper>{truncate(ticket.lastMessage, 40)}</MarkdownWrapper>
     );
   };
 
@@ -623,11 +655,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
           disableTypography
           primary={
             <span className={classes.contactNameWrapper}>
-              <Typography
-                noWrap
-                component="span"
-                variant="body2"
-              >
+              <Typography noWrap component="span" variant="body2">
                 {ticket.isGroup && ticket.channel === "whatsapp" && (
                   <GroupIcon
                     fontSize="small"
@@ -674,8 +702,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                           ticket.channel === "whatsapp"
                             ? ticket.whatsapp?.color || "#25D366"
                             : ticket.channel === "facebook"
-                            ? "#4267B2"
-                            : "#E1306C",
+                              ? "#4267B2"
+                              : "#E1306C",
                       }}
                     >
                       {ticket.whatsapp?.name.toUpperCase()}
@@ -693,8 +721,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                       {ticket.queueId
                         ? ticket.queue?.name.toUpperCase()
                         : ticket.status === "lgpd"
-                        ? "LGPD"
-                        : `${i18n.t("momentsUser.noqueue")}`}
+                          ? "LGPD"
+                          : `${i18n.t("momentsUser.noqueue")}`}
                     </Badge>
                   }
                   {ticket?.user && (
@@ -821,7 +849,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                       loading={loading}
                       onClick={(e) => handleOpenAcceptTicketWithouSelectQueue()}
                     >
-                      <Tooltip title={`${i18n.t("ticketsList.buttons.accept")}`}>
+                      <Tooltip
+                        title={`${i18n.t("ticketsList.buttons.accept")}`}
+                      >
                         <Done />
                       </Tooltip>
                     </ButtonWithSpinner>
@@ -880,7 +910,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                     loading={loading}
                     onClick={handleOpenTransferModal}
                   >
-                    <Tooltip title={`${i18n.t("ticketsList.buttons.transfer")}`}>
+                    <Tooltip
+                      title={`${i18n.t("ticketsList.buttons.transfer")}`}
+                    >
                       <SwapHoriz />
                     </Tooltip>
                   </ButtonWithSpinner>
@@ -940,7 +972,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                       loading={loading}
                       onClick={(e) => handleCloseIgnoreTicket(ticket.id)}
                     >
-                      <Tooltip title={`${i18n.t("ticketsList.buttons.ignore")}`}>
+                      <Tooltip
+                        title={`${i18n.t("ticketsList.buttons.ignore")}`}
+                      >
                         <HighlightOff />
                       </Tooltip>
                     </ButtonWithSpinner>
@@ -1014,7 +1048,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   false,
-                  null
+                  null,
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}
@@ -1027,7 +1061,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   true,
-                  null
+                  null,
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}
@@ -1047,8 +1081,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         fullWidth
       >
         <DialogContent className={classes.imageModalContent}>
-          <img 
-            src={ticket?.contact?.urlPicture} 
+          <img
+            src={ticket?.contact?.urlPicture}
             alt={ticket?.contact?.name || "Foto do contato"}
             className={classes.expandedImage}
           />

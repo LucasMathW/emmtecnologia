@@ -78,7 +78,7 @@ const SettingsCustom = () => {
 
   useEffect(() => {
     async function findData() {
-      if (!user || !user.companyId) {
+      if (!user?.companyId || company.id === user.companyId) {
         return;
       }
 
@@ -226,6 +226,23 @@ const SettingsCustom = () => {
 
               {tab === "options" && (
                 <div className={classes.container}>
+                  {Object.keys(settings).length === 0 ? (
+                    <div>Carregando...</div>
+                  ) : (
+                    <Options
+                      settings={settings}
+                      oldSettings={oldSettings}
+                      user={currentUser}
+                      scheduleTypeChanged={(value) =>
+                        setSchedulesEnabled(value === "company")
+                      }
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* {tab === "options" && (
+                <div className={classes.container}>
                   <Options
                     settings={settings}
                     oldSettings={oldSettings}
@@ -235,7 +252,7 @@ const SettingsCustom = () => {
                     }
                   />
                 </div>
-              )}
+              )} */}
             </Paper>
           </Paper>
         </>

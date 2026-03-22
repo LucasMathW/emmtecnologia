@@ -53,8 +53,6 @@ const useTickets = ({
 
             let tickets = [];
 
-            console.log("tickets =>", data);
-
             tickets = data.tickets;
 
             setTickets(tickets);

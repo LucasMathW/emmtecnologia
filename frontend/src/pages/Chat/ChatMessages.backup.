@@ -1,4 +1,5 @@
 import {
+  Menu,
   Button,
   ClickAwayListener,
   FormControl,
@@ -60,8 +61,80 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ForwardIcon from "@mui/icons-material/Forward";
 import IosShareIcon from "@mui/icons-material/IosShare";
+import AddReactionIcon from "@mui/icons-material/AddReaction";
 
 const useStyles = makeStyles((theme) => ({
+  reactionsContainer: {
+    display: "flex",
+    justifyContent: "flex-end", // mensagens do próprio usuário
+    marginTop: 4,
+    paddingRight: 8,
+    gap: 4,
+  },
+
+  reactionsContainerSelf: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: 4,
+    paddingRight: 8,
+    gap: 4,
+  },
+
+  reactionsContainerOther: {
+    display: "flex",
+    justifyContent: "flex-start",
+    marginTop: 4,
+    paddingLeft: 8,
+    gap: 4,
+  },
+
+  messageHoverZone: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+
+    // 👇 área invisível fora da mensagem
+    paddingLeft: 48,
+    paddingRight: 48,
+  },
+
+  reactionWrapper: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+
+    // 👇 ÁREA INVISÍVEL DE HOVER
+    paddingLeft: 40,
+    paddingRight: 40,
+  },
+
+  reactionHoverButton: {
+    position: "absolute",
+    top: "50%",
+    left: 8, // ou right: 8
+    transform: "translateY(-50%) scale(0.95)",
+    opacity: 0,
+    transition: "opacity 0.15s ease, transform 0.15s ease",
+    zIndex: 10,
+  },
+
+  reactionWrapperHover: {
+    "&:hover $reactionHoverButton": {
+      opacity: 1,
+      transform: "translateY(-50%) scale(1)",
+      // pointerEvents: "auto",
+      // transitionDelay: "0s", // 🔥 aparece rápido quando já está no hover
+    },
+  }, //FIM reactins styles
+
+  reactionLeft: {
+    left: 4,
+  },
+
+  reactionRight: {
+    right: 4,
+  },
+
   mainContainer: {
     display: "flex",
     flexDirection: "column",
@@ -93,17 +166,42 @@ const useStyles = makeStyles((theme) => ({
   buttonSend: {
     margin: theme.spacing(1),
   },
+  // messageContainer: {
+  //   display: "flex",
+  //   margin: "10px",
+  //   alignItems: "center",
+  // },
+
+  // messageContainerSelf: {
+  //   display: "flex",
+  //   margin: "10px",
+  //   alignItems: "center",
+  //   justifyContent: "flex-end",
+  // },
+
   messageContainer: {
     display: "flex",
     margin: "10px",
     alignItems: "center",
+    position: "relative",
+
+    // 👇 área invisível REAL
+    paddingLeft: 48,
+    paddingRight: 48,
   },
+
   messageContainerSelf: {
     display: "flex",
     margin: "10px",
     alignItems: "center",
+    position: "relative",
     justifyContent: "flex-end",
+
+    // 👇 área invisível REAL
+    paddingLeft: 48,
+    paddingRight: 48,
   },
+
   messageContainerWithAvatar: {
     display: "flex",
     margin: "10px",
@@ -150,9 +248,9 @@ const useStyles = makeStyles((theme) => ({
   senderName: {
     fontWeight: "bold",
   },
-  sendMessageIcons: {
-    color: "grey",
-  },
+  // sendMessageIcons: {
+  //   color: "grey",
+  // },
   uploadInput: {
     display: "none",
   },
@@ -340,6 +438,66 @@ export default function ChatMessages({
   const [replyingTo, setReplyingTo] = useState(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [canLoadMore, setCanLoadMore] = useState(false);
+
+  const [reactionAnchor, setReactionAnchor] = useState(null);
+  const [reactionMessage, setReactionMessage] = useState(null);
+
+  // 🔥🔥🔥 EXATAMENTE AQUI 🔥🔥🔥
+  console.warn("🔥🔥🔥🔥🔥 CHATMESSAGES EXECUTANDO");
+
+  // 🔥🔥🔥 EXATAMENTE AQUI 🔥🔥🔥
+
+  const emojis = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+
+  const openReactionPicker = (event, message) => {
+    event.stopPropagation();
+    setReactionAnchor(event.currentTarget);
+    setReactionMessage(message);
+  };
+
+  const closeReactionPicker = () => {
+    setReactionAnchor(null);
+    setReactionMessage(null);
+  };
+
+  const renderReactions = (reactions) => {
+    console.log("REACTIONS =>", reactions);
+    if (!reactions || Object.keys(reactions).length === 0) return null;
+
+    const emojiCount = Object.values(reactions).reduce((acc, emoji) => {
+      acc[emoji] = (acc[emoji] || 0) + 1;
+      return acc;
+    }, {});
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginTop: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        {Object.entries(emojiCount).map(([emoji, count]) => (
+          <div
+            key={emoji}
+            style={{
+              padding: "2px 8px",
+              borderRadius: 12,
+              background: "#f0f0f0",
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span>{emoji}</span>
+            {count > 1 && <span>{count}</span>}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const scrollToBottom = () => {
     if (baseRef.current) {
@@ -740,6 +898,277 @@ export default function ChatMessages({
               const repliedMessage = item.replyTo;
 
               return (
+                // <React.Fragment key={key}>
+                //   {renderDailyTimestamps(item, key, messages, baseRef, classes)}
+                //   <div
+                //     ref={(el) => (messageRefs.current[item.id] = el)}
+                //     className={
+                //       item.senderId === user.id
+                //         ? classes.messageContainerSelf
+                //         : classes.messageContainer
+                //     }
+                //     onDoubleClick={() => handleReply(item)}
+                //     title="Clique duas vezes para responder"
+                //   >
+                //     {item.senderId === user.id ? (
+                //       <div
+                //         className={`${classes.messageBubbleSelf} ${classes.reactionWrapper} ${classes.reactionWrapperHover}`}
+                //       >
+                //         <IconButton
+                //           size="small"
+                //           className={`${classes.reactionHoverButton} ${classes.reactionRight}`}
+                //           onClick={(e) => openReactionPicker(e, item)}
+                //         >
+                //           <AddReactionIcon fontSize="small" />
+                //         </IconButton>
+
+                //         <div className={classes.senderInfo}>
+                //           <Typography
+                //             variant="subtitle2"
+                //             className={classes.senderName}
+                //           >
+                //             {item.sender && item.sender.name
+                //               ? item.sender.name
+                //               : "Usuário"}{" "}
+                //             - {format(new Date(item.createdAt), "HH:mm")}
+                //           </Typography>
+                //           <div className={classes.messageActions}>
+                //             {(!item.isDeleted || user.profile === "admin") && (
+                //               <>
+                //                 {item.senderId === user.id &&
+                //                   !item.isDeleted &&
+                //                   // Regra: só pode editar em até 10 minutos
+                //                   new Date() - new Date(item.createdAt) <
+                //                     10 * 60 * 1000 && (
+                //                     <IconButton
+                //                       size="small"
+                //                       onClick={() => handleEdit(item)}
+                //                       title={i18n.t("chatMessages.edit")}
+                //                     >
+                //                       <EditIcon fontSize="small" />
+                //                     </IconButton>
+                //                   )}
+
+                //                 <IconButton
+                //                   size="small"
+                //                   onClick={() => handleDelete(item)}
+                //                   title={i18n.t("chatMessages.delete")}
+                //                 >
+                //                   <DeleteIcon fontSize="small" />
+                //                 </IconButton>
+
+                //                 <IconButton
+                //                   size="small"
+                //                   onClick={() => handleForward(item)}
+                //                   title={i18n.t("chatMessages.forward")}
+                //                 >
+                //                   <ForwardIcon fontSize="small" />
+                //                 </IconButton>
+
+                //                 <IconButton
+                //                   size="small"
+                //                   onClick={() => handleReply(item)}
+                //                   title={i18n.t("chatMessages.reply")}
+                //                 >
+                //                   <ReplyIcon fontSize="small" />
+                //                 </IconButton>
+                //               </>
+                //             )}
+                //           </div>
+                //         </div>
+                //         <div className={classes.bubbleContent}>
+                //           {item.isDeleted && user.profile !== "admin" ? (
+                //             <Typography
+                //               variant="body2"
+                //               color="textSecondary"
+                //               style={{ fontStyle: "italic" }}
+                //             >
+                //               {i18n.t("chatMessages.deleted")}
+                //             </Typography>
+                //           ) : item.isDeleted && user.profile === "admin" ? (
+                //             <>
+                //               <Typography
+                //                 variant="caption"
+                //                 style={{
+                //                   color: "#888",
+                //                   fontStyle: "italic",
+                //                   display: "block",
+                //                   marginBottom: 4,
+                //                 }}
+                //               >
+                //                 {i18n.t("chatMessages.deletedAdmin")}
+                //               </Typography>
+                //               {item.mediaPath && checkMessageMedia(item)}
+                //               <MessageWithLineBreaks
+                //                 text={item.message}
+                //                 replyTo={repliedMessage}
+                //                 scrollToMessage={scrollToMessage}
+                //                 forwardedFrom={item.forwardedFrom}
+                //                 checkMessageMedia={checkMessageMedia}
+                //               />
+                //             </>
+                //           ) : (
+                //             <>
+                //               {item.mediaPath && checkMessageMedia(item)}
+
+                //               <MessageWithLineBreaks
+                //                 text={item.message}
+                //                 replyTo={repliedMessage}
+                //                 scrollToMessage={scrollToMessage}
+                //                 forwardedFrom={item.forwardedFrom}
+                //                 checkMessageMedia={checkMessageMedia}
+                //               />
+                //               {/* {renderReactions(item.reactions)} */}
+                //             </>
+                //           )}
+                //         </div>
+                //       </div>
+                //     ) : (
+                //       <>
+                //         <div
+                //           className={`${classes.messageContainer} ${classes.reactionWrapperHover}`}
+                //         >
+                //           {/** AVATAR */}
+                //           <div className={classes.avatarContainer}>
+                //             <Avatar
+                //               src={
+                //                 item.sender && item.sender.profileImage
+                //                   ? `${process.env.REACT_APP_BACKEND_URL}/public/company${item.companyId}/user/${item.sender.profileImage}`
+                //                   : undefined
+                //               }
+                //               alt={
+                //                 item.sender && item.sender.name
+                //                   ? item.sender.name
+                //                   : "Usuário"
+                //               }
+                //             >
+                //               {(!item.sender || !item.sender.profileImage) &&
+                //                 (item.sender && item.sender.name
+                //                   ? item.sender.name.charAt(0)
+                //                   : "?")}
+                //             </Avatar>
+                //           </div>
+
+                //           {/** REACTION BUTON */}
+                //           <IconButton
+                //             size="small"
+                //             className={`${classes.reactionHoverButton} ${classes.reactionLeft}`}
+                //             onClick={(e) => openReactionPicker(e, item)}
+                //           >
+                //             <AddReactionIcon fontSize="small" />
+                //           </IconButton>
+
+                //           {/** BOLHA */}
+                //           <div
+                //             className={`${classes.messageBubble} ${classes.reactionWrapper}`}
+                //           >
+                //             {/**CONTEUDO DA MENSAGEM */}
+                //             <div className={classes.senderInfo}>
+                //               <Typography
+                //                 variant="subtitle2"
+                //                 className={classes.senderName}
+                //               >
+                //                 {item.sender && item.sender.name
+                //                   ? item.sender.name
+                //                   : "Usuário"}{" "}
+                //                 - {format(new Date(item.createdAt), "HH:mm")}
+                //               </Typography>
+                //               <div className={classes.messageActions}>
+                //                 {(!item.isDeleted ||
+                //                   user.profile === "admin") && (
+                //                   <>
+                //                     {item.senderId === user.id &&
+                //                       !item.isDeleted &&
+                //                       // Regra: só pode editar em até 10 minutos
+                //                       new Date() - new Date(item.createdAt) <
+                //                         10 * 60 * 1000 && (
+                //                         <IconButton
+                //                           size="small"
+                //                           onClick={() => handleEdit(item)}
+                //                           title={i18n.t("chatMessages.edit")}
+                //                         >
+                //                           <EditIcon fontSize="small" />
+                //                         </IconButton>
+                //                       )}
+                //                     <IconButton
+                //                       size="small"
+                //                       onClick={() => handleDelete(item)}
+                //                       title={i18n.t("chatMessages.delete")}
+                //                     >
+                //                       <DeleteIcon fontSize="small" />
+                //                     </IconButton>
+                //                     <IconButton
+                //                       size="small"
+                //                       onClick={() => handleForward(item)}
+                //                       title={i18n.t("chatMessages.forward")}
+                //                     >
+                //                       <ForwardIcon fontSize="small" />
+                //                     </IconButton>
+                //                     <IconButton
+                //                       size="small"
+                //                       onClick={() => handleReply(item)}
+                //                       title={i18n.t("chatMessages.reply")}
+                //                     >
+                //                       <ReplyIcon fontSize="small" />
+                //                     </IconButton>
+                //                   </>
+                //                 )}
+                //               </div>
+                //             </div>
+
+                //             <div className={classes.bubbleContent}>
+                //               {item.isDeleted && user.profile !== "admin" ? (
+                //                 <Typography
+                //                   variant="body2"
+                //                   color="textSecondary"
+                //                   style={{ fontStyle: "italic" }}
+                //                 >
+                //                   {i18n.t("chatMessages.deleted")}
+                //                 </Typography>
+                //               ) : item.isDeleted && user.profile === "admin" ? (
+                //                 <>
+                //                   <Typography
+                //                     variant="caption"
+                //                     style={{
+                //                       color: "#888",
+                //                       fontStyle: "italic",
+                //                       display: "block",
+                //                       marginBottom: 4,
+                //                     }}
+                //                   >
+                //                     {i18n.t("chatMessages.deletedAdmin")}
+                //                   </Typography>
+                //                   {item.mediaPath && checkMessageMedia(item)}
+                //                   <MessageWithLineBreaks
+                //                     text={item.message}
+                //                     replyTo={repliedMessage}
+                //                     scrollToMessage={scrollToMessage}
+                //                     forwardedFrom={item.forwardedFrom}
+                //                     checkMessageMedia={checkMessageMedia}
+                //                   />
+                //                 </>
+                //               ) : (
+                //                 <>
+                //                   {item.mediaPath && checkMessageMedia(item)}
+                //                   <MessageWithLineBreaks
+                //                     text={item.message}
+                //                     replyTo={repliedMessage}
+                //                     scrollToMessage={scrollToMessage}
+                //                     forwardedFrom={item.forwardedFrom}
+                //                     checkMessageMedia={checkMessageMedia}
+                //                   />
+                //                   {/* {console.log("REACTIONS:", item.reactions)} */}
+                //                   {renderReactions(item.reactions)}
+                //                 </>
+                //               )}
+                //             </div>
+                //           </div>
+                //         </div>
+                //       </>
+                //     )}
+                //   </div>
+                // </React.Fragment>
+
                 <React.Fragment key={key}>
                   {renderDailyTimestamps(item, key, messages, baseRef, classes)}
                   <div
@@ -753,125 +1182,18 @@ export default function ChatMessages({
                     title="Clique duas vezes para responder"
                   >
                     {item.senderId === user.id ? (
-                      <div className={classes.messageBubbleSelf}>
-                        <div className={classes.senderInfo}>
-                          <Typography
-                            variant="subtitle2"
-                            className={classes.senderName}
-                          >
-                            {item.sender && item.sender.name
-                              ? item.sender.name
-                              : "Usuário"}{" "}
-                            - {format(new Date(item.createdAt), "HH:mm")}
-                          </Typography>
-                          <div className={classes.messageActions}>
-                            {(!item.isDeleted || user.profile === "admin") && (
-                              <>
-                                {item.senderId === user.id &&
-                                  !item.isDeleted &&
-                                  // Regra: só pode editar em até 10 minutos
-                                  new Date() - new Date(item.createdAt) <
-                                    10 * 60 * 1000 && (
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleEdit(item)}
-                                      title={i18n.t("chatMessages.edit")}
-                                    >
-                                      <EditIcon fontSize="small" />
-                                    </IconButton>
-                                  )}
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDelete(item)}
-                                  title={i18n.t("chatMessages.delete")}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleForward(item)}
-                                  title={i18n.t("chatMessages.forward")}
-                                >
-                                  <ForwardIcon fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleReply(item)}
-                                  title={i18n.t("chatMessages.reply")}
-                                >
-                                  <ReplyIcon fontSize="small" />
-                                </IconButton>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className={classes.bubbleContent}>
-                          {item.isDeleted && user.profile !== "admin" ? (
-                            <Typography
-                              variant="body2"
-                              color="textSecondary"
-                              style={{ fontStyle: "italic" }}
-                            >
-                              {i18n.t("chatMessages.deleted")}
-                            </Typography>
-                          ) : item.isDeleted && user.profile === "admin" ? (
-                            <>
-                              <Typography
-                                variant="caption"
-                                style={{
-                                  color: "#888",
-                                  fontStyle: "italic",
-                                  display: "block",
-                                  marginBottom: 4,
-                                }}
-                              >
-                                {i18n.t("chatMessages.deletedAdmin")}
-                              </Typography>
-                              {item.mediaPath && checkMessageMedia(item)}
-                              <MessageWithLineBreaks
-                                text={item.message}
-                                replyTo={repliedMessage}
-                                scrollToMessage={scrollToMessage}
-                                forwardedFrom={item.forwardedFrom}
-                                checkMessageMedia={checkMessageMedia}
-                              />
-                            </>
-                          ) : (
-                            <>
-                              {item.mediaPath && checkMessageMedia(item)}
-                              <MessageWithLineBreaks
-                                text={item.message}
-                                replyTo={repliedMessage}
-                                scrollToMessage={scrollToMessage}
-                                forwardedFrom={item.forwardedFrom}
-                                checkMessageMedia={checkMessageMedia}
-                              />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
                       <>
-                        <div className={classes.avatarContainer}>
-                          <Avatar
-                            src={
-                              item.sender && item.sender.profileImage
-                                ? `${process.env.REACT_APP_BACKEND_URL}/public/company${item.companyId}/user/${item.sender.profileImage}`
-                                : undefined
-                            }
-                            alt={
-                              item.sender && item.sender.name
-                                ? item.sender.name
-                                : "Usuário"
-                            }
+                        <div
+                          className={`${classes.messageBubbleSelf} ${classes.reactionWrapper} ${classes.reactionWrapperHover}`}
+                        >
+                          <IconButton
+                            size="small"
+                            className={`${classes.reactionHoverButton} ${classes.reactionRight}`}
+                            onClick={(e) => openReactionPicker(e, item)}
                           >
-                            {(!item.sender || !item.sender.profileImage) &&
-                              (item.sender && item.sender.name
-                                ? item.sender.name.charAt(0)
-                                : "?")}
-                          </Avatar>
-                        </div>
-                        <div className={classes.messageBubble}>
+                            <AddReactionIcon fontSize="small" />
+                          </IconButton>
+
                           <div className={classes.senderInfo}>
                             <Typography
                               variant="subtitle2"
@@ -888,7 +1210,6 @@ export default function ChatMessages({
                                 <>
                                   {item.senderId === user.id &&
                                     !item.isDeleted &&
-                                    // Regra: só pode editar em até 10 minutos
                                     new Date() - new Date(item.createdAt) <
                                       10 * 60 * 1000 && (
                                       <IconButton
@@ -899,6 +1220,7 @@ export default function ChatMessages({
                                         <EditIcon fontSize="small" />
                                       </IconButton>
                                     )}
+
                                   <IconButton
                                     size="small"
                                     onClick={() => handleDelete(item)}
@@ -906,6 +1228,7 @@ export default function ChatMessages({
                                   >
                                     <DeleteIcon fontSize="small" />
                                   </IconButton>
+
                                   <IconButton
                                     size="small"
                                     onClick={() => handleForward(item)}
@@ -913,6 +1236,7 @@ export default function ChatMessages({
                                   >
                                     <ForwardIcon fontSize="small" />
                                   </IconButton>
+
                                   <IconButton
                                     size="small"
                                     onClick={() => handleReply(item)}
@@ -924,6 +1248,7 @@ export default function ChatMessages({
                               )}
                             </div>
                           </div>
+
                           <div className={classes.bubbleContent}>
                             {item.isDeleted && user.profile !== "admin" ? (
                               <Typography
@@ -969,6 +1294,160 @@ export default function ChatMessages({
                             )}
                           </div>
                         </div>
+
+                        {/* 🔥 IMPLEMENTAÇÃO DAS REAÇÕES — FORA DO BALÃO (USUÁRIO LOGADO) */}
+                        {/* {item.reactions &&
+                          Object.keys(item.reactions).length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                width: "100%",
+                                marginTop: 4,
+                              }}
+                            >
+                              {renderReactions(item.reactions)}
+                            </div>
+                          )} */}
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          className={`${classes.messageContainer} ${classes.reactionWrapperHover}`}
+                        >
+                          <div className={classes.avatarContainer}>
+                            <Avatar
+                              src={
+                                item.sender && item.sender.profileImage
+                                  ? `${process.env.REACT_APP_BACKEND_URL}/public/company${item.companyId}/user/${item.sender.profileImage}`
+                                  : undefined
+                              }
+                              alt={
+                                item.sender && item.sender.name
+                                  ? item.sender.name
+                                  : "Usuário"
+                              }
+                            >
+                              {(!item.sender || !item.sender.profileImage) &&
+                                (item.sender && item.sender.name
+                                  ? item.sender.name.charAt(0)
+                                  : "?")}
+                            </Avatar>
+                          </div>
+
+                          <IconButton
+                            size="small"
+                            className={`${classes.reactionHoverButton} ${classes.reactionLeft}`}
+                            onClick={(e) => openReactionPicker(e, item)}
+                          >
+                            <AddReactionIcon fontSize="small" />
+                          </IconButton>
+
+                          <div
+                            className={`${classes.messageBubble} ${classes.reactionWrapper}`}
+                          >
+                            <div className={classes.senderInfo}>
+                              <Typography
+                                variant="subtitle2"
+                                className={classes.senderName}
+                              >
+                                {item.sender && item.sender.name
+                                  ? item.sender.name
+                                  : "Usuário"}{" "}
+                                - {format(new Date(item.createdAt), "HH:mm")}
+                              </Typography>
+                              <div className={classes.messageActions}>
+                                {(!item.isDeleted ||
+                                  user.profile === "admin") && (
+                                  <>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDelete(item)}
+                                      title={i18n.t("chatMessages.delete")}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleForward(item)}
+                                      title={i18n.t("chatMessages.forward")}
+                                    >
+                                      <ForwardIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleReply(item)}
+                                      title={i18n.t("chatMessages.reply")}
+                                    >
+                                      <ReplyIcon fontSize="small" />
+                                    </IconButton>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className={classes.bubbleContent}>
+                              {item.isDeleted && user.profile !== "admin" ? (
+                                <Typography
+                                  variant="body2"
+                                  color="textSecondary"
+                                  style={{ fontStyle: "italic" }}
+                                >
+                                  {i18n.t("chatMessages.deleted")}
+                                </Typography>
+                              ) : item.isDeleted && user.profile === "admin" ? (
+                                <>
+                                  <Typography
+                                    variant="caption"
+                                    style={{
+                                      color: "#888",
+                                      fontStyle: "italic",
+                                      display: "block",
+                                      marginBottom: 4,
+                                    }}
+                                  >
+                                    {i18n.t("chatMessages.deletedAdmin")}
+                                  </Typography>
+                                  {item.mediaPath && checkMessageMedia(item)}
+                                  <MessageWithLineBreaks
+                                    text={item.message}
+                                    replyTo={repliedMessage}
+                                    scrollToMessage={scrollToMessage}
+                                    forwardedFrom={item.forwardedFrom}
+                                    checkMessageMedia={checkMessageMedia}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  {item.mediaPath && checkMessageMedia(item)}
+                                  <MessageWithLineBreaks
+                                    text={item.message}
+                                    replyTo={repliedMessage}
+                                    scrollToMessage={scrollToMessage}
+                                    forwardedFrom={item.forwardedFrom}
+                                    checkMessageMedia={checkMessageMedia}
+                                  />
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 🔥 IMPLEMENTAÇÃO DAS REAÇÕES — FORA DO BALÃO (OUTRO USUÁRIO) */}
+                        {/* {item.reactions &&
+                          Object.keys(item.reactions).length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "flex-start",
+                                width: "100%",
+                                marginTop: 4,
+                                paddingLeft: 48,
+                              }}
+                            >
+                              {renderReactions(item.reactions)}
+                            </div>
+                          )} */}
                       </>
                     )}
                   </div>
@@ -1002,7 +1481,7 @@ export default function ChatMessages({
                   fontSize="large"
                   disabled={loading}
                   onClick={handleCancelAudio}
-                  size="medium"
+                  size="large"
                 >
                   <HighlightOffIcon className={classes.cancelAudioIcon} />
                 </IconButton>
@@ -1019,7 +1498,7 @@ export default function ChatMessages({
                   component="span"
                   onClick={handleUploadAudio}
                   disabled={loading}
-                  size="medium"
+                  size="large"
                 >
                   <CheckCircleOutlineIcon className={classes.sendAudioIcon} />
                 </IconButton>
@@ -1037,7 +1516,7 @@ export default function ChatMessages({
                         aria-label="cancel-upload"
                         component="span"
                         onClick={(e) => setMedias([])}
-                        size="medium"
+                        size="large"
                       >
                         <CancelIcon className={classes.sendMessageIcons} />
                       </IconButton>
@@ -1054,7 +1533,7 @@ export default function ChatMessages({
                         component="span"
                         onClick={handleSendMedia}
                         disabled={loading}
-                        size="medium"
+                        size="large"
                       >
                         <SendIcon className={classes.sendMessageIcons} />
                       </IconButton>
@@ -1109,7 +1588,7 @@ export default function ChatMessages({
                             <IconButton
                               onClick={handleSendClick}
                               className={classes.buttonSend}
-                              size="medium"
+                              size="large"
                             >
                               <SendIcon />
                             </IconButton>
@@ -1119,7 +1598,7 @@ export default function ChatMessages({
                               component="span"
                               disabled={loading}
                               onClick={handleStartRecording}
-                              size="medium"
+                              size="large"
                             >
                               <MicIcon className={classes.sendMessageIcons} />
                             </IconButton>
@@ -1140,6 +1619,44 @@ export default function ChatMessages({
         onClose={() => setDocumentModalOpen(false)}
         document={selectedDocument}
       />
+      <Menu
+        anchorEl={reactionAnchor}
+        open={Boolean(reactionAnchor)}
+        onClose={closeReactionPicker}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+        transformOrigin={{
+          vertical: "bottom",
+          horizontal: "center",
+        }}
+        MenuListProps={{
+          style: {
+            padding: 6,
+            display: "flex",
+            gap: 6,
+          },
+        }}
+      >
+        {emojis.map((emoji) => (
+          <div
+            key={emoji}
+            onClick={() => {
+              api.post(`/messages/${reactionMessage.id}/reaction`, { emoji });
+              closeReactionPicker();
+            }}
+            style={{
+              fontSize: 22,
+              cursor: "pointer",
+              padding: 6,
+              borderRadius: "50%",
+            }}
+          >
+            {emoji}
+          </div>
+        ))}
+      </Menu>
     </>
   );
 }
@@ -1162,7 +1679,7 @@ const FileInput = (props) => {
           aria-label="upload"
           component="span"
           disabled={disableOption}
-          size="medium"
+          size="large"
         >
           <AttachFileIcon className={classes.sendMessageIcons} />
         </IconButton>

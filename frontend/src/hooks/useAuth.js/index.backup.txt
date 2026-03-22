@@ -17,8 +17,10 @@ const useAuth = () => {
   const [user, setUser] = useState({});
   const [socket, setSocket] = useState(null);
 
+  // Ref para manter referência dos listeners ativos
   const listenersRef = useRef(new Set());
 
+  // Interceptors do API (mantém como estava)
   api.interceptors.request.use(
     (config) => {
       const token = localStorage.getItem("token");
@@ -58,6 +60,7 @@ const useAuth = () => {
     },
   );
 
+  // Effect para inicialização do token
   useEffect(() => {
     const token = localStorage.getItem("token");
     (async () => {
@@ -75,6 +78,26 @@ const useAuth = () => {
     })();
   }, []);
 
+  // Effect para configuração do socket
+
+  // const socketCreatedRef = useRef(false);
+
+  // useEffect(() => {
+  //   if (socketCreatedRef.current) return;
+
+  //   if (user?.id && user?.companyId) {
+  //     const socketInstance = socketConnection({
+  //       user: {
+  //         companyId: user.companyId,
+  //         id: user.id,
+  //       },
+  //     });
+
+  //     setSocket(socketInstance);
+  //     socketCreatedRef.current = true;
+  //   }
+  // }, [user.id, user.companyId]);
+
   useEffect(() => {
     if (Object.keys(user).length && user.id > 0) {
       console.log(
@@ -84,6 +107,7 @@ const useAuth = () => {
         user.companyId,
       );
 
+      // Limpar listeners anteriores
       if (socket) {
         listenersRef.current.forEach((eventName) => {
           if (socket.off) {
@@ -93,6 +117,7 @@ const useAuth = () => {
         listenersRef.current.clear();
       }
 
+      // Criar nova conexão socket
       const socketInstance = socketConnection({
         user: {
           companyId: user.companyId,
@@ -267,6 +292,7 @@ Entre em contato com o Suporte para mais informações! `);
     setLoading(true);
 
     try {
+      // Limpar socket antes do logout
       if (socket) {
         listenersRef.current.forEach((eventName) => {
           if (socket.off) {

@@ -28,7 +28,7 @@ import CodeRoundedIcon from "@material-ui/icons/CodeRounded";
 import ViewKanban from "@mui/icons-material/ViewKanban";
 import Schedule from "@material-ui/icons/Schedule";
 import LocalOfferIcon from "@material-ui/icons/LocalOffer";
-import HistoryToggleOffIcon from '@mui/icons-material/HistoryToggleOff';
+import HistoryToggleOffIcon from "@mui/icons-material/HistoryToggleOff";
 import EventAvailableIcon from "@material-ui/icons/EventAvailable";
 import ExpandLessIcon from "@material-ui/icons/ExpandLess";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
@@ -90,7 +90,7 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: 500,
     "& .MuiTypography-root": {
       fontFamily: "'Inter', 'Roboto', sans-serif",
-    }
+    },
   },
 
   avatarActive: {
@@ -107,7 +107,7 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     borderRadius: "50%", // Mantém circular original
     height: 36, // Mantém tamanho original
-    width: 36,  // Mantém tamanho original
+    width: 36, // Mantém tamanho original
     backgroundColor:
       theme.mode === "light"
         ? "rgba(120,120,120,0.1)"
@@ -125,7 +125,7 @@ const useStyles = makeStyles((theme) => ({
     },
     "&:hover .MuiSvgIcon-root": {
       transform: "scale(1.1)", // Pequena animação no hover
-    }
+    },
   },
 
   // Badge melhorado mas mantendo funcionalidade
@@ -136,7 +136,7 @@ const useStyles = makeStyles((theme) => ({
       fontSize: "0.75rem",
       fontWeight: 600,
       animation: "$pulse 2s infinite",
-    }
+    },
   },
 
   "@keyframes pulse": {
@@ -145,14 +145,15 @@ const useStyles = makeStyles((theme) => ({
     },
     "50%": {
       opacity: 0.7,
-    }
+    },
   },
 
   // Melhorias para submenus mantendo estrutura original
   submenuContainer: {
-    backgroundColor: theme.mode === "light"
-      ? "rgba(0, 0, 0, 0.02)"
-      : "rgba(255, 255, 255, 0.02)",
+    backgroundColor:
+      theme.mode === "light"
+        ? "rgba(0, 0, 0, 0.02)"
+        : "rgba(255, 255, 255, 0.02)",
   },
 
   // Tooltip melhorado
@@ -165,7 +166,7 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
     "& .MuiTooltip-arrow": {
       color: theme.mode === "light" ? "#1e293b" : "#374151",
-    }
+    },
   },
 
   // Versão com destaque sutil
@@ -187,7 +188,7 @@ const useStyles = makeStyles((theme) => ({
       fontWeight: 600,
       textTransform: "uppercase",
       letterSpacing: "0.5px",
-    }
+    },
   },
 
   // Efeitos suaves para expand/collapse
@@ -196,7 +197,7 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.primary.main, // Usa cor do tema
     "&.expanded": {
       transform: "rotate(180deg)",
-    }
+    },
   },
 
   // Menu container com melhorias sutis
@@ -209,15 +210,17 @@ const useStyles = makeStyles((theme) => ({
       background: "transparent",
     },
     "&::-webkit-scrollbar-thumb": {
-      background: theme.mode === "light"
-        ? "rgba(0, 0, 0, 0.1)"
-        : "rgba(255, 255, 255, 0.1)",
+      background:
+        theme.mode === "light"
+          ? "rgba(0, 0, 0, 0.1)"
+          : "rgba(255, 255, 255, 0.1)",
       borderRadius: "3px",
       "&:hover": {
-        background: theme.mode === "light"
-          ? "rgba(0, 0, 0, 0.2)"
-          : "rgba(255, 255, 255, 0.2)",
-      }
+        background:
+          theme.mode === "light"
+            ? "rgba(0, 0, 0, 0.2)"
+            : "rgba(255, 255, 255, 0.2)",
+      },
     },
   },
 
@@ -230,8 +233,8 @@ const useStyles = makeStyles((theme) => ({
     "& $listItemText": {
       color: theme.palette.primary.main, // Usa cor do tema
       fontWeight: 700,
-    }
-  }
+    },
+  },
 }));
 
 function ListItemLink(props) {
@@ -246,7 +249,7 @@ function ListItemLink(props) {
       React.forwardRef((itemProps, ref) => (
         <RouterLink to={to} ref={ref} {...itemProps} />
       )),
-    [to]
+    [to],
   );
 
   const ConditionalTooltip = ({ children, tooltipEnabled }) =>
@@ -272,16 +275,18 @@ function ListItemLink(props) {
                   className={classes.badge}
                 >
                   <Avatar
-                    className={`${classes.iconHoverActive} ${isActive ? "active" : ""
-                      }`}
+                    className={`${classes.iconHoverActive} ${
+                      isActive ? "active" : ""
+                    }`}
                   >
                     {icon}
                   </Avatar>
                 </Badge>
               ) : (
                 <Avatar
-                  className={`${classes.iconHoverActive} ${isActive ? "active" : ""
-                    }`}
+                  className={`${classes.iconHoverActive} ${
+                    isActive ? "active" : ""
+                  }`}
                 >
                   {icon}
                 </Avatar>
@@ -412,18 +417,15 @@ const MainListItems = ({ collapsed, drawerClose }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const setting = await getSetting(
-          {
-            "column": "DirectTicketsToWallets"
-          }
-        );
+        const setting = await getSetting({
+          column: "DirectTicketsToWallets",
+        });
 
         setShowWallets(setting.DirectTicketsToWallets);
-
       } catch (err) {
         toastError(err);
       }
-    }
+    };
 
     fetchSettings();
   }, [setShowWallets]);
@@ -491,7 +493,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
   }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    if (user.id && socket && typeof socket.on === 'function') {
+    if (user.id && socket && typeof socket.on === "function") {
       const companyId = user.companyId;
 
       const onCompanyChatMainListItems = (data) => {
@@ -504,13 +506,13 @@ const MainListItems = ({ collapsed, drawerClose }) => {
       };
 
       const eventName = `company-${companyId}-chat`;
-      console.log('Registrando listener para:', eventName);
+      // console.log('Registrando listener para:', eventName);
 
       socket.on(eventName, onCompanyChatMainListItems);
 
       return () => {
-        if (socket && typeof socket.off === 'function') {
-          console.log('Removendo listener para:', eventName);
+        if (socket && typeof socket.off === "function") {
+          // console.log('Removendo listener para:', eventName);
           socket.off(eventName, onCompanyChatMainListItems);
         }
       };
@@ -579,7 +581,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
       <Can
         role={
           (user.profile === "user" && user.showDashboard === "enabled") ||
-            user.allowRealTime === "enabled"
+          user.allowRealTime === "enabled"
             ? "admin"
             : user.profile
         }
@@ -599,8 +601,9 @@ const MainListItems = ({ collapsed, drawerClose }) => {
               >
                 <ListItemIcon>
                   <Avatar
-                    className={`${classes.iconHoverActive} ${isManagementActive || managementHover ? "active" : ""
-                      }`}
+                    className={`${classes.iconHoverActive} ${
+                      isManagementActive || managementHover ? "active" : ""
+                    }`}
                   >
                     <Dashboard />
                   </Avatar>
@@ -856,9 +859,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
       {user.showFlow === "enabled" && (
         <>
           <Tooltip
-            title={
-              collapsed ? i18n.t("mainDrawer.listItems.campaigns") : ""
-            }
+            title={collapsed ? i18n.t("mainDrawer.listItems.campaigns") : ""}
             placement="right"
           >
             <ListItem
@@ -870,10 +871,9 @@ const MainListItems = ({ collapsed, drawerClose }) => {
             >
               <ListItemIcon>
                 <Avatar
-                  className={`${classes.iconHoverActive} ${isFlowbuilderRouteActive || flowHover
-                    ? "active"
-                    : ""
-                    }`}
+                  className={`${classes.iconHoverActive} ${
+                    isFlowbuilderRouteActive || flowHover ? "active" : ""
+                  }`}
                 >
                   <Webhook />
                 </Avatar>
@@ -885,11 +885,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                   </Typography>
                 }
               />
-              {openFlowSubmenu ? (
-                <ExpandLessIcon />
-              ) : (
-                <ExpandMoreIcon />
-              )}
+              {openFlowSubmenu ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </ListItem>
           </Tooltip>
 

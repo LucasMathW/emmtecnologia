@@ -66,6 +66,11 @@ const useStyles = makeStyles((theme) => ({
 export default function Options(props) {
   const { oldSettings, settings, scheduleTypeChanged, user } = props;
 
+  console.log("oldSettings:", oldSettings);
+  console.log("settings:", settings);
+  console.log("scheduleTypeChanged:", scheduleTypeChanged);
+  console.log("user:", user);
+
   const classes = useStyles();
   const [userRating, setUserRating] = useState("disabled");
   const [scheduleType, setScheduleType] = useState("disabled");
@@ -226,8 +231,12 @@ export default function Options(props) {
 
   const { update } = useCompanySettings();
 
+  // const isSuper = () => {
+  //   return user.super;
+  // };
+
   const isSuper = () => {
-    return user.super;
+    return user?.super;
   };
 
   useEffect(() => {

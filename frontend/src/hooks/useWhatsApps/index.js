@@ -73,20 +73,25 @@ const useWhatsApps = () => {
   // Effect para configurar os listeners do socket
   useEffect(() => {
     // Debug para entender o que está chegando
-    console.log('useWhatsApps - Debug:', {
-      userId: user?.id,
-      companyId: user?.companyId,
-      socket: socket,
-      socketType: typeof socket,
-      hasOnMethod: socket && typeof socket.on === 'function',
-      hasOffMethod: socket && typeof socket.off === 'function'
-    });
+    // console.log('useWhatsApps - Debug:', {
+    //   userId: user?.id,
+    //   companyId: user?.companyId,
+    //   socket: socket,
+    //   socketType: typeof socket,
+    //   hasOnMethod: socket && typeof socket.on === 'function',
+    //   hasOffMethod: socket && typeof socket.off === 'function'
+    // });
 
-    if (user?.companyId && socket && typeof socket.on === 'function' && typeof socket.off === 'function') {
+    if (
+      user?.companyId &&
+      socket &&
+      typeof socket.on === "function" &&
+      typeof socket.off === "function"
+    ) {
       const companyId = user.companyId;
-      
+
       const onCompanyWhatsapp = (data) => {
-        console.log('Recebido evento whatsapp:', data);
+        console.log("Recebido evento whatsapp:", data);
         if (data.action === "update") {
           dispatch({ type: "UPDATE_WHATSAPPS", payload: data.whatsapp });
         }
@@ -96,7 +101,7 @@ const useWhatsApps = () => {
       };
 
       const onCompanyWhatsappSession = (data) => {
-        console.log('Recebido evento whatsapp session:', data);
+        console.log("Recebido evento whatsapp session:", data);
         if (data.action === "update") {
           dispatch({ type: "UPDATE_SESSION", payload: data.session });
         }
@@ -105,24 +110,30 @@ const useWhatsApps = () => {
       const whatsappEvent = `company-${companyId}-whatsapp`;
       const sessionEvent = `company-${companyId}-whatsappSession`;
 
-      console.log('Registrando listeners WhatsApp:', { whatsappEvent, sessionEvent });
+      // console.log("Registrando listeners WhatsApp:", {
+      //   whatsappEvent,
+      //   sessionEvent,
+      // });
 
       socket.on(whatsappEvent, onCompanyWhatsapp);
       socket.on(sessionEvent, onCompanyWhatsappSession);
 
       return () => {
-        if (socket && typeof socket.off === 'function') {
-          console.log('Removendo listeners WhatsApp:', { whatsappEvent, sessionEvent });
+        if (socket && typeof socket.off === "function") {
+          // console.log("Removendo listeners WhatsApp:", {
+          //   whatsappEvent,
+          //   sessionEvent,
+          // });
           socket.off(whatsappEvent, onCompanyWhatsapp);
           socket.off(sessionEvent, onCompanyWhatsappSession);
         }
       };
     } else {
-      console.log('Condições não atendidas para listeners WhatsApp:', {
+      console.log("Condições não atendidas para listeners WhatsApp:", {
         hasCompanyId: !!user?.companyId,
         hasSocket: !!socket,
-        hasOnMethod: socket && typeof socket.on === 'function',
-        hasOffMethod: socket && typeof socket.off === 'function'
+        hasOnMethod: socket && typeof socket.on === "function",
+        hasOffMethod: socket && typeof socket.off === "function",
       });
     }
   }, [socket, user?.companyId]); // Dependências corretas

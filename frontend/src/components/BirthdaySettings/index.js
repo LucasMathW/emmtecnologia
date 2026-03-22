@@ -19,7 +19,7 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
 } from "@material-ui/core";
 import {
   Cake as CakeIcon,
@@ -30,7 +30,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Save as SaveIcon,
   Settings as TestIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
 } from "@material-ui/icons";
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
@@ -38,11 +38,11 @@ import { WhatsAppsContext } from "../../context/WhatsApp/WhatsAppsContext";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    padding: theme.spacing(3)
+    padding: theme.spacing(3),
   },
   paper: {
     padding: theme.spacing(3),
-    marginBottom: theme.spacing(2)
+    marginBottom: theme.spacing(2),
   },
   sectionTitle: {
     display: "flex",
@@ -50,16 +50,16 @@ const useStyles = makeStyles((theme) => ({
     gap: theme.spacing(1),
     marginBottom: theme.spacing(2),
     color: theme.palette.primary.main,
-    fontWeight: 600
+    fontWeight: 600,
   },
   settingItem: {
-    marginBottom: theme.spacing(2)
+    marginBottom: theme.spacing(2),
   },
   messageField: {
-    marginTop: theme.spacing(1)
+    marginTop: theme.spacing(1),
   },
   timeField: {
-    maxWidth: 200
+    maxWidth: 200,
   },
   saveButton: {
     background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
@@ -70,8 +70,8 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(1, 3),
     "&:hover": {
       transform: "translateY(-1px)",
-      boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)"
-    }
+      boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
+    },
   },
   testButton: {
     background: "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
@@ -82,29 +82,29 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(1),
     "&:hover": {
       transform: "translateY(-1px)",
-      boxShadow: "0 4px 12px rgba(255, 152, 0, 0.3)"
-    }
+      boxShadow: "0 4px 12px rgba(255, 152, 0, 0.3)",
+    },
   },
   expandButton: {
     transform: "rotate(0deg)",
     transition: theme.transitions.create("transform", {
-      duration: theme.transitions.duration.shortest
-    })
+      duration: theme.transitions.duration.shortest,
+    }),
   },
   expandButtonOpen: {
-    transform: "rotate(180deg)"
+    transform: "rotate(180deg)",
   },
   helpText: {
     fontSize: "0.875rem",
     color: theme.palette.text.secondary,
-    marginTop: theme.spacing(0.5)
+    marginTop: theme.spacing(0.5),
   },
   messagePreview: {
     backgroundColor: theme.palette.grey[100],
     padding: theme.spacing(2),
     borderRadius: 8,
     marginTop: theme.spacing(1),
-    border: `1px solid ${theme.palette.grey[300]}`
+    border: `1px solid ${theme.palette.grey[300]}`,
   },
   variableChip: {
     backgroundColor: theme.palette.primary.main,
@@ -113,7 +113,7 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: 4,
     fontSize: "0.75rem",
     fontFamily: "monospace",
-    margin: "0 2px"
+    margin: "0 2px",
   },
   infoBox: {
     backgroundColor: "#e3f2fd",
@@ -123,16 +123,16 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(2),
     display: "flex",
     alignItems: "flex-start",
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
   },
   infoIcon: {
     color: "#1976d2",
     fontSize: "1.25rem",
-    marginTop: 2
+    marginTop: 2,
   },
   infoContent: {
-    flex: 1
-  }
+    flex: 1,
+  },
 }));
 
 const BirthdaySettings = () => {
@@ -144,7 +144,7 @@ const BirthdaySettings = () => {
   const [expandedSections, setExpandedSections] = useState({
     user: true,
     contact: true,
-    general: true
+    general: true,
   });
 
   useEffect(() => {
@@ -163,9 +163,9 @@ const BirthdaySettings = () => {
   };
 
   const handleSettingChange = (field, value) => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -189,7 +189,7 @@ const BirthdaySettings = () => {
     try {
       await api.post("/birthdays/test-message", {
         contactId: parseInt(contactId),
-        messageType
+        messageType,
       });
       toast.success("Mensagem de teste enviada! 📱");
     } catch (error) {
@@ -198,9 +198,9 @@ const BirthdaySettings = () => {
   };
 
   const toggleSection = (section) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section],
     }));
   };
 
@@ -209,12 +209,12 @@ const BirthdaySettings = () => {
 
     let previewMessage = message;
     previewMessage = previewMessage.replace(
-      /{nome}/g, 
-      `<span class="${classes.variableChip}">João Silva</span>`
+      /{nome}/g,
+      `<span class="${classes.variableChip}">João Silva</span>`,
     );
     previewMessage = previewMessage.replace(
-      /{idade}/g, 
-      `<span class="${classes.variableChip}">30</span>`
+      /{idade}/g,
+      `<span class="${classes.variableChip}">30</span>`,
     );
 
     return (
@@ -222,8 +222,8 @@ const BirthdaySettings = () => {
         <Typography variant="caption" color="textSecondary">
           Pré-visualização:
         </Typography>
-        <Typography 
-          variant="body2" 
+        <Typography
+          variant="body2"
           dangerouslySetInnerHTML={{ __html: previewMessage }}
         />
       </Box>
@@ -268,14 +268,20 @@ const BirthdaySettings = () => {
                 control={
                   <Switch
                     checked={settings?.userBirthdayEnabled || false}
-                    onChange={(e) => handleSettingChange("userBirthdayEnabled", e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "userBirthdayEnabled",
+                        e.target.checked,
+                      )
+                    }
                     color="primary"
                   />
                 }
                 label="Habilitar notificações de aniversário de usuários"
               />
               <Typography className={classes.helpText}>
-                Quando habilitado, será exibido modal de parabéns e criado informativo automático
+                Quando habilitado, será exibido modal de parabéns e criado
+                informativo automático
               </Typography>
             </Grid>
 
@@ -284,7 +290,12 @@ const BirthdaySettings = () => {
                 control={
                   <Switch
                     checked={settings?.createAnnouncementForUsers || false}
-                    onChange={(e) => handleSettingChange("createAnnouncementForUsers", e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "createAnnouncementForUsers",
+                        e.target.checked,
+                      )
+                    }
                     color="primary"
                     disabled={!settings?.userBirthdayEnabled}
                   />
@@ -292,7 +303,8 @@ const BirthdaySettings = () => {
                 label="Criar informativo automático para aniversários de usuários"
               />
               <Typography className={classes.helpText}>
-                Cria um informativo automático que é exibido para todos os usuários da empresa
+                Cria um informativo automático que é exibido para todos os
+                usuários da empresa
               </Typography>
             </Grid>
 
@@ -303,7 +315,9 @@ const BirthdaySettings = () => {
                 rows={3}
                 label="Mensagem de aniversário para usuários"
                 value={settings?.userBirthdayMessage || ""}
-                onChange={(e) => handleSettingChange("userBirthdayMessage", e.target.value)}
+                onChange={(e) =>
+                  handleSettingChange("userBirthdayMessage", e.target.value)
+                }
                 disabled={!settings?.userBirthdayEnabled}
                 className={classes.messageField}
                 helperText="Use {nome} para incluir o nome do usuário"
@@ -338,14 +352,20 @@ const BirthdaySettings = () => {
                 control={
                   <Switch
                     checked={settings?.contactBirthdayEnabled || false}
-                    onChange={(e) => handleSettingChange("contactBirthdayEnabled", e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "contactBirthdayEnabled",
+                        e.target.checked,
+                      )
+                    }
                     color="primary"
                   />
                 }
                 label="Habilitar envio automático de mensagens de aniversário para contatos"
               />
               <Typography className={classes.helpText}>
-                Envia automaticamente mensagem de parabéns via WhatsApp para contatos aniversariantes
+                Envia automaticamente mensagem de parabéns via WhatsApp para
+                contatos aniversariantes
               </Typography>
             </Grid>
 
@@ -356,13 +376,18 @@ const BirthdaySettings = () => {
                 rows={4}
                 label="Mensagem de aniversário para contatos"
                 value={settings?.contactBirthdayMessage || ""}
-                onChange={(e) => handleSettingChange("contactBirthdayMessage", e.target.value)}
+                onChange={(e) =>
+                  handleSettingChange("contactBirthdayMessage", e.target.value)
+                }
                 disabled={!settings?.contactBirthdayEnabled}
                 className={classes.messageField}
                 helperText="Use {nome} para incluir o nome do contato e {idade} para a idade"
               />
-              {renderMessagePreview(settings?.contactBirthdayMessage, "contact")}
-              
+              {renderMessagePreview(
+                settings?.contactBirthdayMessage,
+                "contact",
+              )}
+
               {settings?.contactBirthdayEnabled && (
                 <Button
                   variant="contained"
@@ -407,7 +432,9 @@ const BirthdaySettings = () => {
                 onChange={(e) => {
                   // Converter HH:MM para HH:MM:SS para compatibilidade com backend
                   const timeValue = e.target.value;
-                  const formattedTime = timeValue ? `${timeValue}:00` : "09:00:00";
+                  const formattedTime = timeValue
+                    ? `${timeValue}:00`
+                    : "09:00:00";
                   handleSettingChange("sendBirthdayTime", formattedTime);
                 }}
                 className={classes.timeField}
@@ -419,12 +446,14 @@ const BirthdaySettings = () => {
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
                 <InputLabel>Conexão WhatsApp para Envio</InputLabel>
-             <Select
-               value={settings?.whatsappId || ""}
-               onChange={(e) => handleSettingChange("whatsappId", e.target.value || null)}
-               label="Conexão WhatsApp para Envio"
-               disabled={!settings?.contactBirthdayEnabled}
-             >
+                <Select
+                  value={settings?.whatsappId || ""}
+                  onChange={(e) =>
+                    handleSettingChange("whatsappId", e.target.value || null)
+                  }
+                  label="Conexão WhatsApp para Envio"
+                  disabled={!settings?.contactBirthdayEnabled}
+                >
                   <MenuItem value="">
                     <em>Selecione uma conexão</em>
                   </MenuItem>
@@ -436,7 +465,11 @@ const BirthdaySettings = () => {
                             width={8}
                             height={8}
                             borderRadius="50%"
-                            bgcolor={whatsapp.status === "CONNECTED" ? "success.main" : "error.main"}
+                            bgcolor={
+                              whatsapp.status === "CONNECTED"
+                                ? "success.main"
+                                : "error.main"
+                            }
                             mr={1}
                           />
                           {whatsapp.name} ({whatsapp.status})
@@ -445,7 +478,8 @@ const BirthdaySettings = () => {
                     ))}
                 </Select>
                 <Typography className={classes.helpText}>
-                  Conexão WhatsApp que será usada para enviar mensagens de aniversário
+                  Conexão WhatsApp que será usada para enviar mensagens de
+                  aniversário
                 </Typography>
               </FormControl>
             </Grid>
@@ -455,7 +489,12 @@ const BirthdaySettings = () => {
                 control={
                   <Switch
                     checked={settings?.createAnnouncementForUsers || false}
-                    onChange={(e) => handleSettingChange("createAnnouncementForUsers", e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "createAnnouncementForUsers",
+                        e.target.checked,
+                      )
+                    }
                     color="primary"
                   />
                 }
@@ -470,12 +509,16 @@ const BirthdaySettings = () => {
           <Box className={classes.infoBox}>
             <InfoIcon className={classes.infoIcon} />
             <Box className={classes.infoContent}>
-              <Typography variant="body2" style={{ fontWeight: 600, marginBottom: 8 }}>
+              <Typography
+                variant="body2"
+                style={{ fontWeight: 600, marginBottom: 8 }}
+              >
                 Variáveis disponíveis nas mensagens:
               </Typography>
               <Typography variant="body2" component="div">
-                • <code>{"{nome}"}</code> - Nome da pessoa<br/>
-                • <code>{"{idade}"}</code> - Idade da pessoa (apenas para contatos)
+                • <code>{"{nome}"}</code> - Nome da pessoa
+                <br />• <code>{"{idade}"}</code> - Idade da pessoa (apenas para
+                contatos)
               </Typography>
             </Box>
           </Box>

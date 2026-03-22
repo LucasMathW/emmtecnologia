@@ -35,521 +35,503 @@ import whatsappIcon from "../../assets/whatsapp.png";
 import { TicketsContext } from "../../context/Tickets/TicketsContext";
 
 const useStyles = makeStyles((theme) => ({
-    ticket: {
-        position: "relative",
-    },
+  ticket: {
+    position: "relative",
+  },
 
-    pendingTicket: {
-        cursor: "unset",
-    },
+  pendingTicket: {
+    cursor: "unset",
+  },
 
-    noTicketsDiv: {
-        display: "flex",
-        height: "100px",
-        margin: 40,
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-    },
+  noTicketsDiv: {
+    display: "flex",
+    height: "100px",
+    margin: 40,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-    noTicketsText: {
-        textAlign: "center",
-        color: "rgb(104, 121, 146)",
-        fontSize: "14px",
-        lineHeight: "1.4",
-    },
+  noTicketsText: {
+    textAlign: "center",
+    color: "rgb(104, 121, 146)",
+    fontSize: "14px",
+    lineHeight: "1.4",
+  },
 
-    noTicketsTitle: {
-        textAlign: "center",
-        fontSize: "16px",
-        fontWeight: "600",
-        margin: "0px",
-    },
+  noTicketsTitle: {
+    textAlign: "center",
+    fontSize: "16px",
+    fontWeight: "600",
+    margin: "0px",
+  },
 
-    contactNameWrapper: {
-        display: "flex",
-        justifyContent: "space-between",
-    },
+  contactNameWrapper: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
 
-    lastMessageTime: {
-        position: "absolute",
-        marginRight: 5,
-        right: 20,
-        bottom: 30,
-    },
+  lastMessageTime: {
+    position: "absolute",
+    marginRight: 5,
+    right: 20,
+    bottom: 30,
+  },
 
-    closedBadge: {
-        alignSelf: "center",
-        justifySelf: "flex-end",
-        marginRight: 32,
-        marginLeft: "auto",
-    },
+  closedBadge: {
+    alignSelf: "center",
+    justifySelf: "flex-end",
+    marginRight: 32,
+    marginLeft: "auto",
+  },
 
-    contactLastMessage: {
-        paddingRight: 20,
-    },
+  contactLastMessage: {
+    paddingRight: 20,
+  },
 
-    newMessagesCount: {
-        alignSelf: "center",
-        marginRight: 8,
-        marginLeft: "auto",
-    },
+  newMessagesCount: {
+    alignSelf: "center",
+    marginRight: 8,
+    marginLeft: "auto",
+  },
 
-    bottomButton: {
-        top: "12px",
-    },
+  bottomButton: {
+    top: "12px",
+  },
 
-    badgeStyle: {
-        color: "white",
-        backgroundColor: green[500],
-    },
+  badgeStyle: {
+    color: "white",
+    backgroundColor: green[500],
+  },
 
-    acceptButton: {
-        position: "absolute",
-        left: "50%",
-    },
+  acceptButton: {
+    position: "absolute",
+    left: "50%",
+  },
 
-    ticketQueueColor: {
-        flex: "none",
-        width: "8px",
-        height: "100%",
-        position: "absolute",
-        top: "0%",
-        left: "0%",
-    },
+  ticketQueueColor: {
+    flex: "none",
+    width: "8px",
+    height: "100%",
+    position: "absolute",
+    top: "0%",
+    left: "0%",
+  },
 
-    userTag: {
-        position: "absolute",
-        marginRight: 110,
-        right: 20,
-        bottom: 30,
-        backgroundColor: theme.palette.background.default,
-        color: theme.palette.primary.main,
-        border: "1px solid #CCC",
-        padding: 1,
-        paddingLeft: 5,
-        paddingRight: 5,
-        borderRadius: 10,
-        fontSize: "0.9em",
-    },
-    divTags: {
-        position: "absolute",
-        marginRight: 0,
-        left: 0,
-        bottom: 0,
-        flexWrap: "wrap",
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "flex-start",
-        alignItems: "center",
-    },
-    tags: {
-        color: "#FFF",
-        border: "1px solid #CCC",
-        padding: 0,
-        paddingLeft: 5,
-        paddingRight: 5,
-        borderRadius: 0,
-        fontSize: "0.6em",
-        textAlign: "center",
-    },
-    divUser: {
-        position: "absolute",
-        marginRight: 0,
-        left: 0,
-        top: 0,
-        flexWrap: "wrap",
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "flex-start",
-        alignItems: "center",
-    },
-    user: {
-        color: "#eee",
-        border: "1px solid #CCC",
-        padding: 0,
-        paddingLeft: 5,
-        paddingRight: 5,
-        borderRadius: 0,
-        fontSize: "0.6em",
-        textAlign: "center",
-    },
+  userTag: {
+    position: "absolute",
+    marginRight: 110,
+    right: 20,
+    bottom: 30,
+    backgroundColor: theme.palette.background.default,
+    color: theme.palette.primary.main,
+    border: "1px solid #CCC",
+    padding: 1,
+    paddingLeft: 5,
+    paddingRight: 5,
+    borderRadius: 10,
+    fontSize: "0.9em",
+  },
+  divTags: {
+    position: "absolute",
+    marginRight: 0,
+    left: 0,
+    bottom: 0,
+    flexWrap: "wrap",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  tags: {
+    color: "#FFF",
+    border: "1px solid #CCC",
+    padding: 0,
+    paddingLeft: 5,
+    paddingRight: 5,
+    borderRadius: 0,
+    fontSize: "0.6em",
+    textAlign: "center",
+  },
+  divUser: {
+    position: "absolute",
+    marginRight: 0,
+    left: 0,
+    top: 0,
+    flexWrap: "wrap",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  user: {
+    color: "#eee",
+    border: "1px solid #CCC",
+    padding: 0,
+    paddingLeft: 5,
+    paddingRight: 5,
+    borderRadius: 0,
+    fontSize: "0.6em",
+    textAlign: "center",
+  },
 
-    tagsWrapper: {
-        zIndex: 500,
-    },
+  tagsWrapper: {
+    zIndex: 500,
+  },
 
-    badge: {
-        backgroundColor: "#44b700",
-        color: "#44b700",
-        boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-        "&::after": {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            animation: "$ripple 1.2s infinite ease-in-out",
-            border: "1px solid currentColor",
-            content: '""',
-        },
+  badge: {
+    backgroundColor: "#44b700",
+    color: "#44b700",
+    boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+    "&::after": {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      borderRadius: "50%",
+      animation: "$ripple 1.2s infinite ease-in-out",
+      border: "1px solid currentColor",
+      content: '""',
     },
-    "@keyframes ripple": {
-        "0%": {
-            transform: "scale(.8)",
-            opacity: 1,
-        },
-        "100%": {
-            transform: "scale(2.4)",
-            opacity: 0,
-        },
+  },
+  "@keyframes ripple": {
+    "0%": {
+      transform: "scale(.8)",
+      opacity: 1,
     },
+    "100%": {
+      transform: "scale(2.4)",
+      opacity: 0,
+    },
+  },
 
-    // Estilos para o modal da imagem
-    imageModal: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+  // Estilos para o modal da imagem
+  imageModal: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageModalContent: {
+    outline: "none",
+    maxWidth: "90vw",
+    maxHeight: "90vh",
+  },
+  expandedImage: {
+    width: "100%",
+    height: "auto",
+    maxWidth: "500px",
+    borderRadius: theme.spacing(1),
+  },
+  clickableAvatar: {
+    cursor: "pointer",
+    "&:hover": {
+      opacity: 0.8,
     },
-    imageModalContent: {
-        outline: "none",
-        maxWidth: "90vw",
-        maxHeight: "90vh",
-    },
-    expandedImage: {
-        width: "100%",
-        height: "auto",
-        maxWidth: "500px",
-        borderRadius: theme.spacing(1),
-    },
-    clickableAvatar: {
-        cursor: "pointer",
-        "&:hover": {
-            opacity: 0.8,
-        },
-    }
+  },
 }));
 
 const SmallAvatar = withStyles((theme) => ({
-    root: {
-        width: 22,
-        height: 22,
-        border: `2px solid ${theme.palette.background.paper}`,
-    },
+  root: {
+    width: 22,
+    height: 22,
+    border: `2px solid ${theme.palette.background.paper}`,
+  },
 }))(Avatar);
 
 const getAvatarChannel = (channel) => {
-    if (channel === "facebook") {
-        return facebookIcon;
-    }
+  if (channel === "facebook") {
+    return facebookIcon;
+  }
 
-    if (channel === "whatsapp") {
-        return whatsappIcon;
-    }
+  if (channel === "whatsapp") {
+    return whatsappIcon;
+  }
 
-    if (channel === "whatsappapi") {
-        return whatsappIcon;
-    }
+  if (channel === "whatsappapi") {
+    return whatsappIcon;
+  }
 
-    if (channel === "instagram") {
-        return insatagramIcon;
-    }
+  if (channel === "instagram") {
+    return insatagramIcon;
+  }
 };
 
 const TicketListItem = ({ ticket }) => {
-    const classes = useStyles();
-    const history = useHistory();
-    const [loading, setLoading] = useState(false);
-    const { ticketId } = useParams();
-    const isMounted = useRef(true);
-    const { user } = useContext(AuthContext);
-    const { setCurrentTicket, setTabOpen } = useContext(TicketsContext);
-    const [imageModalOpen, setImageModalOpen] = useState(false); // Estado para o modal da imagem
+  const classes = useStyles();
+  const history = useHistory();
+  const [loading, setLoading] = useState(false);
+  const { ticketId } = useParams();
+  const isMounted = useRef(true);
+  const { user } = useContext(AuthContext);
+  const { setCurrentTicket, setTabOpen } = useContext(TicketsContext);
+  const [imageModalOpen, setImageModalOpen] = useState(false); // Estado para o modal da imagem
 
-    useEffect(() => {
-        return () => {
-            isMounted.current = false;
-        };
-    }, []);
-
-    // Função para abrir modal da imagem
-    const handleImageClick = (e) => {
-        e.stopPropagation(); // Prevenir que o clique no avatar selecione o ticket
-        if (ticket?.contact?.urlPicture) {
-            setImageModalOpen(true);
-        }
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
     };
+  }, []);
 
-    // Função para fechar modal da imagem
-    const handleImageModalClose = () => {
-        setImageModalOpen(false);
-    };
+  // Função para abrir modal da imagem
+  const handleImageClick = (e) => {
+    e.stopPropagation(); // Prevenir que o clique no avatar selecione o ticket
+    if (ticket?.contact?.urlPicture) {
+      setImageModalOpen(true);
+    }
+  };
 
-    function getRatingIcon(rate) {
-        let icon = "";
-        if (rate === 1) {
-            icon = "😡";
-        } else if (rate === 2) {
-            icon = "😠";
-        } else if (rate === 3) {
-            icon = "😐";
-        } else if (rate === 4) {
-            icon = "😃";
-        } else if (rate === 5) {
-            icon = "😍";
-        }
+  // Função para fechar modal da imagem
+  const handleImageModalClose = () => {
+    setImageModalOpen(false);
+  };
 
-        return icon;
+  function getRatingIcon(rate) {
+    let icon = "";
+    if (rate === 1) {
+      icon = "😡";
+    } else if (rate === 2) {
+      icon = "😠";
+    } else if (rate === 3) {
+      icon = "😐";
+    } else if (rate === 4) {
+      icon = "😃";
+    } else if (rate === 5) {
+      icon = "😍";
     }
 
+    return icon;
+  }
 
-    const handleAcepptTicket = async (ticket) => {
-        setLoading(true);
-        try {
-            await api.put(`/tickets/${ticket.id}`, {
-                status: "open",
-                userId: user?.id,
-            });
-        } catch (err) {
-            setLoading(false);
-            toastError(err);
-        }
-        if (isMounted.current) {
-            setLoading(false);
-        }
-        history.push(`/tickets/${ticket.uuid}`);
-    };
+  const handleAcepptTicket = async (ticket) => {
+    setLoading(true);
+    try {
+      await api.put(`/tickets/${ticket.id}`, {
+        status: "open",
+        userId: user?.id,
+      });
+    } catch (err) {
+      setLoading(false);
+      toastError(err);
+    }
+    if (isMounted.current) {
+      setLoading(false);
+    }
+    history.push(`/tickets/${ticket.uuid}`);
+  };
 
-    const handleAcepptTicketBot = async (ticket) => {
-        // alert("Bot");
-        setLoading(true);
-        try {
-            await api.put(`/tickets/${ticket.id}`, {
-                status: "open",
-                userId: user?.id,
-            });
-        } catch (err) {
-            setLoading(false);
-            toastError(err);
-        }
-        if (isMounted.current) {
-            setLoading(false);
-        }
-        history.push(`/tickets/${ticket.uuid}`);
-    };
+  const handleAcepptTicketBot = async (ticket) => {
+    // alert("Bot");
+    setLoading(true);
+    try {
+      await api.put(`/tickets/${ticket.id}`, {
+        status: "open",
+        userId: user?.id,
+      });
+    } catch (err) {
+      setLoading(false);
+      toastError(err);
+    }
+    if (isMounted.current) {
+      setLoading(false);
+    }
+    history.push(`/tickets/${ticket.uuid}`);
+  };
 
-    const handleReopenTicket = async (ticket) => {
-        setLoading(true);
-        try {
-            await api.put(`/tickets/${ticket.id}`, {
-                status: "open",
-                userId: user?.id,
-            });
-        } catch (err) {
-            setLoading(false);
-            toastError(err);
-        }
-        if (isMounted.current) {
-            setLoading(false);
-        }
-        history.push(`/tickets/${ticket.uuid}`);
-    };
+  const handleReopenTicket = async (ticket) => {
+    setLoading(true);
+    try {
+      await api.put(`/tickets/${ticket.id}`, {
+        status: "open",
+        userId: user?.id,
+      });
+    } catch (err) {
+      setLoading(false);
+      toastError(err);
+    }
+    if (isMounted.current) {
+      setLoading(false);
+    }
+    history.push(`/tickets/${ticket.uuid}`);
+  };
 
-    const handleViewTicket = async (ticket) => {
-        setLoading(true);
-        try {
-            await api.put(`/tickets/${ticket.id}`, {
-                status: "pending",
-            });
-        } catch (err) {
-            setLoading(false);
-            toastError(err);
-        }
-        if (isMounted.current) {
-            setLoading(false);
-        }
-        history.push(`/tickets/${ticket.uuid}`);
-    };
+  const handleViewTicket = async (ticket) => {
+    setLoading(true);
+    try {
+      await api.put(`/tickets/${ticket.id}`, {
+        status: "pending",
+      });
+    } catch (err) {
+      setLoading(false);
+      toastError(err);
+    }
+    if (isMounted.current) {
+      setLoading(false);
+    }
+    history.push(`/tickets/${ticket.uuid}`);
+  };
 
-    const handleSelectTicket = (ticket) => {
-        const code = uuidv4();
-        const { id, uuid } = ticket;
-        setTabOpen(ticket.status)
-        setCurrentTicket({ id, uuid, code });
-    };
+  const handleSelectTicket = (ticket) => {
+    const code = uuidv4();
+    const { id, uuid } = ticket;
+    setTabOpen(ticket.status);
+    setCurrentTicket({ id, uuid, code });
+  };
 
-    const handleClosedTicket = async (ticket) => {
-        setLoading(true);
-        try {
-            await api.put(`/tickets/${ticket.id}`, {
-                status: "closed",
-            });
-        } catch (err) {
-            setLoading(false);
-            toastError(err);
-        }
-        if (isMounted.current) {
-            setLoading(false);
-        }
-    };
+  const handleClosedTicket = async (ticket) => {
+    setLoading(true);
+    try {
+      await api.put(`/tickets/${ticket.id}`, {
+        status: "closed",
+      });
+    } catch (err) {
+      setLoading(false);
+      toastError(err);
+    }
+    if (isMounted.current) {
+      setLoading(false);
+    }
+  };
 
-    const renderUserName = (name) => {
-        let str = name.replace(emojiRegex(), "").trim();
+  const renderUserName = (name) => {
+    let str = name.replace(emojiRegex(), "").trim();
 
-        const firstName = str.split(" ")[0];
+    const firstName = str.split(" ")[0];
 
-        return firstName;
-    };
+    return firstName;
+  };
 
-    return (
-        <React.Fragment key={ticket.id}>
-            <ListItem
-                dense
-                button
-                onClick={(e) => {
-                    handleSelectTicket(ticket)
-                }}
-                selected={ticketId && +ticketId === ticket.id}
-                className={clsx(classes.ticket, {
-                    [classes.pendingTicket]: ticket.status === "pending",
-                })}
-            >
-                <Tooltip
-                    arrow
-                    placement="right"
-                    title={ticket.queue?.name || "Sem departamento"}
-                >
-                    <span
-                        style={{
-                            backgroundColor: ticket.queue?.color || "#7C7C7C",
-                        }}
-                        className={classes.ticketQueueColor}
-                    ></span>
-                </Tooltip>
-                <ListItemAvatar>
-                    <Badge
-                        overlap="circular"
-                        anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "right",
-                        }}
-                        badgeContent={
-                            <SmallAvatar
-                                alt={ticket?.channel}
-                                src={getAvatarChannel(ticket?.channel)}
-                            />
-                        }
-                    >
-                        <Avatar
-                            alt={ticket?.contact?.name}
-                            src={ticket?.contact?.urlPicture}
-                            className={classes.clickableAvatar}
-                            onClick={handleImageClick}
-                        />
-                    </Badge>
-                </ListItemAvatar>
-                <ListItemText
-                    disableTypography
-                    primary={
-                        <span className={classes.contactNameWrapper}>
-                            <Typography
-                                noWrap
-                                component="span"
-                                variant="body2"
-                                color="textPrimary"
-                            >
-                                {ticket.contact.name}
-                            </Typography>
+  return (
+    <React.Fragment key={ticket.id}>
+      <ListItem
+        dense
+        button
+        onClick={(e) => {
+          handleSelectTicket(ticket);
+        }}
+        selected={ticketId && +ticketId === ticket.id}
+        className={clsx(classes.ticket, {
+          [classes.pendingTicket]: ticket.status === "pending",
+        })}
+      >
+        <Tooltip
+          arrow
+          placement="right"
+          title={ticket.queue?.name || "Sem departamento"}
+        >
+          <span
+            style={{
+              backgroundColor: ticket.queue?.color || "#7C7C7C",
+            }}
+            className={classes.ticketQueueColor}
+          ></span>
+        </Tooltip>
+        <ListItemAvatar>
+          <Badge
+            overlap="circular"
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "right",
+            }}
+            badgeContent={
+              <SmallAvatar
+                alt={ticket?.channel}
+                src={getAvatarChannel(ticket?.channel)}
+              />
+            }
+          >
+            <Avatar
+              alt={ticket?.contact?.name}
+              src={ticket?.contact?.urlPicture}
+              className={classes.clickableAvatar}
+              onClick={handleImageClick}
+            />
+          </Badge>
+        </ListItemAvatar>
+        <ListItemText
+          disableTypography
+          primary={
+            <span className={classes.contactNameWrapper}>
+              <Typography
+                noWrap
+                component="span"
+                variant="body2"
+                color="textPrimary"
+              >
+                {ticket.contact.name}
+              </Typography>
 
-                            {/* {ticket.lastMessage && ( */}
-                            <Typography
-                                className={classes.lastMessageTime}
-                                component="span"
-                                variant="body2"
-                                color="textSecondary"
-                            >
-                                {isSameDay(
-                                    parseISO(ticket.updatedAt),
-                                    new Date()
-                                ) ? (
-                                    <>
-                                        {format(
-                                            parseISO(ticket.updatedAt),
-                                            "HH:mm"
-                                        )}
-                                    </>
-                                ) : (
-                                    <>
-                                        {format(
-                                            parseISO(ticket.updatedAt),
-                                            "dd/MM/yyyy"
-                                        )}
-                                    </>
-                                )}
-                            </Typography>
-                            {/* )} */}
-                            {ticket.whatsappId && (
-                                <div
-                                    className={classes.userTag}
-                                    title={i18n.t(
-                                        "ticketsList.connectionTitle"
-                                    )}
-                                >
-                                    {ticket.whatsapp?.name}
-                                </div>
-                            )}
-                        </span>
-                    }
-                    secondary={
-                        <span className={classes.contactNameWrapper}>
-                            {ticket.status === "closed"
-                                ? ticket?.userRating
-                                    ? getRatingIcon(ticket?.userRating?.rate)
-                                    : null
-                                : null}
-                            <Typography
-                                className={classes.contactLastMessage}
-                                noWrap
-                                component="span"
-                                variant="body2"
-                                color="textSecondary"
-                            >
-                                {ticket.lastMessage ? (
-                                    <MarkdownWrapper>
-                                        {ticket.lastMessage}
-                                    </MarkdownWrapper>
-                                ) : (
-                                    <br />
-                                )}
-                            </Typography>
-
-                            <Badge
-                                overlap="rectangular"
-                                className={classes.newMessagesCount}
-                                badgeContent={ticket.unreadMessages}
-                                classes={{
-                                    badge: classes.badgeStyle,
-                                }}
-                            />
-                        </span>
-                    }
-                />
-                {ticket.status === "pending" && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                        loading={loading.toString()}
-                        onClick={(e) =>
-                            ticket.isBot
-                                ? handleAcepptTicketBot(ticket)
-                                : handleAcepptTicket(ticket)
-                        }
-                    >
-                        <CheckIcon />
-                    </IconButton>
+              {/* {ticket.lastMessage && ( */}
+              <Typography
+                className={classes.lastMessageTime}
+                component="span"
+                variant="body2"
+                color="textSecondary"
+              >
+                {isSameDay(parseISO(ticket.updatedAt), new Date()) ? (
+                  <>{format(parseISO(ticket.updatedAt), "HH:mm")}</>
+                ) : (
+                  <>{format(parseISO(ticket.updatedAt), "dd/MM/yyyy")}</>
                 )}
-                {/* {ticket.status === "pending" && (
+              </Typography>
+              {/* )} */}
+              {ticket.whatsappId && (
+                <div
+                  className={classes.userTag}
+                  title={i18n.t("ticketsList.connectionTitle")}
+                >
+                  {ticket.whatsapp?.name}
+                </div>
+              )}
+            </span>
+          }
+          secondary={
+            <span className={classes.contactNameWrapper}>
+              {ticket.status === "closed"
+                ? ticket?.userRating
+                  ? getRatingIcon(ticket?.userRating?.rate)
+                  : null
+                : null}
+              <Typography
+                className={classes.contactLastMessage}
+                noWrap
+                component="span"
+                variant="body2"
+                color="textSecondary"
+              >
+                {ticket.lastMessage ? (
+                  <MarkdownWrapper>{ticket.lastMessage}</MarkdownWrapper>
+                ) : (
+                  <br />
+                )}
+              </Typography>
+
+              <Badge
+                overlap="rectangular"
+                className={classes.newMessagesCount}
+                badgeContent={ticket.unreadMessages}
+                classes={{
+                  badge: classes.badgeStyle,
+                }}
+              />
+            </span>
+          }
+        />
+        {ticket.status === "pending" && (
+          <IconButton
+            className={classes.bottomButton}
+            color="primary"
+            loading={loading.toString()}
+            onClick={(e) =>
+              ticket.isBot
+                ? handleAcepptTicketBot(ticket)
+                : handleAcepptTicket(ticket)
+            }
+          >
+            <CheckIcon />
+          </IconButton>
+        )}
+        {/* {ticket.status === "pending" && (
                     <IconButton
                         className={classes.bottomButton}
                         color="primary"
@@ -558,69 +540,67 @@ const TicketListItem = ({ ticket }) => {
                         <VisibilityIcon />
                     </IconButton>
                 )} */}
-                <div className={classes.divTags}>
-                    {ticket.isGroup && (
-                        <div className={classes.tagsWrapper}>
-                            <div
-                                key={ticket.id}
-                                className={classes.tags}
-                                // title={ticket.isGroup}
-                                style={{
-                                    backgroundColor: "#7C7C7C",
-                                }}
-                            >
-                                Grupo
-                            </div>
-                        </div>
-                    )}
-                    {ticket.user?.id &&
-                        user.profile.toUpperCase() === "ADMIN" && (
-                            <div className={classes.tagsWrapper}>
-                                <div
-                                    key={ticket.user.id}
-                                    className={classes.tags}
-                                    title={renderUserName(ticket.user.name)}
-                                    style={{
-                                        backgroundColor:
-                                            ticket.user.color === "" ||
-                                                !ticket.user.color
-                                                ? "#7C7C7C"
-                                                : ticket.user.color,
-                                    }}
-                                >
-                                    {renderUserName(ticket.user.name)}
-                                </div>
-                            </div>
-                        )}
-                    {ticket.tags?.length > 0 && (
-                        <>
-                            <div className={classes.tagsWrapper}>
-                                <div
-                                    key={ticket.tags[0].id}
-                                    className={classes.tags}
-                                    title={ticket.tags[0].name}
-                                    style={{
-                                        backgroundColor: ticket.tags[0].color,
-                                    }}
-                                >
-                                    {ticket.tags[0].name}
-                                </div>
-                            </div>
-                            {ticket.tags.length > 1 && (
-                                <div
-                                    key={ticket.tags[1].id}
-                                    className={classes.tags}
-                                    title={ticket.tags[1].name}
-                                    style={{
-                                        backgroundColor: ticket.tags[1].color,
-                                    }}
-                                >
-                                    +{ticket.tags.length - 1}
-                                </div>
-                            )}
-                        </>
-                    )}
-                    {/* {ticket?.contact?.contactWallets && ticket.contact.contactWallets.length > 0 && (
+        <div className={classes.divTags}>
+          {ticket.isGroup && (
+            <div className={classes.tagsWrapper}>
+              <div
+                key={ticket.id}
+                className={classes.tags}
+                // title={ticket.isGroup}
+                style={{
+                  backgroundColor: "#7C7C7C",
+                }}
+              >
+                Grupo
+              </div>
+            </div>
+          )}
+          {ticket.user?.id && user.profile.toUpperCase() === "ADMIN" && (
+            <div className={classes.tagsWrapper}>
+              <div
+                key={ticket.user.id}
+                className={classes.tags}
+                title={renderUserName(ticket.user.name)}
+                style={{
+                  backgroundColor:
+                    ticket.user.color === "" || !ticket.user.color
+                      ? "#7C7C7C"
+                      : ticket.user.color,
+                }}
+              >
+                {renderUserName(ticket.user.name)}
+              </div>
+            </div>
+          )}
+          {ticket.tags?.length > 0 && (
+            <>
+              <div className={classes.tagsWrapper}>
+                <div
+                  key={ticket.tags[0].id}
+                  className={classes.tags}
+                  title={ticket.tags[0].name}
+                  style={{
+                    backgroundColor: ticket.tags[0].color,
+                  }}
+                >
+                  {ticket.tags[0].name}
+                </div>
+              </div>
+              {ticket.tags.length > 1 && (
+                <div
+                  key={ticket.tags[1].id}
+                  className={classes.tags}
+                  title={ticket.tags[1].name}
+                  style={{
+                    backgroundColor: ticket.tags[1].color,
+                  }}
+                >
+                  +{ticket.tags.length - 1}
+                </div>
+              )}
+            </>
+          )}
+          {/* {ticket?.contact?.contactWallets && ticket.contact.contactWallets.length > 0 && (
                         <div className={classes.tagsWrapper}>
                             <div
                                 className={classes.tags}
@@ -633,71 +613,72 @@ const TicketListItem = ({ ticket }) => {
                             </div>
                         </div>
                     )} */}
-                </div>
+        </div>
 
-                {(ticket.status === "pending" && (user.showDashboard === "enabled" || user.profile === "admin")) && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                        onClick={(e) => handleClosedTicket(ticket)}
-                    >
-                        <ClearOutlinedIcon />
-                    </IconButton>
-                )}
-                {ticket.status === "open" && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                        onClick={(e) => handleViewTicket(ticket)}
-                    >
-                        <ReplayIcon />
-                    </IconButton>
-                )}
-                {ticket.status === "open" && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                        onClick={(e) => handleClosedTicket(ticket)}
-                    >
-                        <ClearOutlinedIcon />
-                    </IconButton>
-                )}
-                {ticket.status === "closed" && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                        onClick={(e) => handleReopenTicket(ticket)}
-                    >
-                        <ReplayIcon />
-                    </IconButton>
-                )}
-                {ticket.status === "closed" && (
-                    <IconButton
-                        className={classes.bottomButton}
-                        color="primary"
-                    ></IconButton>
-                )}
-            </ListItem>
-            <Divider variant="inset" component="li" />
-
-            {/* Modal da Imagem */}
-            <Dialog
-                open={imageModalOpen}
-                onClose={handleImageModalClose}
-                className={classes.imageModal}
-                maxWidth="md"
-                fullWidth
+        {ticket.status === "pending" &&
+          (user.showDashboard === "enabled" || user.profile === "admin") && (
+            <IconButton
+              className={classes.bottomButton}
+              color="primary"
+              onClick={(e) => handleClosedTicket(ticket)}
             >
-                <DialogContent className={classes.imageModalContent}>
-                    <img 
-                        src={ticket?.contact?.urlPicture} 
-                        alt={ticket?.contact?.name || "Foto do contato"}
-                        className={classes.expandedImage}
-                    />
-                </DialogContent>
-            </Dialog>
-        </React.Fragment>
-    );
+              <ClearOutlinedIcon />
+            </IconButton>
+          )}
+        {ticket.status === "open" && (
+          <IconButton
+            className={classes.bottomButton}
+            color="primary"
+            onClick={(e) => handleViewTicket(ticket)}
+          >
+            <ReplayIcon />
+          </IconButton>
+        )}
+        {ticket.status === "open" && (
+          <IconButton
+            className={classes.bottomButton}
+            color="primary"
+            onClick={(e) => handleClosedTicket(ticket)}
+          >
+            <ClearOutlinedIcon />
+          </IconButton>
+        )}
+        {ticket.status === "closed" && (
+          <IconButton
+            className={classes.bottomButton}
+            color="primary"
+            onClick={(e) => handleReopenTicket(ticket)}
+          >
+            <ReplayIcon />
+          </IconButton>
+        )}
+        {ticket.status === "closed" && (
+          <IconButton
+            className={classes.bottomButton}
+            color="primary"
+          ></IconButton>
+        )}
+      </ListItem>
+      <Divider variant="inset" component="li" />
+
+      {/* Modal da Imagem */}
+      <Dialog
+        open={imageModalOpen}
+        onClose={handleImageModalClose}
+        className={classes.imageModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogContent className={classes.imageModalContent}>
+          <img
+            src={ticket?.contact?.urlPicture}
+            alt={ticket?.contact?.name || "Foto do contato"}
+            className={classes.expandedImage}
+          />
+        </DialogContent>
+      </Dialog>
+    </React.Fragment>
+  );
 };
 
 export default TicketListItem;

@@ -1,4 +1,10 @@
-import React, { useState, useContext, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import clsx from "clsx";
 import {
   makeStyles,
@@ -59,7 +65,6 @@ import { logInfo, logError } from "../utils/logger";
 
 const backendUrl = getBackendUrl();
 const drawerWidth = 240;
-
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -425,38 +430,40 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
   const [profileUrl, setProfileUrl] = useState(null);
   const [updateInProgress, setUpdateInProgress] = useState(false);
 
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const mainListItems = useMemo(
     () => <MainListItems drawerOpen={drawerOpen} collapsed={!drawerOpen} />,
-    [user, drawerOpen]
+    [user, drawerOpen],
   );
 
   const settings = useSettings();
 
   const fetchAnnouncements = useCallback(async () => {
-      try {
-        const { data } = await api.get("/announcements/for-company", {
-          params: {
-            status: true,
-            pageNumber: "1"
-          }
-        });
+    try {
+      const { data } = await api.get("/announcements/for-company", {
+        params: {
+          status: true,
+          pageNumber: "1",
+        },
+      });
 
-        // Filtra apenas os informativos ativos e não expirados
-        const activeAnnouncementsRaw = data.records.filter(announcement => {
-          const isActive = announcement.status === true || announcement.status === "true";
-          const isNotExpired = !announcement.expiresAt || new Date(announcement.expiresAt) > new Date();
-          return isActive && isNotExpired;
-        });
+      // Filtra apenas os informativos ativos e não expirados
+      const activeAnnouncementsRaw = data.records.filter((announcement) => {
+        const isActive =
+          announcement.status === true || announcement.status === "true";
+        const isNotExpired =
+          !announcement.expiresAt ||
+          new Date(announcement.expiresAt) > new Date();
+        return isActive && isNotExpired;
+      });
 
-        // Backend já filtra por empresa excluindo os reconhecidos
-        const activeAnnouncements = activeAnnouncementsRaw;
-        setAnnouncements(activeAnnouncements);
-        setShowAnnouncementsModal(activeAnnouncements.length > 0);
-      } catch (err) {
-        toastError(err);
-      }
+      // Backend já filtra por empresa excluindo os reconhecidos
+      const activeAnnouncements = activeAnnouncementsRaw;
+      setAnnouncements(activeAnnouncements);
+      setShowAnnouncementsModal(activeAnnouncements.length > 0);
+    } catch (err) {
+      toastError(err);
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -480,7 +487,7 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
       if (checked) {
         await api.post(`/announcements/${announcementId}/ack`);
         // Remove este aviso da lista
-        setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+        setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
         setSelectedAnnouncement(null);
       } else {
         await api.delete(`/announcements/${announcementId}/ack`);
@@ -497,8 +504,6 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
   };
 
   useEffect(() => {
-    
-
     if (document.body.offsetWidth > 600) {
       if (user.defaultMenu === "closed") {
         setDrawerOpen(false);
@@ -538,33 +543,42 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
   }, [user?.companyId, user?.profileImage, backendUrl]);
 
   // Callbacks dos eventos
-  const handleAuthEvent = useCallback((data) => {
-    if (data.user.id === +user?.id) {
-      toastError("Sua conta foi acessada em outro computador.");
-      setTimeout(() => {
-        localStorage.clear();
-        window.location.reload();
-      }, 1000);
-    }
-  }, [user?.id]);
-
-  const handleUserUpdate = useCallback((data) => {
-    if (data.action === "update" && data.user.id === +user?.id) {
-      if (data.user.profileImage) {
-        const newProfileUrl = `${backendUrl}/public/company${user?.companyId}/user/${data.user.profileImage}`;
-        setProfileUrl(newProfileUrl);
-        localStorage.setItem("profileImage", data.user.profileImage);
+  const handleAuthEvent = useCallback(
+    (data) => {
+      if (data.user.id === +user?.id) {
+        toastError("Sua conta foi acessada em outro computador.");
+        setTimeout(() => {
+          localStorage.clear();
+          window.location.reload();
+        }, 1000);
       }
-    }
-  }, [user?.companyId, user?.id, backendUrl]);
+    },
+    [user?.id],
+  );
+
+  const handleUserUpdate = useCallback(
+    (data) => {
+      if (data.action === "update" && data.user.id === +user?.id) {
+        if (data.user.profileImage) {
+          const newProfileUrl = `${backendUrl}/public/company${user?.companyId}/user/${data.user.profileImage}`;
+          setProfileUrl(newProfileUrl);
+          localStorage.setItem("profileImage", data.user.profileImage);
+        }
+      }
+    },
+    [user?.companyId, user?.id, backendUrl],
+  );
 
   // Callbacks para eventos de aniversário
-  const handleUserBirthday = useCallback((data) => {
-    logInfo("Evento de aniversário de usuário recebido", { data });
-    if (data.userId === +user?.id) {
-      setShowBirthdayModal(true);
-    }
-  }, [user?.id]);
+  const handleUserBirthday = useCallback(
+    (data) => {
+      logInfo("Evento de aniversário de usuário recebido", { data });
+      if (data.userId === +user?.id) {
+        setShowBirthdayModal(true);
+      }
+    },
+    [user?.id],
+  );
 
   const handleContactBirthday = useCallback((data) => {
     logInfo("Evento de aniversário de contato recebido", { data });
@@ -578,7 +592,7 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
         const birthdayData = data.data;
 
         // Verificar se o usuário atual faz aniversário hoje
-        const userBirthday = birthdayData.users.find(u => u.id === +user.id);
+        const userBirthday = birthdayData.users.find((u) => u.id === +user.id);
         if (userBirthday) {
           logInfo("Usuário faz aniversário hoje; exibindo modal");
           setShowBirthdayModal(true);
@@ -595,10 +609,10 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
   }, [user?.id, user?.companyId]);
 
   // Registrar listeners
-  useSocketListener(socket, user, 'auth', handleAuthEvent);
-  useSocketListener(socket, user, 'user', handleUserUpdate);
-  useSocketListener(socket, user, 'user-birthday', handleUserBirthday);
-  useSocketListener(socket, user, 'contact-birthday', handleContactBirthday);
+  useSocketListener(socket, user, "auth", handleAuthEvent);
+  useSocketListener(socket, user, "user", handleUserUpdate);
+  useSocketListener(socket, user, "user-birthday", handleUserBirthday);
+  useSocketListener(socket, user, "contact-birthday", handleContactBirthday);
 
   // Verificar aniversários quando o usuário faz login
   useEffect(() => {
@@ -617,9 +631,12 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
     if (socket?.emit && user?.companyId) {
       socket.emit("userStatus");
 
-      const interval = setInterval(() => {
-        socket?.emit && socket.emit("userStatus");
-      }, 1000 * 60 * 5);
+      const interval = setInterval(
+        () => {
+          socket?.emit && socket.emit("userStatus");
+        },
+        1000 * 60 * 5,
+      );
 
       return () => clearInterval(interval);
     }
@@ -690,19 +707,19 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
       try {
         const settings = await getAll();
         const enabledLanguagesSetting = settings.find(
-          (s) => s.key === "enabledLanguages"
+          (s) => s.key === "enabledLanguages",
         )?.value;
         let langs = ["pt-BR", "en"];
         try {
           if (enabledLanguagesSetting) {
             langs = JSON.parse(enabledLanguagesSetting);
           }
-        } catch { }
+        } catch {}
         console.log(
           "Layout - enabledLanguages carregadas:",
           langs,
           "para companyId:",
-          user?.companyId
+          user?.companyId,
         );
         setEnabledLanguages(langs);
       } catch (error) {
@@ -713,7 +730,7 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
   }, [user?.companyId]);
 
   const filteredLanguageOptions = LANGUAGE_OPTIONS.filter((lang) =>
-    enabledLanguages.includes(lang.code)
+    enabledLanguages.includes(lang.code),
   );
 
   if (loading || updateInProgress) {
@@ -725,11 +742,13 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
       {!hideMenu && (
         <Drawer
           variant={drawerVariant}
-          className={drawerOpen ? classes.drawerPaper : classes.drawerPaperClose}
+          className={
+            drawerOpen ? classes.drawerPaper : classes.drawerPaperClose
+          }
           classes={{
             paper: clsx(
               classes.drawerPaper,
-              !drawerOpen && classes.drawerPaperClose
+              !drawerOpen && classes.drawerPaperClose,
             ),
           }}
           open={drawerOpen}
@@ -759,7 +778,10 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
 
       <AppBar
         position="absolute"
-        className={clsx(classes.appBar, !hideMenu && drawerOpen && classes.appBarShift)}
+        className={clsx(
+          classes.appBar,
+          !hideMenu && drawerOpen && classes.appBarShift,
+        )}
         color="primary"
       >
         <Toolbar variant="dense" className={classes.toolbar}>
@@ -785,8 +807,8 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
           >
             {/* {greaterThenSm && user?.profile === "admin" && getDateAndDifDays(user?.company?.dueDate).difData < 7 ? ( */}
             {greaterThenSm &&
-              user?.profile === "admin" &&
-              user?.company?.dueDate ? (
+            user?.profile === "admin" &&
+            user?.company?.dueDate ? (
               <>
                 {i18n.t("mainDrawer.appBar.user.message")} <b>{user.name}</b>,{" "}
                 {i18n.t("mainDrawer.appBar.user.messageEnd")}{" "}
@@ -890,8 +912,6 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
 
               <ChatPopover />
 
-
-
               <div className="user-menu-wrapper">
                 <StyledBadge
                   overlap="circular"
@@ -912,7 +932,9 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
                 <UserModal
                   open={userModalOpen}
                   onClose={() => setUserModalOpen(false)}
-                  onImageUpdate={(newProfileUrl) => setProfileUrl(newProfileUrl)}
+                  onImageUpdate={(newProfileUrl) =>
+                    setProfileUrl(newProfileUrl)
+                  }
                   userId={user?.id}
                 />
 
@@ -969,7 +991,7 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
               <Typography variant="h6" gutterBottom>
                 {selectedAnnouncement.title}
               </Typography>
-              <Typography variant="body1" style={{ whiteSpace: 'pre-line' }}>
+              <Typography variant="body1" style={{ whiteSpace: "pre-line" }}>
                 {selectedAnnouncement.text}
               </Typography>
               <FormControlLabel
@@ -992,7 +1014,7 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
                   <img
                     src={`${backendUrl}/public/company${user.companyId}${selectedAnnouncement.mediaPath}`}
                     alt="Anexo"
-                    style={{ maxWidth: '100%' }}
+                    style={{ maxWidth: "100%" }}
                   />
                 </div>
               )}
@@ -1026,7 +1048,12 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
                           variant="body2"
                           color="textPrimary"
                         >
-                          Prioridade: {announcement.priority === 1 ? 'Alta' : announcement.priority === 2 ? 'Média' : 'Baixa'}
+                          Prioridade:{" "}
+                          {announcement.priority === 1
+                            ? "Alta"
+                            : announcement.priority === 2
+                              ? "Média"
+                              : "Baixa"}
                         </Typography>
                         {` — ${new Date(announcement.createdAt).toLocaleDateString()}`}
                       </>
@@ -1053,7 +1080,6 @@ const LoggedInLayout = ({ children, themeToggle, hideMenu = false }) => {
         onClose={() => setShowBirthdayModal(false)}
         user={user}
       />
-
     </div>
   );
 };

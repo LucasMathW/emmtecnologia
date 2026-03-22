@@ -170,7 +170,7 @@ export default function ChatPopover(volume) {
                     data.newMessage.message
                   } - ${format(new Date(), "HH:mm")}`,
                   icon: data.newMessage.sender.profileImage,
-                }
+                },
               );
 
               notification.onclick = (e) => {
@@ -262,7 +262,7 @@ export default function ChatPopover(volume) {
         color={invisible ? "default" : "inherit"}
         onClick={handleClick}
         style={{ color: "white" }}
-        size="large"
+        size="medium"
       >
         <Badge color="secondary" variant="dot" invisible={invisible}>
           <MdOutlineForum size={18} />

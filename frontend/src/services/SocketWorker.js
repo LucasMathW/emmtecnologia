@@ -5,6 +5,8 @@ class SocketWorker {
   constructor(companyId, userId) {
     const sessionToken = api.defaults.headers.Authorization;
 
+    // console.log(`sessionToken:${sessionToken}`);
+
     if (!SocketWorker.instance) {
       this.companyId = companyId;
       this.userId = userId;
@@ -49,8 +51,6 @@ class SocketWorker {
 
     const wrappedCallback = (...args) => {
       // console.log("[SOCKET ON]", {
-      //   socketId: this.socket?.id,
-      //   event,
       //   payload: args,
       // });
 

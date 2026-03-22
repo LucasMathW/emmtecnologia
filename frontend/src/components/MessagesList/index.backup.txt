@@ -736,103 +736,49 @@ const MessagesList = ({
     };
   }, []);
 
-  // useEffect(() => {
-  //   setLoading(true);
-  //   const delayDebounceFn = setTimeout(() => {
-  //     const fetchMessages = async () => {
-  //       if (ticketId === "undefined") {
-  //         history.push("/tickets");
-  //         return;
-  //       }
-  //       if (isNil(ticketId)) return;
-
-  //       try {
-  //         const { data } = await api.get("/messages/" + ticketId, {
-  //           params: {
-  //             pageNumber,
-  //             selectedQueues: JSON.stringify(selectedQueuesMessage),
-  //           },
-  //         });
-
-  //         if (currentTicketId.current === ticketId) {
-  //           dispatch({
-  //             type: "LOAD_MESSAGES",
-  //             payload: data.messages,
-  //           });
-  //           setHasMore(data.hasMore);
-  //           setLoading(false);
-  //           setLoadingMore(false);
-  //         }
-
-  //         if (pageNumber === 1 && data.messages.length > 1) {
-  //           scrollToBottom();
-  //         }
-  //       } catch (err) {
-  //         setLoading(false);
-  //         toastError(err);
-  //         setLoadingMore(false);
-  //       }
-  //     };
-
-  //     fetchMessages();
-  //   }, 500);
-
-  //   return () => {
-  //     isMounted = false;
-  //     clearTimeout(delayDebounceFn);
-  //   };
-  // }, [pageNumber, ticketId, selectedQueuesMessage]);
-
   useEffect(() => {
-    let active = true;
+    setLoading(true);
+    const delayDebounceFn = setTimeout(() => {
+      const fetchMessages = async () => {
+        if (ticketId === "undefined") {
+          history.push("/tickets");
+          return;
+        }
+        if (isNil(ticketId)) return;
 
-    const delayDebounceFn = setTimeout(async () => {
-      if (ticketId === "undefined") {
-        history.push("/tickets");
-        return;
-      }
-
-      if (isNil(ticketId)) return;
-
-      try {
-        if (active) setLoading(true);
-
-        const { data } = await api.get("/messages/" + ticketId, {
-          params: {
-            pageNumber,
-            selectedQueues: JSON.stringify(selectedQueuesMessage),
-          },
-        });
-
-        if (!active) return;
-
-        if (currentTicketId.current === ticketId) {
-          dispatch({
-            type: "LOAD_MESSAGES",
-            payload: data.messages,
+        try {
+          const { data } = await api.get("/messages/" + ticketId, {
+            params: {
+              pageNumber,
+              selectedQueues: JSON.stringify(selectedQueuesMessage),
+            },
           });
 
-          setHasMore(data.hasMore);
+          if (currentTicketId.current === ticketId) {
+            dispatch({
+              type: "LOAD_MESSAGES",
+              payload: data.messages,
+            });
+            setHasMore(data.hasMore);
+            setLoading(false);
+            setLoadingMore(false);
+          }
+
+          if (pageNumber === 1 && data.messages.length > 1) {
+            scrollToBottom();
+          }
+        } catch (err) {
           setLoading(false);
+          toastError(err);
           setLoadingMore(false);
         }
+      };
 
-        if (pageNumber === 1 && data.messages.length > 1) {
-          setTimeout(() => {
-            if (active) scrollToBottom();
-          }, 100);
-        }
-      } catch (err) {
-        if (!active) return;
-
-        setLoading(false);
-        setLoadingMore(false);
-        toastError(err);
-      }
+      fetchMessages();
     }, 500);
 
     return () => {
-      active = false;
+      isMounted = false;
       clearTimeout(delayDebounceFn);
     };
   }, [pageNumber, ticketId, selectedQueuesMessage]);

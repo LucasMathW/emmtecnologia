@@ -9,9 +9,7 @@ import "emoji-mart/css/emoji-mart.css";
 import { Picker } from "emoji-mart";
 import { useMediaQuery, useTheme } from "@material-ui/core";
 import { isNil } from "lodash";
-import {
-  Fade
-} from "@material-ui/core";
+import { Fade } from "@material-ui/core";
 import {
   CircularProgress,
   ClickAwayListener,
@@ -47,7 +45,7 @@ import {
   Timer,
   WhatsApp,
   Info,
-  AccountTree
+  AccountTree,
 } from "@material-ui/icons";
 
 import {
@@ -87,14 +85,15 @@ import usePlans from "../../hooks/usePlans";
 import TemplateModal from "../TemplateMetaModal";
 import TriggerFlowModal from "../TriggerFlowModal";
 
-
 const Mp3Recorder = new MicRecorder({
   bitRate: 128,
-  sampleRate: 44100
+  sampleRate: 44100,
 });
 
 const isMobileDevice = () => {
-  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
 };
 
 const useStyles = makeStyles((theme) => ({
@@ -276,23 +275,23 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "#6bcbef",
   },
   floatingFormatMenu: {
-    position: 'fixed',
+    position: "fixed",
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.shape.borderRadius,
     boxShadow: theme.shadows[8],
     zIndex: 9999,
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: '4px',
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: "4px",
     border: `1px solid ${theme.palette.divider}`,
   },
 
   formatIconButton: {
-    padding: '6px',
-    borderRadius: '4px',
-    minWidth: '32px',
-    height: '32px',
+    padding: "6px",
+    borderRadius: "4px",
+    minWidth: "32px",
+    height: "32px",
   },
   messageContactName: {
     display: "flex",
@@ -508,7 +507,7 @@ const MessageInput = ({
   const { setReplyingMessage, replyingMessage } =
     useContext(ReplyMessageContext);
   const { setEditingMessage, editingMessage } = useContext(EditMessageContext);
-  const { user } = useContext(AuthContext);
+  const { user, socket } = useContext(AuthContext);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const { getPlanCompany } = usePlans();
 
@@ -528,14 +527,22 @@ const MessageInput = ({
   const [placeholderText, setPlaceHolderText] = useState("");
 
   const [selectedQuickAnswerIndex, setSelectedQuickAnswerIndex] = useState(-1);
-  const [isNavigatingQuickAnswers, setIsNavigatingQuickAnswers] = useState(false);
+  const [isNavigatingQuickAnswers, setIsNavigatingQuickAnswers] =
+    useState(false);
 
   const [triggerFlowModalOpen, setTriggerFlowModalOpen] = useState(false);
   const [flowProcessing, setFlowProcessing] = useState(false);
   const flowProcessingRef = useRef(false);
 
-  const [formatMenuAnchorPosition, setFormatMenuAnchorPosition] = useState(null);
-  const [selectedText, setSelectedText] = useState({ text: '', start: 0, end: 0 });
+  const [formatMenuAnchorPosition, setFormatMenuAnchorPosition] =
+    useState(null);
+  const [selectedText, setSelectedText] = useState({
+    text: "",
+    start: 0,
+    end: 0,
+  });
+
+  // const { user, socket } = useContext(AuthContext);
 
   const isTicketPending = () => {
     return ticketStatus === "pending";
@@ -636,7 +643,6 @@ const MessageInput = ({
     };
   }, [ticketId, setReplyingMessage, setEditingMessage]);
 
-
   useEffect(() => {
     let isProcessing = false; // ✅ Flag para evitar processamento duplo
 
@@ -662,7 +668,7 @@ const MessageInput = ({
         hasMedia: !!quickMessage.mediaPath,
         mediaType: quickMessage.mediaType,
         message: quickMessage.message,
-        ticketId: ticketId
+        ticketId: ticketId,
       });
 
       if (quickMessage.mediaPath) {
@@ -672,7 +678,7 @@ const MessageInput = ({
           mediaPath: quickMessage.mediaPath,
           mediaType: quickMessage.mediaType,
           shortcode: quickMessage.shortcode,
-          label: `/${quickMessage.shortcode} - ${quickMessage.message}`
+          label: `/${quickMessage.shortcode} - ${quickMessage.message}`,
         }).finally(() => {
           isProcessing = false; // ✅ Liberar flag após processamento
         });
@@ -697,10 +703,13 @@ const MessageInput = ({
     };
 
     // ✅ IMPORTANTE: Escutar apenas no window
-    window.addEventListener('insertQuickMessage', handleInsertQuickMessage);
+    window.addEventListener("insertQuickMessage", handleInsertQuickMessage);
 
     return () => {
-      window.removeEventListener('insertQuickMessage', handleInsertQuickMessage);
+      window.removeEventListener(
+        "insertQuickMessage",
+        handleInsertQuickMessage,
+      );
       isProcessing = false; // ✅ Reset da flag no cleanup
     };
   }, [inputMessage, ticketId, privateMessage]);
@@ -721,7 +730,7 @@ const MessageInput = ({
         if (setting.sendSignMessage === "enabled") {
           setSignMessagePar(true);
           const signMessageStorage = JSON.parse(
-            localStorage.getItem("persistentSignMessage")
+            localStorage.getItem("persistentSignMessage"),
           );
           if (isNil(signMessageStorage)) {
             setSignMessage(true);
@@ -742,7 +751,7 @@ const MessageInput = ({
 
   // CORREÇÃO DO ERRO charAt - Função mais robusta
   const safeCapitalizeFirstLetter = (string) => {
-    if (!string || typeof string !== 'string') return "";
+    if (!string || typeof string !== "string") return "";
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
@@ -788,101 +797,103 @@ const MessageInput = ({
     flowProcessingRef.current = false;
   }, []);
 
-
   // NAVEGAÇÃO POR TECLADO CORRIGIDA
-  const handleKeyDown = useCallback((e) => {
-    if (!typeBar || !Array.isArray(typeBar) || typeBar.length === 0) {
-      setSelectedQuickAnswerIndex(-1);
-      setIsNavigatingQuickAnswers(false);
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (!typeBar || !Array.isArray(typeBar) || typeBar.length === 0) {
+        setSelectedQuickAnswerIndex(-1);
+        setIsNavigatingQuickAnswers(false);
+        return;
+      }
 
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setIsNavigatingQuickAnswers(true);
-        setSelectedQuickAnswerIndex(prev => {
-          const nextIndex = prev < typeBar.length - 1 ? prev + 1 : 0;
-
-          // SCROLL AUTOMÁTICO CORRIGIDO
-          setTimeout(() => {
-            const container = document.querySelector('.MuiBox-root ul');
-            if (container) {
-              const selectedElement = container.children[nextIndex];
-              if (selectedElement) {
-                selectedElement.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'nearest'
-                });
-              }
-            }
-          }, 0);
-
-          return nextIndex;
-        });
-        break;
-
-      case 'ArrowUp':
-        e.preventDefault();
-        setIsNavigatingQuickAnswers(true);
-        setSelectedQuickAnswerIndex(prev => {
-          const nextIndex = prev > 0 ? prev - 1 : typeBar.length - 1;
-
-          // SCROLL AUTOMÁTICO CORRIGIDO
-          setTimeout(() => {
-            const container = document.querySelector('.MuiBox-root ul');
-            if (container) {
-              const selectedElement = container.children[nextIndex];
-              if (selectedElement) {
-                selectedElement.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'nearest'
-                });
-              }
-            }
-          }, 0);
-
-          return nextIndex;
-        });
-        break;
-
-      case 'Enter':
-        if (isNavigatingQuickAnswers && selectedQuickAnswerIndex >= 0) {
+      switch (e.key) {
+        case "ArrowDown":
           e.preventDefault();
-          const selectedAnswer = typeBar[selectedQuickAnswerIndex];
-          handleQuickAnswersClick(selectedAnswer);
-          setSelectedQuickAnswerIndex(-1);
-          setIsNavigatingQuickAnswers(false);
-        }
-        break;
-
-      case 'Escape':
-        if (isNavigatingQuickAnswers) {
-          e.preventDefault();
-          setSelectedQuickAnswerIndex(-1);
-          setIsNavigatingQuickAnswers(false);
-          setTypeBar(false);
-        }
-        break;
-
-      case 'Tab':
-        if (isNavigatingQuickAnswers) {
-          e.preventDefault();
-          setSelectedQuickAnswerIndex(prev => {
+          setIsNavigatingQuickAnswers(true);
+          setSelectedQuickAnswerIndex((prev) => {
             const nextIndex = prev < typeBar.length - 1 ? prev + 1 : 0;
+
+            // SCROLL AUTOMÁTICO CORRIGIDO
+            setTimeout(() => {
+              const container = document.querySelector(".MuiBox-root ul");
+              if (container) {
+                const selectedElement = container.children[nextIndex];
+                if (selectedElement) {
+                  selectedElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }
+              }
+            }, 0);
+
             return nextIndex;
           });
-        }
-        break;
+          break;
 
-      default:
-        if (isNavigatingQuickAnswers && e.key.length === 1) {
-          setSelectedQuickAnswerIndex(-1);
-          setIsNavigatingQuickAnswers(false);
-        }
-        break;
-    }
-  }, [typeBar, selectedQuickAnswerIndex, isNavigatingQuickAnswers]);
+        case "ArrowUp":
+          e.preventDefault();
+          setIsNavigatingQuickAnswers(true);
+          setSelectedQuickAnswerIndex((prev) => {
+            const nextIndex = prev > 0 ? prev - 1 : typeBar.length - 1;
+
+            // SCROLL AUTOMÁTICO CORRIGIDO
+            setTimeout(() => {
+              const container = document.querySelector(".MuiBox-root ul");
+              if (container) {
+                const selectedElement = container.children[nextIndex];
+                if (selectedElement) {
+                  selectedElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }
+              }
+            }, 0);
+
+            return nextIndex;
+          });
+          break;
+
+        case "Enter":
+          if (isNavigatingQuickAnswers && selectedQuickAnswerIndex >= 0) {
+            e.preventDefault();
+            const selectedAnswer = typeBar[selectedQuickAnswerIndex];
+            handleQuickAnswersClick(selectedAnswer);
+            setSelectedQuickAnswerIndex(-1);
+            setIsNavigatingQuickAnswers(false);
+          }
+          break;
+
+        case "Escape":
+          if (isNavigatingQuickAnswers) {
+            e.preventDefault();
+            setSelectedQuickAnswerIndex(-1);
+            setIsNavigatingQuickAnswers(false);
+            setTypeBar(false);
+          }
+          break;
+
+        case "Tab":
+          if (isNavigatingQuickAnswers) {
+            e.preventDefault();
+            setSelectedQuickAnswerIndex((prev) => {
+              const nextIndex = prev < typeBar.length - 1 ? prev + 1 : 0;
+              return nextIndex;
+            });
+          }
+          break;
+
+        default:
+          if (isNavigatingQuickAnswers && e.key.length === 1) {
+            setSelectedQuickAnswerIndex(-1);
+            setIsNavigatingQuickAnswers(false);
+          }
+          break;
+      }
+    },
+    [typeBar, selectedQuickAnswerIndex, isNavigatingQuickAnswers],
+  );
 
   useEffect(() => {
     if (!typeBar || !Array.isArray(typeBar) || typeBar.length === 0) {
@@ -892,12 +903,16 @@ const MessageInput = ({
   }, [typeBar]);
 
   const getQuickAnswerItemStyle = (index) => ({
-    backgroundColor: selectedQuickAnswerIndex === index
-      ? (theme.mode === 'light' ? '#e3f2fd' : '#1e3a5f')
-      : 'transparent',
-    borderLeft: selectedQuickAnswerIndex === index
-      ? `4px solid ${theme.palette.primary.main}`
-      : '4px solid transparent',
+    backgroundColor:
+      selectedQuickAnswerIndex === index
+        ? theme.mode === "light"
+          ? "#e3f2fd"
+          : "#1e3a5f"
+        : "transparent",
+    borderLeft:
+      selectedQuickAnswerIndex === index
+        ? `4px solid ${theme.palette.primary.main}`
+        : "4px solid transparent",
   });
 
   const handleSendLinkVideo = async () => {
@@ -923,136 +938,168 @@ const MessageInput = ({
 
   const getMediaTypeIcon = (mediaType) => {
     switch (mediaType) {
-      case 'audio': return '🎵';
-      case 'image': return '🖼️';
-      case 'video': return '🎥';
-      case 'document': return '📎';
-      default: return '📎';
+      case "audio":
+        return "🎵";
+      case "image":
+        return "🖼️";
+      case "video":
+        return "🎥";
+      case "document":
+        return "📎";
+      default:
+        return "📎";
     }
   };
 
   const getMediaTypeColor = (mediaType) => {
     switch (mediaType) {
-      case 'audio': return 'secondary';
-      case 'image': return 'primary';
-      case 'video': return 'default';
-      case 'document': return 'default';
-      default: return 'default';
+      case "audio":
+        return "secondary";
+      case "image":
+        return "primary";
+      case "video":
+        return "default";
+      case "document":
+        return "default";
+      default:
+        return "default";
     }
   };
 
-  const handleQuickAnswersClick = useCallback(async (value) => {
-    // ✅ IMPORTANTE: Evitar múltiplas execuções simultâneas
-    if (loading) {
-      console.log("⚠️ Já processando, ignorando clique...");
-      return;
-    }
-
-    console.log("🎯 handleQuickAnswersClick chamado:", value);
-    console.log("📋 ticketId atual:", ticketId);
-
-    if (!ticketId) {
-      console.error("❌ ticketId não encontrado");
-      toastError("Erro: ID do ticket não encontrado");
-      return;
-    }
-
-    if (value.mediaPath) {
-      try {
-        setLoading(true);
-        console.log("📥 Baixando mídia:", value.mediaPath);
-
-        const response = await api.get(value.mediaPath, {
-          responseType: "blob",
-        });
-
-        console.log("✅ Mídia baixada com sucesso, tamanho:", response.data.size);
-
-        const messageBody = value.value && value.value.trim() !== "" ? value.value : "";
-
-        await handleUploadQuickMessageMedia(response.data, messageBody, value.mediaType);
-
-        console.log("✅ Mídia enviada com sucesso");
-
-        setInputMessage("");
-        setTypeBar(false);
+  const handleQuickAnswersClick = useCallback(
+    async (value) => {
+      // ✅ IMPORTANTE: Evitar múltiplas execuções simultâneas
+      if (loading) {
+        console.log("⚠️ Já processando, ignorando clique...");
         return;
-      } catch (err) {
-        console.error("❌ Erro ao processar mídia:", err);
-        toastError(err);
-      } finally {
-        setLoading(false);
       }
-    } else {
-      // Para mensagens de texto
-      setInputMessage(value.value || "");
-      setTypeBar(false);
-    }
-  }, [loading, ticketId, privateMessage]);
 
-  const handleUploadQuickMessageMedia = useCallback(async (blob, message, mediaType = null) => {
-    console.log("📤 Iniciando upload de mídia:", {
-      blobSize: blob.size,
-      message,
-      mediaType,
-      ticketId
-    });
+      console.log("🎯 handleQuickAnswersClick chamado:", value);
+      console.log("📋 ticketId atual:", ticketId);
 
-    if (!ticketId) {
-      throw new Error("ID do ticket não encontrado");
-    }
+      if (!ticketId) {
+        console.error("❌ ticketId não encontrado");
+        toastError("Erro: ID do ticket não encontrado");
+        return;
+      }
 
-    // ✅ IMPORTANTE: Verificar se já está enviando
-    if (loading) {
-      console.log("⚠️ Upload já em andamento, ignorando...");
-      return;
-    }
+      if (value.mediaPath) {
+        try {
+          setLoading(true);
+          console.log("📥 Baixando mídia:", value.mediaPath);
 
-    try {
-      let extension = 'bin';
+          const response = await api.get(value.mediaPath, {
+            responseType: "blob",
+          });
 
-      if (blob.type) {
-        const mimeType = blob.type.split("/")[1];
-        extension = mimeType;
+          console.log(
+            "✅ Mídia baixada com sucesso, tamanho:",
+            response.data.size,
+          );
 
-        if (blob.type.includes('webm') || blob.type.includes('audio')) {
-          extension = blob.type.includes('webm') ? 'webm' : 'mp3';
+          const messageBody =
+            value.value && value.value.trim() !== "" ? value.value : "";
+
+          await handleUploadQuickMessageMedia(
+            response.data,
+            messageBody,
+            value.mediaType,
+          );
+
+          console.log("✅ Mídia enviada com sucesso");
+
+          setInputMessage("");
+          setTypeBar(false);
+          return;
+        } catch (err) {
+          console.error("❌ Erro ao processar mídia:", err);
+          toastError(err);
+        } finally {
+          setLoading(false);
         }
-      } else if (mediaType) {
-        const typeExtensionMap = {
-          'audio': 'webm',
-          'image': 'jpg',
-          'video': 'mp4',
-          'document': 'pdf'
-        };
-        extension = typeExtensionMap[mediaType] || 'bin';
+      } else {
+        // Para mensagens de texto
+        setInputMessage(value.value || "");
+        setTypeBar(false);
+      }
+    },
+    [loading, ticketId, privateMessage],
+  );
+
+  const handleUploadQuickMessageMedia = useCallback(
+    async (blob, message, mediaType = null) => {
+      console.log("📤 Iniciando upload de mídia:", {
+        blobSize: blob.size,
+        message,
+        mediaType,
+        ticketId,
+      });
+
+      if (!ticketId) {
+        throw new Error("ID do ticket não encontrado");
       }
 
-      const formData = new FormData();
-      const filename = `${new Date().getTime()}.${extension}`;
-      formData.append("medias", blob, filename);
-      formData.append("typeArch", "quickMessage");
-
-      const body = message && message.trim() !== ""
-        ? ((privateMessage || isTicketPending()) ? `\u200d${message}` : message)
-        : ((privateMessage || isTicketPending()) ? `\u200d` : "");
-
-      formData.append("body", body);
-      formData.append("fromMe", true);
-      formData.append("isPrivate", (privateMessage || isTicketPending()) ? "true" : "false");
-
-      console.log("📤 Enviando para:", `/messages/${ticketId}`);
-
-      if (isMounted.current) {
-        const response = await api.post(`/messages/${ticketId}`, formData);
-        console.log("✅ Upload realizado com sucesso:", response.status);
+      // ✅ IMPORTANTE: Verificar se já está enviando
+      if (loading) {
+        console.log("⚠️ Upload já em andamento, ignorando...");
+        return;
       }
-    } catch (err) {
-      console.error("❌ Erro no upload:", err);
-      toastError(err);
-      throw err;
-    }
-  }, [ticketId, privateMessage, loading]);
+
+      try {
+        let extension = "bin";
+
+        if (blob.type) {
+          const mimeType = blob.type.split("/")[1];
+          extension = mimeType;
+
+          if (blob.type.includes("webm") || blob.type.includes("audio")) {
+            extension = blob.type.includes("webm") ? "webm" : "mp3";
+          }
+        } else if (mediaType) {
+          const typeExtensionMap = {
+            audio: "webm",
+            image: "jpg",
+            video: "mp4",
+            document: "pdf",
+          };
+          extension = typeExtensionMap[mediaType] || "bin";
+        }
+
+        const formData = new FormData();
+        const filename = `${new Date().getTime()}.${extension}`;
+        formData.append("medias", blob, filename);
+        formData.append("typeArch", "quickMessage");
+
+        const body =
+          message && message.trim() !== ""
+            ? privateMessage || isTicketPending()
+              ? `\u200d${message}`
+              : message
+            : privateMessage || isTicketPending()
+              ? `\u200d`
+              : "";
+
+        formData.append("body", body);
+        formData.append("fromMe", true);
+        formData.append(
+          "isPrivate",
+          privateMessage || isTicketPending() ? "true" : "false",
+        );
+
+        console.log("📤 Enviando para:", `/messages/${ticketId}`);
+
+        if (isMounted.current) {
+          const response = await api.post(`/messages/${ticketId}`, formData);
+          console.log("✅ Upload realizado com sucesso:", response.status);
+        }
+      } catch (err) {
+        console.error("❌ Erro no upload:", err);
+        toastError(err);
+        throw err;
+      }
+    },
+    [ticketId, privateMessage, loading],
+  );
 
   const handleAddEmoji = (e) => {
     let emoji = e.native;
@@ -1091,7 +1138,7 @@ const MessageInput = ({
 
   const getStatusSingMessageLocalstogare = () => {
     const signMessageStorage = JSON.parse(
-      localStorage.getItem("persistentSignMessage")
+      localStorage.getItem("persistentSignMessage"),
     );
     if (signMessageStorage !== null) {
       if (signMessageStorage) {
@@ -1135,7 +1182,10 @@ const MessageInput = ({
 
     const formData = new FormData();
     formData.append("fromMe", true);
-    formData.append("isPrivate", (privateMessage || isTicketPending()) ? "true" : "false");
+    formData.append(
+      "isPrivate",
+      privateMessage || isTicketPending() ? "true" : "false",
+    );
     mediasUpload.forEach((media) => {
       formData.append("body", media.caption);
       formData.append("medias", media.file);
@@ -1171,7 +1221,7 @@ const MessageInput = ({
       mediaUrl: "",
       body: null,
       quotedMsg: replyingMessage,
-      isPrivate: (privateMessage || isTicketPending()) ? "true" : "false",
+      isPrivate: privateMessage || isTicketPending() ? "true" : "false",
       vCard: vcard,
     };
     try {
@@ -1195,9 +1245,10 @@ const MessageInput = ({
     if (!inputMessage || inputMessage.trim() === "") return;
     setLoading(true);
 
-    const userName = (privateMessage || isTicketPending())
-      ? `${user.name} - Mensagem Interna`
-      : user.name;
+    const userName =
+      privateMessage || isTicketPending()
+        ? `${user.name} - Mensagem Interna`
+        : user.name;
 
     const sendMessage = inputMessage.trim();
 
@@ -1206,18 +1257,42 @@ const MessageInput = ({
       fromMe: true,
       mediaUrl: "",
       body:
-        ((signMessage && !isTicketPending()) || privateMessage || isTicketPending()) && !editingMessage
+        ((signMessage && !isTicketPending()) ||
+          privateMessage ||
+          isTicketPending()) &&
+        !editingMessage
           ? `*${userName}:*\n${sendMessage}`
           : sendMessage,
       quotedMsg: replyingMessage,
-      isPrivate: (privateMessage || isTicketPending()) ? "true" : "false",
+      isPrivate: privateMessage || isTicketPending() ? "true" : "false",
     };
+
+    const tempId = `temp-${Date.now()}`;
+
+    const optimisticMessage = {
+      id: tempId,
+      body: message.body,
+      fromMe: true,
+      mediaUrl: "",
+      createdAt: new Date().toISOString(),
+      ack: 0, // 🔥 RELÓGIO
+      isDeleted: false,
+      reactions: [],
+      quotedMsg: replyingMessage || null,
+      ticketId: ticketId,
+    };
+
+    // 🔥 Envia mensagem otimista para o MessagesList
+    window.dispatchEvent(
+      new CustomEvent("optimistic-message", {
+        detail: optimisticMessage,
+      }),
+    );
 
     try {
       if (editingMessage !== null) {
         await api.post(`/messages/edit/${editingMessage.id}`, message);
       } else {
-        console.log("ENVIOU PARA TIKCET", ticketId);
         await api.post(`/messages/${ticketId}`, message);
       }
     } catch (err) {
@@ -1324,7 +1399,7 @@ const MessageInput = ({
         setTypeBar(firstWord.indexOf("/") > -1);
 
         const filteredOptions = quickAnswers.filter(
-          (m) => m.label.toLowerCase().indexOf(inputMessage.toLowerCase()) > -1
+          (m) => m.label.toLowerCase().indexOf(inputMessage.toLowerCase()) > -1,
         );
         setTypeBar(filteredOptions);
       } else {
@@ -1336,7 +1411,12 @@ const MessageInput = ({
   }, [inputMessage]);
 
   useEffect(() => {
-    console.log("🔍 Modal state:", triggerFlowModalOpen, "Flow processing:", flowProcessing);
+    console.log(
+      "🔍 Modal state:",
+      triggerFlowModalOpen,
+      "Flow processing:",
+      flowProcessing,
+    );
 
     // 🔥 RESET SIMPLES: Se modal fecha, libera campo
     if (!triggerFlowModalOpen && flowProcessing) {
@@ -1353,7 +1433,9 @@ const MessageInput = ({
       loading ||
       recording ||
       isFlowProcessing || // 🛡️ Usar tanto ref quanto estado
-      (!isTicketPending() && ticketStatus !== "open" && ticketStatus !== "group")
+      (!isTicketPending() &&
+        ticketStatus !== "open" &&
+        ticketStatus !== "group")
     );
   }, [loading, recording, flowProcessing, ticketStatus]);
 
@@ -1374,7 +1456,10 @@ const MessageInput = ({
       const formData = new FormData();
       const filename = `${new Date().getTime()}.png`;
       formData.append("medias", blob, filename);
-      formData.append("body", (privateMessage || isTicketPending()) ? `\u200d` : "");
+      formData.append(
+        "body",
+        privateMessage || isTicketPending() ? `\u200d` : "",
+      );
       formData.append("fromMe", true);
 
       await api.post(`/messages/${ticketId}`, formData);
@@ -1403,7 +1488,7 @@ const MessageInput = ({
       if (["whatsapp", "whatsapp_oficial"].includes(ticketChannel)) {
         // Para WhatsApp, usar formato mais compatível com mobile
         filename = isMobileDevice()
-          ? `audio_${new Date().getTime()}.ogg`  // OGG para mobile
+          ? `audio_${new Date().getTime()}.ogg` // OGG para mobile
           : `audio_${new Date().getTime()}.mp3`; // MP3 para desktop
       } else {
         filename = `${new Date().getTime()}.m4a`;
@@ -1412,7 +1497,10 @@ const MessageInput = ({
       formData.append("medias", blob, filename);
       formData.append("body", "🎵 Mensagem de voz"); // ✅ Body mais claro
       formData.append("fromMe", true);
-      formData.append("isPrivate", (privateMessage || isTicketPending()) ? "true" : "false");
+      formData.append(
+        "isPrivate",
+        privateMessage || isTicketPending() ? "true" : "false",
+      );
 
       console.log(`📤 Enviando áudio: ${filename} (${blob.size} bytes)`);
 
@@ -1472,20 +1560,21 @@ const MessageInput = ({
 
       if (start !== end && start !== null && end !== null) {
         const selectedText = inputMessage.substring(start, end);
-        if (selectedText.trim() !== '') {
+        if (selectedText.trim() !== "") {
           // Para InputBase, calcular posição baseada no elemento
           const inputRect = inputRef.current.getBoundingClientRect();
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollTop =
+            window.pageYOffset || document.documentElement.scrollTop;
 
           setSelectedText({
             text: selectedText,
             start: start,
-            end: end
+            end: end,
           });
 
           setFormatMenuAnchorPosition({
             x: inputRect.left + inputRect.width / 2,
-            y: inputRect.top + scrollTop - 10 // Posicionar acima do input
+            y: inputRect.top + scrollTop - 10, // Posicionar acima do input
           });
 
           return true;
@@ -1502,73 +1591,79 @@ const MessageInput = ({
   }, []);
 
   // Aplica a formatação ao texto selecionado
-  const handleFormatText = useCallback((formatType) => {
-    const { text, start, end } = selectedText;
-    let formattedText = '';
+  const handleFormatText = useCallback(
+    (formatType) => {
+      const { text, start, end } = selectedText;
+      let formattedText = "";
 
-    switch (formatType) {
-      case 'bold':
-        formattedText = `*${text}*`;
-        break;
-      case 'italic':
-        formattedText = `_${text}_`;
-        break;
-      case 'strikethrough':
-        formattedText = `~${text}~`;
-        break;
-      case 'code':
-        formattedText = `\`${text}\``;
-        break;
-      case 'numberedList':
-        formattedText = text.split('\n')
-          .map((line, index) => `${index + 1}. ${line}`)
-          .join('\n');
-        break;
-      case 'bulletList':
-        formattedText = text.split('\n')
-          .map(line => `• ${line}`)
-          .join('\n');
-        break;
-      case 'quote':
-        formattedText = text.split('\n')
-          .map(line => `> ${line}`)
-          .join('\n');
-        break;
-      case 'clear':
-        formattedText = text
-          .replace(/\*([^*]+)\*/g, '$1')  // remove negrito
-          .replace(/_([^_]+)_/g, '$1')    // remove itálico
-          .replace(/~([^~]+)~/g, '$1')    // remove tachado
-          .replace(/`([^`]+)`/g, '$1')    // remove código
-          .replace(/^\d+\.\s/gm, '')      // remove numeração de lista
-          .replace(/^•\s/gm, '')          // remove marcadores de lista
-          .replace(/^>\s/gm, '');         // remove citação
-        break;
-      default:
-        formattedText = text;
-    }
-
-    // Substitui o texto selecionado pelo texto formatado
-    const newInputMessage =
-      inputMessage.substring(0, start) +
-      formattedText +
-      inputMessage.substring(end);
-
-    setInputMessage(newInputMessage);
-
-    // Fecha o menu após a formatação
-    handleCloseFormatMenu();
-
-    // Define o foco e a posição do cursor após a operação
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        const newCursorPosition = start + formattedText.length;
-        inputRef.current.selectionStart = newCursorPosition;
-        inputRef.current.selectionEnd = newCursorPosition;
+      switch (formatType) {
+        case "bold":
+          formattedText = `*${text}*`;
+          break;
+        case "italic":
+          formattedText = `_${text}_`;
+          break;
+        case "strikethrough":
+          formattedText = `~${text}~`;
+          break;
+        case "code":
+          formattedText = `\`${text}\``;
+          break;
+        case "numberedList":
+          formattedText = text
+            .split("\n")
+            .map((line, index) => `${index + 1}. ${line}`)
+            .join("\n");
+          break;
+        case "bulletList":
+          formattedText = text
+            .split("\n")
+            .map((line) => `• ${line}`)
+            .join("\n");
+          break;
+        case "quote":
+          formattedText = text
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n");
+          break;
+        case "clear":
+          formattedText = text
+            .replace(/\*([^*]+)\*/g, "$1") // remove negrito
+            .replace(/_([^_]+)_/g, "$1") // remove itálico
+            .replace(/~([^~]+)~/g, "$1") // remove tachado
+            .replace(/`([^`]+)`/g, "$1") // remove código
+            .replace(/^\d+\.\s/gm, "") // remove numeração de lista
+            .replace(/^•\s/gm, "") // remove marcadores de lista
+            .replace(/^>\s/gm, ""); // remove citação
+          break;
+        default:
+          formattedText = text;
       }
-    }, 100);
-  }, [selectedText, inputMessage, handleCloseFormatMenu]);
+
+      // Substitui o texto selecionado pelo texto formatado
+      const newInputMessage =
+        inputMessage.substring(0, start) +
+        formattedText +
+        inputMessage.substring(end);
+
+      setInputMessage(newInputMessage);
+
+      // Fecha o menu após a formatação
+      handleCloseFormatMenu();
+
+      // Define o foco e a posição do cursor após a operação
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const newCursorPosition = start + formattedText.length;
+          inputRef.current.selectionStart = newCursorPosition;
+          inputRef.current.selectionEnd = newCursorPosition;
+        }
+      }, 100);
+    },
+    [selectedText, inputMessage, handleCloseFormatMenu],
+  );
 
   // Handlers para detectar seleção de texto
   const handleSelectText = useCallback(() => {
@@ -1579,12 +1674,19 @@ const MessageInput = ({
     checkForSelectedText();
   }, [checkForSelectedText]);
 
-  const handleKeyUp = useCallback((e) => {
-    // Teclas que podem alterar a seleção
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Shift') {
-      checkForSelectedText();
-    }
-  }, [checkForSelectedText]);
+  const handleKeyUp = useCallback(
+    (e) => {
+      // Teclas que podem alterar a seleção
+      if (
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight" ||
+        e.key === "Shift"
+      ) {
+        checkForSelectedText();
+      }
+    },
+    [checkForSelectedText],
+  );
 
   const renderReplyingMessage = (message) => {
     return (
@@ -1626,10 +1728,14 @@ const MessageInput = ({
     if (!flowProcessing) return null;
 
     return (
-      <Box className={classes.pendingAlert} style={{ backgroundColor: "#E8F5E8", borderColor: "#4CAF50" }}>
+      <Box
+        className={classes.pendingAlert}
+        style={{ backgroundColor: "#E8F5E8", borderColor: "#4CAF50" }}
+      >
         <CircularProgress size={16} style={{ marginRight: 8 }} />
         <span>
-          <strong>Fluxo em Execução:</strong> Campo de mensagem temporariamente desabilitado.
+          <strong>Fluxo em Execução:</strong> Campo de mensagem temporariamente
+          desabilitado.
         </span>
       </Box>
     );
@@ -1637,7 +1743,7 @@ const MessageInput = ({
 
   const TextFormatMenu = () => {
     const isMenuOpen = Boolean(formatMenuAnchorPosition);
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
     if (!isMenuOpen) return null;
 
@@ -1647,7 +1753,9 @@ const MessageInput = ({
           <div
             className={classes.floatingFormatMenu}
             style={{
-              top: formatMenuAnchorPosition ? formatMenuAnchorPosition.y - 50 : 0,
+              top: formatMenuAnchorPosition
+                ? formatMenuAnchorPosition.y - 50
+                : 0,
               left: formatMenuAnchorPosition ? formatMenuAnchorPosition.x : 0,
             }}
           >
@@ -1655,7 +1763,7 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('bold')}
+                onClick={() => handleFormatText("bold")}
                 size="small"
               >
                 <FormatBoldIcon fontSize={isMobile ? "small" : "medium"} />
@@ -1666,7 +1774,7 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('italic')}
+                onClick={() => handleFormatText("italic")}
                 size="small"
               >
                 <FormatItalicIcon fontSize={isMobile ? "small" : "medium"} />
@@ -1677,10 +1785,12 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('strikethrough')}
+                onClick={() => handleFormatText("strikethrough")}
                 size="small"
               >
-                <FormatStrikethroughIcon fontSize={isMobile ? "small" : "medium"} />
+                <FormatStrikethroughIcon
+                  fontSize={isMobile ? "small" : "medium"}
+                />
               </IconButton>
             </Tooltip>
 
@@ -1688,7 +1798,7 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('code')}
+                onClick={() => handleFormatText("code")}
                 size="small"
               >
                 <CodeIcon fontSize={isMobile ? "small" : "medium"} />
@@ -1699,10 +1809,12 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('numberedList')}
+                onClick={() => handleFormatText("numberedList")}
                 size="small"
               >
-                <FormatListNumberedIcon fontSize={isMobile ? "small" : "medium"} />
+                <FormatListNumberedIcon
+                  fontSize={isMobile ? "small" : "medium"}
+                />
               </IconButton>
             </Tooltip>
 
@@ -1710,10 +1822,12 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('bulletList')}
+                onClick={() => handleFormatText("bulletList")}
                 size="small"
               >
-                <FormatListBulletedIcon fontSize={isMobile ? "small" : "medium"} />
+                <FormatListBulletedIcon
+                  fontSize={isMobile ? "small" : "medium"}
+                />
               </IconButton>
             </Tooltip>
 
@@ -1721,7 +1835,7 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('quote')}
+                onClick={() => handleFormatText("quote")}
                 size="small"
               >
                 <FormatQuoteIcon fontSize={isMobile ? "small" : "medium"} />
@@ -1732,7 +1846,7 @@ const MessageInput = ({
               <IconButton
                 className={classes.formatIconButton}
                 disabled={disableOptionForPending()}
-                onClick={() => handleFormatText('clear')}
+                onClick={() => handleFormatText("clear")}
                 size="small"
               >
                 <FormatClearIcon fontSize={isMobile ? "small" : "medium"} />
@@ -1751,7 +1865,8 @@ const MessageInput = ({
       <Box className={classes.pendingAlert}>
         <Info style={{ fontSize: 20 }} />
         <span>
-          <strong>Ticket Aguardando:</strong> Apenas mensagens internas são permitidas neste momento.
+          <strong>Ticket Aguardando:</strong> Apenas mensagens internas são
+          permitidas neste momento.
         </span>
       </Box>
     );
@@ -1973,9 +2088,10 @@ const MessageInput = ({
                     >
                       <AccountTree
                         style={{
-                          color: theme.mode === "light"
-                            ? theme.palette.secondary.main
-                            : "#EEE"
+                          color:
+                            theme.mode === "light"
+                              ? theme.palette.secondary.main
+                              : "#EEE",
                         }}
                       />
                     </IconButton>
@@ -1983,7 +2099,9 @@ const MessageInput = ({
                 )}
 
                 {!isTicketPending() && (
-                  <Tooltip title={i18n.t("messageInput.tooltip.privateMessage")}>
+                  <Tooltip
+                    title={i18n.t("messageInput.tooltip.privateMessage")}
+                  >
                     <IconButton
                       aria-label="send-upload"
                       component="span"
@@ -2088,7 +2206,10 @@ const MessageInput = ({
                     {i18n.t("messageInput.type.imageVideo")}
                   </MenuItem>
                   <MenuItem onClick={handleCameraModalOpen}>
-                    <Fab className={classes.invertedFabMenuCamera} disabled={disableOption()}>
+                    <Fab
+                      className={classes.invertedFabMenuCamera}
+                      disabled={disableOption()}
+                    >
                       <CameraAlt />
                     </Fab>
                     {i18n.t("messageInput.type.cam")}
@@ -2116,13 +2237,19 @@ const MessageInput = ({
                     Documento
                   </MenuItem>
                   <MenuItem onClick={handleSendContactModalOpen}>
-                    <Fab className={classes.invertedFabMenuCont} disabled={disableOption()}>
+                    <Fab
+                      className={classes.invertedFabMenuCont}
+                      disabled={disableOption()}
+                    >
                       <Person />
                     </Fab>
                     {i18n.t("messageInput.type.contact")}
                   </MenuItem>
                   <MenuItem onClick={handleSendLinkVideo}>
-                    <Fab className={classes.invertedFabMenuMeet} disabled={disableOption()}>
+                    <Fab
+                      className={classes.invertedFabMenuMeet}
+                      disabled={disableOption()}
+                    >
                       <Duo />
                     </Fab>
                     {i18n.t("messageInput.type.meet")}
@@ -2130,7 +2257,10 @@ const MessageInput = ({
                   {useWhatsappOfficial &&
                     ticketChannel === "whatsapp_oficial" && (
                       <MenuItem onClick={handleSendTemplate}>
-                        <Fab className={classes.invertedFabMenuMeet} disabled={disableOption()}>
+                        <Fab
+                          className={classes.invertedFabMenuMeet}
+                          disabled={disableOption()}
+                        >
                           <WhatsApp />
                         </Fab>
                         {i18n.t("messageInput.type.template")}
@@ -2139,10 +2269,7 @@ const MessageInput = ({
                   {signMessagePar && (
                     <MenuItem onClick={handleChangeSign}>
                       <Tooltip title="Habilitar/Desabilitar Assinatura">
-                        <IconButton
-                          aria-label="send-upload"
-                          component="span"
-                        >
+                        <IconButton aria-label="send-upload" component="span">
                           {signMessage === true ? (
                             <Create
                               style={{
@@ -2163,19 +2290,19 @@ const MessageInput = ({
 
                   {/* NOVO ITEM DE MENU MOBILE PARA TRIGGER FLOW */}
                   {ticketStatus === "open" && (
-                    <MenuItem onClick={() => {
-                      handleMenuItemClick();
-                      handleTriggerFlowClick();
-                    }}>
-                      <IconButton
-                        aria-label="trigger-flow"
-                        component="span"
-                      >
+                    <MenuItem
+                      onClick={() => {
+                        handleMenuItemClick();
+                        handleTriggerFlowClick();
+                      }}
+                    >
+                      <IconButton aria-label="trigger-flow" component="span">
                         <AccountTree
                           style={{
-                            color: theme.mode === "light"
-                              ? theme.palette.secondary.main
-                              : "#EEE"
+                            color:
+                              theme.mode === "light"
+                                ? theme.palette.secondary.main
+                                : "#EEE",
                           }}
                         />
                       </IconButton>
@@ -2185,10 +2312,7 @@ const MessageInput = ({
 
                   <MenuItem onClick={handlePrivateMessage}>
                     <Tooltip title="Habilitar/Desabilitar Comentários">
-                      <IconButton
-                        aria-label="send-upload"
-                        component="span"
-                      >
+                      <IconButton aria-label="send-upload" component="span">
                         {privateMessage === true ? (
                           <Comment
                             style={{
@@ -2212,13 +2336,23 @@ const MessageInput = ({
             <div className={classes.flexContainer}>
               {(privateMessageInputVisible || isTicketPending()) && (
                 <div className={classes.flexItem}>
-                  <div className={isTicketPending() ? classes.messageInputWrapperPending : classes.messageInputWrapperPrivate}>
+                  <div
+                    className={
+                      isTicketPending()
+                        ? classes.messageInputWrapperPending
+                        : classes.messageInputWrapperPrivate
+                    }
+                  >
                     <InputBase
                       inputRef={(input) => {
                         input && input.focus();
                         input && (inputRef.current = input);
                       }}
-                      className={isTicketPending() ? classes.messageInputPending : classes.messageInputPrivate}
+                      className={
+                        isTicketPending()
+                          ? classes.messageInputPending
+                          : classes.messageInputPrivate
+                      }
                       placeholder={
                         isTicketPending()
                           ? "Mensagem interna (ticket aguardando aceite)..."
@@ -2232,7 +2366,9 @@ const MessageInput = ({
                       onChange={handleChangeInput}
                       disabled={disableOptionForPending()}
                       onPaste={(e) => {
-                        (ticketStatus === "open" || ticketStatus === "group" || isTicketPending()) &&
+                        (ticketStatus === "open" ||
+                          ticketStatus === "group" ||
+                          isTicketPending()) &&
                           handleInputPaste(e);
                       }}
                       onKeyDown={handleKeyDown}
@@ -2241,7 +2377,10 @@ const MessageInput = ({
                       onSelect={handleSelectText}
                       onKeyPress={(e) => {
                         if (loading || e.shiftKey) return;
-                        else if (e.key === "Enter" && !isNavigatingQuickAnswers) {
+                        else if (
+                          e.key === "Enter" &&
+                          !isNavigatingQuickAnswers
+                        ) {
                           handleSendMessage();
                         }
                       }}
@@ -2252,7 +2391,7 @@ const MessageInput = ({
                         component="ul"
                         className={classes.messageQuickAnswersWrapper}
                         style={{
-                          marginBottom: "8px" // ✅ Pequeno espaço entre input e lista
+                          marginBottom: "8px", // ✅ Pequeno espaço entre input e lista
                         }}
                       >
                         {typeBar.map((value, index) => {
@@ -2266,16 +2405,17 @@ const MessageInput = ({
                               <div
                                 className={clsx(
                                   classes.quickAnswerItem,
-                                  isSelected && classes.quickAnswerItemSelected
+                                  isSelected && classes.quickAnswerItemSelected,
                                 )}
                                 style={{
                                   ...getQuickAnswerItemStyle(index),
                                   // ✅ Estilo adicional para item selecionado
                                   ...(isSelected && {
-                                    backgroundColor: theme.palette.primary.light + "20",
+                                    backgroundColor:
+                                      theme.palette.primary.light + "20",
                                     borderLeft: `4px solid ${theme.palette.primary.main}`,
-                                    transform: "translateX(2px)" // ✅ Leve deslocamento visual
-                                  })
+                                    transform: "translateX(2px)", // ✅ Leve deslocamento visual
+                                  }),
                                 }}
                                 onClick={() => handleQuickAnswersClick(value)}
                               >
@@ -2298,8 +2438,11 @@ const MessageInput = ({
                         {/* ✅ Indicador de scroll apenas se necessário */}
                         {typeBar.length > 4 && (
                           <li style={{ listStyle: "none" }}>
-                            <div className={classes.quickAnswersScrollIndicator}>
-                              📋 {typeBar.length} respostas • use ↑↓ para navegar
+                            <div
+                              className={classes.quickAnswersScrollIndicator}
+                            >
+                              📋 {typeBar.length} respostas • use ↑↓ para
+                              navegar
                             </div>
                           </li>
                         )}
@@ -2333,7 +2476,10 @@ const MessageInput = ({
                       onSelect={handleSelectText}
                       onKeyPress={(e) => {
                         if (loading || e.shiftKey) return;
-                        else if (e.key === "Enter" && !isNavigatingQuickAnswers) {
+                        else if (
+                          e.key === "Enter" &&
+                          !isNavigatingQuickAnswers
+                        ) {
                           handleSendMessage();
                         }
                       }}
@@ -2349,7 +2495,7 @@ const MessageInput = ({
                               key={index}
                             >
                               <div
-                                className={`${classes.quickAnswerItem} ${isSelected ? 'selected' : ''}`}
+                                className={`${classes.quickAnswerItem} ${isSelected ? "selected" : ""}`}
                                 style={getQuickAnswerItemStyle(index)}
                                 onClick={() => handleQuickAnswersClick(value)}
                               >
@@ -2491,7 +2637,6 @@ const MessageInput = ({
 
             {/* Menu de formatação que aparece quando texto é selecionado */}
             <TextFormatMenu />
-
           </div>
         </Paper>
       </>

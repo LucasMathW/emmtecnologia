@@ -4,20 +4,18 @@ import React, {
   useReducer,
   useContext,
   useMemo,
-  useCallback,
 } from "react";
 
 import { makeStyles } from "@material-ui/core/styles";
 import List from "@material-ui/core/List";
 import Paper from "@material-ui/core/Paper";
 
-// import TicketListItem from "../TicketListItemCustom";
+import TicketListItem from "../TicketListItemCustom";
 import TicketsListSkeleton from "../TicketsListSkeleton";
 
 import useTickets from "../../hooks/useTickets";
 import { i18n } from "../../translate/i18n";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import TicketListItemCustom from "../TicketListItemCustom";
 
 const useStyles = makeStyles((theme) => ({
   ticketsListWrapper: {
@@ -100,28 +98,23 @@ const ticketSortDesc = (a, b) => {
 };
 
 const reducer = (state, action) => {
-  // console.log("TYPE:", action.type);
+  //console.log("action", action, state)
   const sortDir = action.sortDir;
 
   if (action.type === "UPDATE_TICKET_REACTION_PREVIEW") {
-    // console.log(`payload: ${JSON.stringify(action.payload)}`);
-    const { contactId, emoji, messagePreview, reactionUserId, skipSidebar } =
-      action.payload;
+    const { ticketId, emoji, messagePreview } = action.payload;
 
-    if (skipSidebar) {
-      return state;
+    const ticketIndex = state.findIndex((t) => t.id === ticketId);
+    if (ticketIndex !== -1) {
+      if (emoji) {
+        state[ticketIndex].reactionPreview =
+          `Reagiu com ${emoji} a: "${messagePreview}"`;
+      } else {
+        state[ticketIndex].reactionPreview = null;
+      }
     }
 
-    return state.map((t) => {
-      if (t.contactId !== contactId) return t;
-
-      return {
-        ...t,
-        reactionPreview: emoji
-          ? { emoji, messagePreview, reactionUserId }
-          : null,
-      };
-    });
+    return [...state];
   }
 
   if (action.type === "UPDATE_TICKET_PRESENCE") {
@@ -140,7 +133,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "LOAD_TICKETS") {
-    // console.log("LOAD_TICKETS");
+    console.log("LOAD_TICKETS");
 
     const newTickets = action.payload;
 
@@ -169,6 +162,8 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET_UNREAD") {
+    console.log("UPDATE_TICKET");
+
     const ticketId = action.payload;
 
     const ticketIndex = state.findIndex((t) => t.id === ticketId);
@@ -186,6 +181,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "UPDATE_TICKET") {
+    console.log("UPDATE_TICKET");
     const ticket = action.payload;
 
     const ticketIndex = state.findIndex((t) => t.id === ticket.id);
@@ -207,6 +203,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "UPDATE_TICKET_UNREAD_MESSAGES") {
+    console.log("UPDATE_TICKET_UNREAD_MESSAGES");
     const ticket = action.payload;
 
     const ticketIndex = state.findIndex((t) => t.id === ticket.id);
@@ -326,6 +323,12 @@ const TicketsListCustom = (props) => {
   });
 
   useEffect(() => {
+    // const queueIds = queues.map((q) => q.id);
+    // const filteredTickets = tickets.filter(
+    //     (t) => queueIds.indexOf(t.queueId) > -1
+    // );
+    // const allticket = user.allTicket === 'enabled';
+    // if (profile === "admin" || allTicket || allowGroup || allHistoric) {
     if (companyId) {
       dispatch({
         type: "LOAD_TICKETS",
@@ -334,38 +337,34 @@ const TicketsListCustom = (props) => {
         sortDir: sortTickets,
       });
     }
+    // } else {
+    //  dispatch({ type: "LOAD_TICKETS", payload: filteredTickets });
+    // }
   }, [tickets]);
 
-  const shouldUpdateTicket = useCallback(
-    (ticket) => {
+  useEffect(() => {
+    const shouldUpdateTicket = (ticket) => {
       return (
         (!ticket?.userId || ticket?.userId === user?.id || showAll) &&
         ((!ticket?.queueId && showTicketWithoutQueue) ||
           selectedQueueIds.indexOf(ticket?.queueId) > -1)
       );
-    },
-    [user?.id, showAll, showTicketWithoutQueue, selectedQueueIds],
-  );
+      // (!blockNonDefaultConnections || (ticket.status == 'group' && ignoreUserConnectionForGroups) || !user?.whatsappId || ticket.whatsappId == user?.whatsappId);
+    };
 
-  const notBelongsToUserQueues = useCallback(
-    (ticket) => {
-      return ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1;
-    },
-    [selectedQueueIds],
-  );
+    const notBelongsToUserQueues = (ticket) =>
+      ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1;
 
-  const onCompanyTicketTicketsList = useCallback(
-    (data) => {
+    const onCompanyTicketTicketsList = (data) => {
       if (data.action === "updateUnread") {
         dispatch({
           type: "RESET_UNREAD",
           payload: data.ticketId,
-          status,
+          status: status,
           sortDir: sortTickets,
         });
-        return;
       }
-
+      // console.log(shouldUpdateTicket(data.ticket))
       if (
         data.action === "update" &&
         shouldUpdateTicket(data.ticket) &&
@@ -374,51 +373,47 @@ const TicketsListCustom = (props) => {
         dispatch({
           type: "UPDATE_TICKET",
           payload: data.ticket,
-          status,
+          status: status,
           sortDir: sortTickets,
         });
-        return;
       }
 
       if (data.action === "update" && notBelongsToUserQueues(data.ticket)) {
         dispatch({
           type: "DELETE_TICKET",
           payload: data.ticket?.id,
-          status,
+          status: status,
           sortDir: sortTickets,
         });
-        return;
       }
 
       if (data.action === "delete") {
         dispatch({
           type: "DELETE_TICKET",
           payload: data?.ticketId,
-          status,
+          status: status,
           sortDir: sortTickets,
         });
       }
-    },
-    [dispatch, status, sortTickets, shouldUpdateTicket, notBelongsToUserQueues],
-  );
+    };
 
-  const onCompanyAppMessageTicketsList = useCallback(
-    (data) => {
+    const onCompanyAppMessageTicketsList = (data) => {
+      console.log("🔥 HANDLER EXECUTADO");
+
+      // 🔥 Reaction
       if (data.action === "reaction:update") {
         dispatch({
           type: "UPDATE_TICKET_REACTION_PREVIEW",
           payload: {
             ticketId: data.ticketId,
-            contactId: data.contactId,
-            emoji: data.reaction.emoji ?? null,
-            messagePreview: data.reaction.messagePreview ?? null,
-            reactionUserId: data.reaction.userId ?? null,
-            skipSidebar: data.skipSidebar,
+            emoji: data.reaction.emoji,
+            messagePreview: data.reaction.messagePreview,
           },
         });
         return;
       }
 
+      // 🔥 Presence
       if (data.action === "presence:update") {
         dispatch({
           type: "UPDATE_TICKET_PRESENCE",
@@ -430,7 +425,15 @@ const TicketsListCustom = (props) => {
         return;
       }
 
+      // 🔥 Nova mensagem criada
       if (data.action === "create" && data.ticket) {
+        console.log("🔍 SOCKET PAYLOAD COMPLETO:");
+        console.log("action:", data.action);
+        console.log("ticketId:", data.ticket?.id);
+        console.log("unreadMessages:", data.ticket?.unreadMessages);
+        console.log("lastMessage:", data.ticket?.lastMessage);
+        console.log("full ticket:", JSON.parse(JSON.stringify(data.ticket)));
+
         dispatch({
           type: "UPDATE_TICKET_UNREAD_MESSAGES",
           payload: data.ticket,
@@ -442,14 +445,16 @@ const TicketsListCustom = (props) => {
           type: "UPDATE_TICKET_PRESENCE",
           payload: {
             ticketId: data.ticket.id,
-            status: data.status,
+            status: null,
           },
         });
 
         return;
       }
 
+      // 🔥 Mensagem update (ex: mídia, ack, etc)
       if (data.action === "update") {
+        // Quando vier ticket completo
         if (data.ticket) {
           dispatch({
             type: "UPDATE_TICKET",
@@ -458,6 +463,7 @@ const TicketsListCustom = (props) => {
           });
         }
 
+        // Quando vier só message
         if (data.message) {
           dispatch({
             type: "UPDATE_TICKET",
@@ -469,56 +475,62 @@ const TicketsListCustom = (props) => {
           });
         }
       }
-    },
-    [dispatch, status, sortTickets],
-  );
+    };
 
-  const onCompanyContactTicketsList = useCallback(
-    (data) => {
+    const onCompanyContactTicketsList = (data) => {
       if (data.action === "update" && data.contact) {
         dispatch({
           type: "UPDATE_TICKET_CONTACT",
           payload: data.contact,
-          status,
+          status: status,
           sortDir: sortTickets,
         });
       }
-    },
-    [dispatch, status, sortTickets],
-  );
+    };
 
-  const onConnectTicketsList = useCallback(() => {
-    if (status) {
-      socket.socket.emit("joinTickets", status);
-    } else {
-      socket.socket.emit("joinNotification");
-    }
-  }, [socket, status]);
+    const onConnectTicketsList = () => {
+      if (status) {
+        socket.emit("joinTickets", status);
+      } else {
+        socket.emit("joinNotification");
+      }
+    };
 
-  useEffect(() => {
-    if (!companyId) return;
-
-    const eventTicket = `company-${companyId}-ticket`;
-    const eventAppMessage = `company-${companyId}-appMessage`;
-    const eventContact = `company-${companyId}-contact`;
-
-    socket.socket.on("connect", onConnectTicketsList);
-    socket.socket.on(eventTicket, onCompanyTicketTicketsList);
-    socket.socket.on(eventAppMessage, onCompanyAppMessageTicketsList);
-    socket.socket.on(eventContact, onCompanyContactTicketsList);
+    socket.on("connect", onConnectTicketsList);
+    socket.on(`company-${companyId}-ticket`, onCompanyTicketTicketsList);
+    socket.on(
+      `company-${companyId}-appMessage`,
+      onCompanyAppMessageTicketsList,
+    );
+    socket.on(`company-${companyId}-contact`, onCompanyContactTicketsList);
 
     return () => {
-      socket.socket.off("connect", onConnectTicketsList);
-      socket.socket.off(eventTicket, onCompanyTicketTicketsList);
-      socket.socket.off(eventAppMessage, onCompanyAppMessageTicketsList);
-      socket.socket.off(eventContact, onCompanyContactTicketsList);
+      if (status) {
+        socket.emit("leaveTickets", status);
+      } else {
+        socket.emit("leaveNotification");
+      }
+      socket.off("connect", onConnectTicketsList);
+      socket.off(`company-${companyId}-ticket`, onCompanyTicketTicketsList);
+      socket.off(
+        `company-${companyId}-appMessage`,
+        onCompanyAppMessageTicketsList,
+      );
+      socket.off(`company-${companyId}-contact`, onCompanyContactTicketsList);
     };
   }, [
+    status,
+    showAll,
+    user,
+    selectedQueueIds,
+    tags,
+    users,
+    profile,
+    queues,
+    sortTickets,
+    showTicketWithoutQueue,
+    status,
     companyId,
-    onCompanyTicketTicketsList,
-    onCompanyAppMessageTicketsList,
-    onCompanyContactTicketsList,
-    onConnectTicketsList,
   ]);
 
   useEffect(() => {
@@ -570,7 +582,7 @@ const TicketsListCustom = (props) => {
               {ticketsList.map((ticket) => (
                 // <List key={ticket.id}>
                 //     {console.log(ticket)}
-                <TicketListItemCustom
+                <TicketListItem
                   ticket={ticket}
                   key={ticket.id}
                   setTabOpen={setTabOpen}

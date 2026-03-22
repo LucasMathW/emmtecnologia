@@ -1,16 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
-const useSocketListener = (socket, user, eventName, callback, dependencies = []) => {
+const useSocketListener = (
+  socket,
+  user,
+  eventName,
+  callback,
+  dependencies = [],
+) => {
   useEffect(() => {
-    if (user?.companyId && socket && typeof socket.on === 'function') {
+    if (user?.companyId && socket && typeof socket.on === "function") {
       const fullEventName = `company-${user.companyId}-${eventName}`;
-      
-      console.log(`Registrando listener: ${fullEventName}`);
+
+      // console.log(`Registrando listener: ${fullEventName}`);
       socket.on(fullEventName, callback);
 
       return () => {
-        if (socket && typeof socket.off === 'function') {
-          console.log(`Removendo listener: ${fullEventName}`);
+        if (socket && typeof socket.off === "function") {
+          // console.log(`Removendo listener: ${fullEventName}`);
           socket.off(fullEventName, callback);
         }
       };

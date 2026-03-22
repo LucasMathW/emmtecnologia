@@ -114,7 +114,7 @@ const AudioModal = ({ url, message, disableTranscription = false }) => {
   const body = message?.body ?? "";
   const transcrito = message?.transcribed ?? false;
 
-  console.log("trancrible =>", transcrito);
+  // console.log("trancrible =>", transcrito);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -249,7 +249,8 @@ const AudioModal = ({ url, message, disableTranscription = false }) => {
               )
             ) : (
               <Typography className={classes.transcriptionText} variant="body2">
-                <strong>Transcrição:</strong> {body}
+                {/* <strong>Transcrição:</strong>  */}
+                {body}
               </Typography>
             )}
           </div>
