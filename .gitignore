@@ -1,0 +1,18 @@
+# Ignorar audios
+*.mp3
+*.ogg
+
+# node
+node_modules/
+
+# build
+dist/
+
+# ENV
+.env
+.env.*
+*/.env
+*/.env.*
+
+# uploads das empresas
+backend/public/company*/
