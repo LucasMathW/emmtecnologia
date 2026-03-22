@@ -71,7 +71,7 @@ const typebotListener = async ({
         resultId: "string",
         isOnlyRegistering: false,
         prefilledVariables: {
-          number: number,
+          number,
           ms: saudationPorTimestamp(msg.messageTimestamp),
           name: msg.pushName || "",
           remoteJid: ticket?.contact?.remoteJid,

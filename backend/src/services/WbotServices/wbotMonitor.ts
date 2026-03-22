@@ -3,8 +3,7 @@ import {
   BinaryNode,
   Contact as BContact,
   isJidBroadcast,
-  isJidStatusBroadcast,
-  isJidUser,
+  isJidStatusBroadcast
 } from "baileys";
 import * as Sentry from "@sentry/node";
 import fs from "fs";
@@ -22,7 +21,7 @@ import { verifyMessage } from "./wbotMessageListener";
 let i = 0;
 
 setInterval(() => {
-  i = 0
+  i = 0;
 }, 5000);
 
 type Session = WASocket & {
@@ -43,29 +42,26 @@ const wbotMonitor = async (
       const content = node.content[0] as any;
 
       await new Promise(r => setTimeout(r, i * 650));
-      i++
+      i++;
 
-      if (content.tag === "terminate" && !node.attrs.from.includes('@call')) {
+      if (content.tag === "terminate" && !node.attrs.from.includes("@call")) {
         const settings = await CompaniesSettings.findOne({
-          where: { companyId },
+          where: { companyId }
         });
-
 
         if (settings.acceptCallWhatsapp === "enabled") {
           const sentMessage = await wbot.sendMessage(node.attrs.from, {
-            text:
-              `\u200e ${settings.AcceptCallWhatsappMessage}`,
+            text: `\u200e ${settings.AcceptCallWhatsappMessage}`
             // text:
-            // "\u200e *Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitadas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",              
+            // "\u200e *Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitadas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",
           });
           const number = node.attrs.from.split(":")[0].replace(/\D/g, "");
 
           const contact = await Contact.findOne({
-            where: { companyId, number },
+            where: { companyId, number }
           });
 
-          if (!contact)
-            return
+          if (!contact) return;
 
           const [ticket] = await Ticket.findOrCreate({
             where: {
@@ -102,17 +98,16 @@ const wbotMonitor = async (
             mediaType: "call_log",
             read: true,
             quotedMsgId: null,
-            ack: 1,
+            ack: 1
           };
 
           await ticket.update({
-            lastMessage: body,
+            lastMessage: body
           });
-
 
           if (ticket.status === "closed") {
             await ticket.update({
-              status: "pending",
+              status: "pending"
             });
           }
 
@@ -127,36 +122,57 @@ const wbotMonitor = async (
     }
 
     wbot.ev.on("contacts.upsert", async (contacts: BContact[]) => {
-
       const filteredContacts: any[] = [];
 
       try {
         Promise.all(
           contacts.map(async contact => {
-            if (!isJidBroadcast(contact.id) && !isJidStatusBroadcast(contact.id) && isJidUser(contact.id)) {
+            console.log(`contact.id =>`, contact.id);
+            const jid = contact?.id || "";
 
+            if (
+              !isJidBroadcast(contact.id) &&
+              !isJidStatusBroadcast(contact.id) &&
+              jid.endsWith(contact.id)
+            ) {
               const contactArray = {
-                'id': contact.id,
-                'name': contact.name ? cleanStringForJSON(contact.name) : contact.id.split('@')[0].split(':')[0]
-              }
+                id: contact.id,
+                name: contact.name
+                  ? cleanStringForJSON(contact.name)
+                  : contact.id.split("@")[0].split(":")[0]
+              };
 
               filteredContacts.push(contactArray);
-
             }
           })
         );
 
-        const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
+        const publicFolder = path.resolve(
+          __dirname,
+          "..",
+          "..",
+          "..",
+          "public"
+        );
         if (!fs.existsSync(path.join(publicFolder, `company${companyId}`))) {
-          fs.mkdirSync(path.join(publicFolder, `company${companyId}`), { recursive: true })
-          fs.chmodSync(path.join(publicFolder, `company${companyId}`), 0o777)
+          fs.mkdirSync(path.join(publicFolder, `company${companyId}`), {
+            recursive: true
+          });
+          fs.chmodSync(path.join(publicFolder, `company${companyId}`), 0o777);
         }
-        const contatcJson = path.join(publicFolder, `company${companyId}`, "contactJson.txt");
+        const contatcJson = path.join(
+          publicFolder,
+          `company${companyId}`,
+          "contactJson.txt"
+        );
         if (fs.existsSync(contatcJson)) {
           await fs.unlinkSync(contatcJson);
         }
 
-        await fs.promises.writeFile(contatcJson, JSON.stringify(filteredContacts, null, 2));
+        await fs.promises.writeFile(
+          contatcJson,
+          JSON.stringify(filteredContacts, null, 2)
+        );
       } catch (err) {
         Sentry.captureException(err);
         logger.error(`Erro contacts.upsert: ${JSON.stringify(err)}`);
@@ -167,19 +183,26 @@ const wbotMonitor = async (
         if (Array.isArray(filteredContacts)) {
           await createOrUpdateBaileysService({
             whatsappId: whatsapp.id,
-            contacts: filteredContacts,
+            contacts: filteredContacts
           });
         } else {
-          logger.info(`[RDS-BAILEYS] Pulando atualização de contatos - formato inválido para whatsapp ${whatsapp.id}`);
+          logger.info(
+            `[RDS-BAILEYS] Pulando atualização de contatos - formato inválido para whatsapp ${whatsapp.id}`
+          );
         }
       } catch (err) {
-        logger.error(`[RDS-BAILEYS] Erro ao atualizar contatos para whatsapp ${whatsapp.id}:`, err);
+        logger.error(
+          `[RDS-BAILEYS] Erro ao atualizar contatos para whatsapp ${whatsapp.id}:`,
+          err
+        );
         // Log apenas de um resumo, não dos contatos completos para evitar logs muito grandes
-        logger.info(`[RDS-BAILEYS] Número de contatos tentados: ${filteredContacts?.length || 'undefined'}`);
+        logger.info(
+          `[RDS-BAILEYS] Número de contatos tentados: ${
+            filteredContacts?.length || "undefined"
+          }`
+        );
       }
     });
-
-
   } catch (err) {
     Sentry.captureException(err);
     logger.error(err);

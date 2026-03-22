@@ -92,7 +92,19 @@ const CreateMessageService = async ({
 
   const correctedMessageData = correctMediaType(messageData);
 
-  await Message.upsert({ ...correctedMessageData, companyId });
+  let contactId = correctedMessageData.contactId;
+
+  if (!contactId) {
+    const ticket = await Ticket.findByPk(correctedMessageData.ticketId);
+
+    if (ticket) {
+      contactId = ticket.contactId;
+    }
+  }
+
+  console.log(`CONTACTID =>`, contactId);
+
+  await Message.upsert({ ...correctedMessageData, companyId, contactId });
 
   const message = await Message.findOne({
     where: {
@@ -162,6 +174,7 @@ const CreateMessageService = async ({
   const io = getIO();
 
   if (!messageData?.ticketImported) {
+    console.log("EVENT ID:", message?.id || message.ticket?.id);
     io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
       action: "create",
       message,

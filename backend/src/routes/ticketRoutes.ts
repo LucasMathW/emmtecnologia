@@ -43,4 +43,11 @@ ticketRoutes.post(
   TicketController.transferTickets
 );
 
+// routes/ticketRoutes.ts
+ticketRoutes.post(
+  "/tickets/:ticketId/read",
+  isAuth,
+  TicketController.markAsRead
+);
+
 export default ticketRoutes;

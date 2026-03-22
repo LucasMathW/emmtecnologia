@@ -98,19 +98,4 @@ export const RemoveReactionService = async ({
     messageId,
     userId
   });
-
-  //   await MessageReaction.destroy({
-  //     where: {
-  //       messageId,
-  //       userId
-  //     }
-  //   });
-
-  //   const io = getIO();
-
-  //   io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
-  //     action: "reaction:remove",
-  //     messageId,
-  //     userId
-  //   });
 };

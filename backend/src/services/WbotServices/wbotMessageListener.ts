@@ -5,6 +5,7 @@ import { promises as fsp } from "fs";
 import * as Sentry from "@sentry/node";
 import { get, isNil, isNull } from "lodash";
 import { REDIS_URI_MSG_CONN } from "../../config/redis";
+import { col } from "sequelize";
 
 import {
   downloadMediaMessage,
@@ -1156,9 +1157,10 @@ export const verifyMessage = async (
     //   action: "delete",
     //   ticket,
     //   ticketId: ticket.id
-    // });
+    // })
 
     if (!ticket.imported) {
+      console.log("🧨🧨🧨🧨🧨🧨");
       io.of(String(companyId))
         // .to(ticket.status)
         // .to(ticket.id.toString())
@@ -3765,7 +3767,18 @@ const handleMessage = async (
   companyId: number,
   isImported: boolean = false
 ): Promise<void> => {
-  // console.log("DEBUG LUCAS => handleMessage (mensagem pasa por aqu)");
+  console.count("handleMessage");
+  const existingMessage = await Message.findOne({
+    where: {
+      wid: msg.key.id,
+      companyId
+    }
+  });
+
+  if (existingMessage) {
+    return;
+  }
+
   let campaignExecuted = false;
 
   if (isImported) {
@@ -3965,6 +3978,9 @@ const handleMessage = async (
 
     let unreadMessages = 0;
 
+    // 🔥 DEBUG AQUI
+    console.log("🔥 FROM ME:", msg.key.fromMe, "WID:", msg.key.id);
+
     if (msg.key.fromMe) {
       await cacheLayer.set(`contacts:${contact.id}:unreads`, "0");
     } else {
@@ -3975,6 +3991,8 @@ const handleMessage = async (
         `${unreadMessages}`
       );
     }
+
+    console.log("🔥 UNREAD CALCULADO:", unreadMessages);
 
     const settings = await CompaniesSettings.findOne({
       where: { companyId }
@@ -5481,6 +5499,10 @@ const handleBaileysReaction = async (
       attributes: ["id", "ticketId"]
     });
 
+    const originalMessage = await Message.findByPk(msg.id, {
+      attributes: ["body"]
+    });
+
     if (!msg) return;
 
     let userId: number;
@@ -5506,6 +5528,8 @@ const handleBaileysReaction = async (
       fromJid = ticket.whatsapp?.number
         ? `${ticket.whatsapp.number}@s.whatsapp.net`
         : normalizedJid;
+
+      console.log(`[DEBUG][fromJid]:${fromJid}`);
     } else {
       // 🔥 reação do contato
       const contact = await Contact.findOne({
@@ -5519,6 +5543,42 @@ const handleBaileysReaction = async (
     }
 
     if (!emoji) {
+      const currentLastReaction = await MessageReaction.findOne({
+        include: [
+          {
+            model: Message,
+            as: "message",
+            required: true,
+            where: { ticketId: msg.ticketId }
+          }
+        ],
+        order: [["updatedAt", "DESC"]] // 🔥 Agora pega a reação mais recentemente atualizada
+      });
+
+      const ticket = await Ticket.findByPk(msg.ticketId, {
+        include: [
+          { model: Contact, as: "contact" },
+          { model: Queue, as: "queue" },
+          { model: User, as: "user" },
+          { model: Whatsapp, as: "whatsapp" }
+        ]
+      });
+
+      // const lastMessage = await Message.findOne({
+      //   where: { ticketId: msg.ticketId },
+      //   order: [["createdAt", "DESC"]],
+      //   attributes: ["id"]
+      // });
+
+      // console.log(`lastMessage id: ${JSON.stringify(lastMessage?.id)}`);
+      // console.log("lastReaction messageId:", currentLastReaction.messageId);
+      // console.log(`currentLastReaction:${currentLastReaction.emoji}`);
+      // console.log(`msg.id[message da reacao removida agora.]:${msg.id}`);
+
+      const isRemovingLatest = currentLastReaction?.messageId === msg.id;
+
+      console.log(`isRemovindLatest:${isRemovingLatest}`);
+
       await MessageReaction.destroy({
         where: { messageId: msg.id, userId }
       });
@@ -5526,14 +5586,39 @@ const handleBaileysReaction = async (
       nsp.emit(`company-${companyId}-appMessage`, {
         action: "reaction:update",
         messageId: msg.id,
-        reaction: { userId, emoji: "", fromJid },
+        contactId: ticket.contactId,
+        reaction: {
+          userId,
+          emoji: null,
+          fromJid,
+          messagePreview: originalMessage.body || ""
+        },
+        skipSidebar: !isRemovingLatest,
         ticketId: msg.ticketId
       });
+
+      if (!isRemovingLatest) {
+        console.log(`🎃🎃🎃ITS NOT THE LAST MESSAGE REACTION FINISH`);
+        return;
+      }
+
+      if (ticket) {
+        console.log(`ticket OK`);
+        await ticket.update({
+          lastMessageType: "message"
+        });
+
+        await ticket.reload(); // 🔥 importante para garantir dados atualizados
+
+        nsp.emit(`company-${companyId}-ticket`, {
+          action: "update",
+          ticket
+        });
+      }
 
       return;
     }
 
-    // 🔁 UPSERT
     const [reactionRow] = await MessageReaction.findOrCreate({
       where: { messageId: msg.id, userId },
       defaults: { emoji, fromJid }
@@ -5543,10 +5628,36 @@ const handleBaileysReaction = async (
       await reactionRow.update({ emoji, fromJid });
     }
 
+    const ticket = await Ticket.findByPk(msg.ticketId, {
+      include: [
+        { model: Contact, as: "contact" },
+        { model: Queue, as: "queue" },
+        { model: User, as: "user" },
+        { model: Whatsapp, as: "whatsapp" }
+      ]
+    });
+
+    if (ticket) {
+      await ticket.update({
+        lastMessageType: "reaction"
+      });
+
+      nsp.emit(`company-${companyId}-ticket`, {
+        action: "update",
+        ticket
+      });
+    }
+
     nsp.emit(`company-${companyId}-appMessage`, {
       action: "reaction:update",
       messageId: msg.id,
-      reaction: { userId, emoji, fromJid },
+      contactId: ticket.contactId,
+      reaction: {
+        userId,
+        emoji,
+        fromJid,
+        messagePreview: originalMessage?.body || ""
+      },
       ticketId: msg.ticketId
     });
   } catch (err) {
@@ -5555,20 +5666,31 @@ const handleBaileysReaction = async (
 };
 
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
+  console.log("WBOT INSTANCE ID:", wbot.user?.id);
+  console.log("WBOT OBJECT REF:", wbot);
+
+  wbot.ev.removeAllListeners("messages.upsert");
+
+  const listeners = wbot.ev["_events"]?.["messages.upsert"];
+
+  console.log(
+    "Listeners messages.upsert:",
+    Array.isArray(listeners) ? listeners.length : listeners ? 1 : 0
+  );
+
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
+    // console.log("messageUpsert type:", messageUpsert.type);
+
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
     for (const message of rawMessages) {
       // 🔥 1️⃣ Reaction
       if (message.message?.reactionMessage) {
-        console.log("recao da messagem ==>", message);
-
         await handleBaileysReaction(message, wbot, companyId);
         continue; // pula para próxima mensagem
       }
-      console.log("messagem normal");
-      // 🔥 2️⃣ Mensagem normal
+
       await handleMessage(message, wbot, companyId);
     }
 
@@ -5707,8 +5829,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     });
   });
 
-  wbot.ev.on("presence.update", data => {
-    console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
+  wbot.ev.on("presence.update", async data => {
+    // console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
     const presences = data.presences || {};
 
     for (const remoteJid in presences) {
@@ -5736,7 +5858,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       }
 
       // 🔥 Joga isso para o mesmo sistema de socket que já existe
-      handlePresenceUpdate({
+      await handlePresenceUpdate({
         remoteJid,
         companyId,
         status

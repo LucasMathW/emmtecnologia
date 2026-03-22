@@ -14,18 +14,16 @@ export const StartWhatsAppSession = async (
   await whatsapp.update({ status: "OPENING" });
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-whatsappSession`, {
-      action: "update",
-      session: whatsapp
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-whatsappSession`, {
+    action: "update",
+    session: whatsapp
+  });
 
   try {
     const wbot = await initWASocket(whatsapp);
 
     if (wbot.id) {
-
-      const groups = await wbot.groupFetchAllParticipating()
+      const groups = await wbot.groupFetchAllParticipating();
       if (groups) {
         for (const [id, groupMetadata] of Object.entries(groups)) {
           //limpa os grupos existentes no cache
@@ -34,7 +32,7 @@ export const StartWhatsAppSession = async (
           await redisGroupCache.set(whatsapp.id, id, groupMetadata);
         }
       }
-
+      console.log(`🚩🚩🚩🚩🚩🚩`);
       wbotMessageListener(wbot, companyId);
       wbotMonitor(wbot, whatsapp, companyId);
     }

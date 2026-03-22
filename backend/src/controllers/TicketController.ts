@@ -141,6 +141,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     searchOnMessages
   });
 
+  console.log(`ListTIket Concnluido com `);
+
   return res.status(200).json({ tickets, count, hasMore });
 };
 
@@ -681,4 +683,31 @@ export const triggerFlow = async (
       error: "Erro interno do servidor"
     });
   }
+};
+
+export const markAsRead = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { ticketId } = req.params;
+  const { companyId } = req.user;
+
+  const ticket = await Ticket.findOne({
+    where: { uuid: ticketId, companyId }
+  });
+
+  if (!ticket) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+
+  await SetTicketMessagesAsRead(ticket);
+
+  const io = getIO(); // sua instância do socket
+
+  io.to(`company-${companyId}-tickets`).emit("ticket:update", {
+    ticketId: ticket.id,
+    unreadMessages: 0
+  });
+
+  return res.send();
 };

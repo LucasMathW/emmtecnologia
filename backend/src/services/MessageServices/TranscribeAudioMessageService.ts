@@ -37,6 +37,7 @@ const TranscribeAudioMessageToText = async (
     console.log(`msg.mediaUrl: ${msg.mediaUrl}`);
 
     const openaikey = setting?.value || process.env.TRANSCRIBE_API_KEY;
+
     console.log(`[DEBUG LUCAS, OPENAIKEY][${openaikey}]`);
 
     if (!openaikey) {

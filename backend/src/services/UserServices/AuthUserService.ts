@@ -32,6 +32,7 @@ interface SerializedUser {
 interface Request {
   email: string;
   password: string;
+  companyId: number;
 }
 
 interface Response {
@@ -42,10 +43,11 @@ interface Response {
 
 const AuthUserService = async ({
   email,
-  password
+  password,
+  companyId
 }: Request): Promise<Response> => {
   const user = await User.findOne({
-    where: { email },
+    where: { email, companyId },
     include: [
       "queues",
       { model: Company, include: [{ model: CompaniesSettings }] }

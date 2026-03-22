@@ -9,6 +9,10 @@ import BullQueue from "./libs/queue";
 import { startQueueProcess } from "./queues";
 import { startLidSyncJob } from "./jobs/LidSyncJob";
 
+console.log("📦 queues.ts carregado - PID:", process.pid);
+
+console.log("🚨 workerContinuo iniciado - PID:", process.pid);
+
 const server = app.listen(process.env.PORT, async () => {
   const companies = await Company.findAll({
     where: { status: true },

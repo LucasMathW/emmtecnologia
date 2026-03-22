@@ -1,4 +1,12 @@
-import { Op, fn, where, col, Filterable, Includeable, literal } from "sequelize";
+import {
+  Op,
+  fn,
+  where,
+  col,
+  Filterable,
+  Includeable,
+  literal
+} from "sequelize";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
 import Ticket from "../../models/Ticket";
@@ -13,6 +21,8 @@ import { intersection } from "lodash";
 import Whatsapp from "../../models/Whatsapp";
 import ContactTag from "../../models/ContactTag";
 import ContactWallet from "../../models/ContactWallet";
+
+import MessageReaction from "../../models/MessageReaction";
 
 import removeAccents from "remove-accents";
 
@@ -77,16 +87,21 @@ const ListTicketsService = async ({
   const showTicketAllQueues = user.allHistoric === "enabled";
   const showTicketWithoutQueue = user.allTicket === "enable";
   const showGroups = user.allowGroup === true;
-  const showPendingNotification = await FindCompanySettingOneService({ companyId, column: "showNotificationPending" });
-  const showNotificationPendingValue = showPendingNotification[0].showNotificationPending;
-    let whereCondition: Filterable["where"];
+  const showPendingNotification = await FindCompanySettingOneService({
+    companyId,
+    column: "showNotificationPending"
+  });
+  const showNotificationPendingValue =
+    showPendingNotification[0].showNotificationPending;
+  let whereCondition: Filterable["where"];
 
   whereCondition = {
     [Op.or]: [{ userId }, { status: "pending" }],
-    queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : { [Op.or]: [queueIds] },
+    queueId: showTicketWithoutQueue
+      ? { [Op.or]: [queueIds, null] }
+      : { [Op.or]: [queueIds] },
     companyId
   };
-
 
   let includeCondition: Includeable[];
 
@@ -94,8 +109,22 @@ const ListTicketsService = async ({
     {
       model: Contact,
       as: "contact",
-      attributes: ["id", "name", "number", "email", "profilePicUrl", "acceptAudioMessage", "active", "urlPicture", "companyId", "isGroup", "remoteJid"],
-      include: ["extraInfo", "tags",
+      attributes: [
+        "id",
+        "name",
+        "number",
+        "email",
+        "profilePicUrl",
+        "acceptAudioMessage",
+        "active",
+        "urlPicture",
+        "companyId",
+        "isGroup",
+        "remoteJid"
+      ],
+      include: [
+        "extraInfo",
+        "tags",
         {
           model: ContactWallet,
           include: [
@@ -108,7 +137,8 @@ const ListTicketsService = async ({
               attributes: ["id", "name"]
             }
           ]
-        }]
+        }
+      ]
     },
     {
       model: Queue,
@@ -129,7 +159,7 @@ const ListTicketsService = async ({
       model: Whatsapp,
       as: "whatsapp",
       attributes: ["id", "name", "expiresTicket", "groupAsTicket", "color"]
-    },
+    }
   ];
 
   const userQueueIds = user.queues.map(queue => queue.id);
@@ -140,123 +170,129 @@ const ListTicketsService = async ({
       userId,
       queueId: { [Op.in]: queueIds }
     };
-  } else
-    if (status === "group" && user.allowGroup && user.whatsappId) {
+  } else if (status === "group" && user.allowGroup && user.whatsappId) {
+    whereCondition = {
+      companyId,
+      queueId: { [Op.or]: [queueIds, null] },
+      whatsappId: user.whatsappId
+    };
+  } else if (status === "group" && user.allowGroup && !user.whatsappId) {
+    whereCondition = {
+      companyId,
+      queueId: { [Op.or]: [queueIds, null] }
+    };
+  }
+  // NOVA LÓGICA PARA STATUS CHATBOT
+  else if (status === "chatbot") {
+    // Para status chatbot, mostrar tickets que estão sendo processados pelo flowbuilder
+    // Admins podem ver todos, usuários comuns só os seus ou os sem responsável
+    if (user.profile === "admin" || showAll === "true") {
       whereCondition = {
         companyId,
-        queueId: { [Op.or]: [queueIds, null] },
-        whatsappId: user.whatsappId
+        status: "chatbot",
+        queueId: showTicketWithoutQueue
+          ? { [Op.or]: [queueIds, null] }
+          : { [Op.or]: [queueIds] }
+      };
+    } else {
+      whereCondition = {
+        companyId,
+        status: "chatbot",
+        [Op.or]: [{ userId }, { userId: null }],
+        queueId: showTicketWithoutQueue
+          ? { [Op.or]: [queueIds, null] }
+          : { [Op.or]: [queueIds] }
       };
     }
-    else
-      if (status === "group" && (user.allowGroup) && !user.whatsappId) {
-        whereCondition = {
-          companyId,
+  } else if (
+    user.profile === "user" &&
+    status === "pending" &&
+    showTicketWithoutQueue
+  ) {
+    const TicketsUserFilter: any[] | null = [];
+
+    let ticketsIds = [];
+
+    if (!showTicketAllQueues) {
+      ticketsIds = await Ticket.findAll({
+        where: {
+          userId: { [Op.or]: [user.id, null] },
           queueId: { [Op.or]: [queueIds, null] },
-        };
-      }
-      else
-        // NOVA LÓGICA PARA STATUS CHATBOT
-        if (status === "chatbot") {
-          // Para status chatbot, mostrar tickets que estão sendo processados pelo flowbuilder
-          // Admins podem ver todos, usuários comuns só os seus ou os sem responsável
-          if (user.profile === "admin" || showAll === "true") {
-            whereCondition = {
-              companyId,
-              status: "chatbot",
-              queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : { [Op.or]: [queueIds] }
-            };
-          } else {
-            whereCondition = {
-              companyId,
-              status: "chatbot",
-              [Op.or]: [{ userId }, { userId: null }],
-              queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : { [Op.or]: [queueIds] }
-            };
-          }
+          status: "pending",
+          companyId
         }
-        else
-          if (user.profile === "user" && status === "pending" && showTicketWithoutQueue) {
-            const TicketsUserFilter: any[] | null = [];
+      });
+    } else {
+      ticketsIds = await Ticket.findAll({
+        where: {
+          userId: { [Op.or]: [user.id, null] },
+          status: "pending",
+          companyId
+        }
+      });
+    }
 
-            let ticketsIds = [];
+    if (ticketsIds) {
+      TicketsUserFilter.push(ticketsIds.map(t => t.id));
+    }
 
-            if (!showTicketAllQueues) {
-              ticketsIds = await Ticket.findAll({
-                where: {
-                  userId: { [Op.or]: [user.id, null] },
-                  queueId: { [Op.or]: [queueIds, null] },
-                  status: "pending",
-                  companyId
-                },
-              });
-            } else {
-              ticketsIds = await Ticket.findAll({
-                where: {
-                  userId: { [Op.or]: [user.id, null] },
-                  status: "pending",
-                  companyId
-                },
-              });
+    const ticketsIntersection: number[] = intersection(...TicketsUserFilter);
+
+    whereCondition = {
+      ...whereCondition,
+      id: ticketsIntersection
+    };
+  } else if (
+    user.profile === "user" &&
+    status === "pending" &&
+    !showTicketWithoutQueue
+  ) {
+    const TicketsUserFilter: any[] | null = [];
+
+    let ticketsIds = [];
+
+    if (!showTicketAllQueues) {
+      ticketsIds = await Ticket.findAll({
+        where: {
+          companyId,
+          userId: { [Op.or]: [user.id, null] },
+          status: "pending",
+          queueId: { [Op.in]: queueIds }
+        }
+      });
+    } else {
+      ticketsIds = await Ticket.findAll({
+        where: {
+          companyId,
+          [Op.or]: [
+            {
+              userId: { [Op.or]: [user.id, null] }
+            },
+            {
+              status: "pending"
             }
+          ],
+          status: "pending"
+        }
+      });
+    }
+    if (ticketsIds) {
+      TicketsUserFilter.push(ticketsIds.map(t => t.id));
+    }
 
-            if (ticketsIds) {
-              TicketsUserFilter.push(ticketsIds.map(t => t.id));
-            }
+    const ticketsIntersection: number[] = intersection(...TicketsUserFilter);
 
-            const ticketsIntersection: number[] = intersection(...TicketsUserFilter);
+    whereCondition = {
+      ...whereCondition,
+      id: ticketsIntersection
+    };
+  }
 
-            whereCondition = {
-              ...whereCondition,
-              id: ticketsIntersection
-            };
-          }
-          else
-            if (user.profile === "user" && status === "pending" && !showTicketWithoutQueue) {
-              const TicketsUserFilter: any[] | null = [];
-
-              let ticketsIds = [];
-
-              if (!showTicketAllQueues) {
-                ticketsIds = await Ticket.findAll({
-                  where: {
-                    companyId,
-                    userId:
-                      { [Op.or]: [user.id, null] },
-                    status: "pending",
-                    queueId: { [Op.in]: queueIds }
-                  },
-                });
-              } else {
-                ticketsIds = await Ticket.findAll({
-                  where: {
-                    companyId,
-                    [Op.or]:
-                      [{
-                        userId:
-                          { [Op.or]: [user.id, null] }
-                      },
-                      {
-                        status: "pending"
-                      }
-                      ],
-                    status: "pending"
-                  },
-                });
-              }
-              if (ticketsIds) {
-                TicketsUserFilter.push(ticketsIds.map(t => t.id));
-              }
-
-              const ticketsIntersection: number[] = intersection(...TicketsUserFilter);
-
-              whereCondition = {
-                ...whereCondition,
-                id: ticketsIntersection
-              };
-            }
-
-  if (showAll === "true" && (user.profile === "admin" || user.allUserChat === "enabled") && status !== "search") {
+  if (
+    showAll === "true" &&
+    (user.profile === "admin" || user.allUserChat === "enabled") &&
+    status !== "search"
+  ) {
     if (user.allHistoric === "enabled" && showTicketWithoutQueue) {
       whereCondition = { companyId };
     } else if (user.allHistoric === "enabled" && !showTicketWithoutQueue) {
@@ -268,14 +304,15 @@ const ListTicketsService = async ({
     }
   }
 
-
   if (status && status !== "search") {
     whereCondition = {
       ...whereCondition,
-      status: showAll === "true" && status === "pending" ? { [Op.or]: [status, "lgpd"] } : status
+      status:
+        showAll === "true" && status === "pending"
+          ? { [Op.or]: [status, "lgpd"] }
+          : status
     };
   }
-
 
   if (status === "closed") {
     let latestTickets;
@@ -283,242 +320,282 @@ const ListTicketsService = async ({
     if (!showTicketAllQueues) {
       let whereCondition2: Filterable["where"] = {
         companyId,
-        status: "closed",
-      }
+        status: "closed"
+      };
 
       // Se showAll === "true" E usuário tem permissão (admin ou allUserChat), mostrar todos
-      if (showAll === "true" && (user.profile === "admin" || user.allUserChat === "enabled")) {
+      if (
+        showAll === "true" &&
+        (user.profile === "admin" || user.allUserChat === "enabled")
+      ) {
         whereCondition2 = {
           ...whereCondition2,
-          queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : queueIds,
-        }
+          queueId: showTicketWithoutQueue
+            ? { [Op.or]: [queueIds, null] }
+            : queueIds
+        };
       } else {
         // Caso contrário, filtrar apenas os tickets do próprio usuário
         whereCondition2 = {
           ...whereCondition2,
-          queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : queueIds,
+          queueId: showTicketWithoutQueue
+            ? { [Op.or]: [queueIds, null] }
+            : queueIds,
           userId
-        }
+        };
       }
 
       latestTickets = await Ticket.findAll({
-        attributes: ['companyId', 'contactId', 'whatsappId', [literal('MAX("id")'), 'id']],
+        attributes: [
+          "companyId",
+          "contactId",
+          "whatsappId",
+          [literal('MAX("id")'), "id"]
+        ],
         where: whereCondition2,
-        group: ['companyId', 'contactId', 'whatsappId'],
+        group: ["companyId", "contactId", "whatsappId"]
       });
-
     } else {
       let whereCondition2: Filterable["where"] = {
         companyId,
-        status: "closed",
-      }
+        status: "closed"
+      };
 
       // Se showAll === "true" E usuário tem permissão (admin ou allUserChat), mostrar todos
-      if (showAll === "true" && (user.profile === "admin" || user.allUserChat === "enabled")) {
+      if (
+        showAll === "true" &&
+        (user.profile === "admin" || user.allUserChat === "enabled")
+      ) {
         whereCondition2 = {
           ...whereCondition2,
-          queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : queueIds,
-        }
+          queueId: showTicketWithoutQueue
+            ? { [Op.or]: [queueIds, null] }
+            : queueIds
+        };
       } else {
         // Caso contrário, filtrar apenas os tickets do próprio usuário
         whereCondition2 = {
           ...whereCondition2,
-          queueId: showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : queueIds,
+          queueId: showTicketWithoutQueue
+            ? { [Op.or]: [queueIds, null] }
+            : queueIds,
           userId
-        }
+        };
       }
 
       latestTickets = await Ticket.findAll({
-        attributes: ['companyId', 'contactId', 'whatsappId', [literal('MAX("id")'), 'id']],
+        attributes: [
+          "companyId",
+          "contactId",
+          "whatsappId",
+          [literal('MAX("id")'), "id"]
+        ],
         where: whereCondition2,
-        group: ['companyId', 'contactId', 'whatsappId'],
+        group: ["companyId", "contactId", "whatsappId"]
       });
-
     }
 
-    const ticketIds = latestTickets.map((t) => t.id);
+    const ticketIds = latestTickets.map(t => t.id);
 
     whereCondition = {
       id: ticketIds
-
     };
-  }
-  else
-    if (status === "search") {
-      whereCondition = {
-        companyId
-      }
-      let latestTickets;
-      if (!showTicketAllQueues && user.profile === "user") {
-        latestTickets = await Ticket.findAll({
-          attributes: ['companyId', 'contactId', 'whatsappId', [literal('MAX("id")'), 'id']],
-          where: {
-            [Op.or]: [{ userId }, { status: ["pending", "closed", "group", "chatbot"] }], // INCLUINDO CHATBOT NA BUSCA
-            queueId: showAll === "true" || showTicketWithoutQueue ? { [Op.or]: [queueIds, null] } : queueIds,
-            companyId
-          },
-          group: ['companyId', 'contactId', 'whatsappId'],
-        });
-      } else {
-        let whereCondition2: Filterable["where"] = {
-          companyId,
-          [Op.or]: [{ userId }, { status: ["pending", "closed", "group", "chatbot"] }] // INCLUINDO CHATBOT NA BUSCA
-        }
-
-        if (showAll === "false" && user.profile === "admin") {
-          whereCondition2 = {
-            ...whereCondition2,
-            queueId: queueIds,
-          }
-
-        } else if (showAll === "true" && user.profile === "admin") {
-          whereCondition2 = {
-            companyId,
-            queueId: { [Op.or]: [queueIds, null] },
-          }
-        }
-
-        latestTickets = await Ticket.findAll({
-          attributes: ['companyId', 'contactId', 'whatsappId', [literal('MAX("id")'), 'id']],
-          where: whereCondition2,
-          group: ['companyId', 'contactId', 'whatsappId'],
-        });
-
-      }
-
-      const ticketIds = latestTickets.map((t) => t.id);
-
-      whereCondition = {
-        ...whereCondition,
-        id: ticketIds
+  } else if (status === "search") {
+    whereCondition = {
+      companyId
+    };
+    let latestTickets;
+    if (!showTicketAllQueues && user.profile === "user") {
+      latestTickets = await Ticket.findAll({
+        attributes: [
+          "companyId",
+          "contactId",
+          "whatsappId",
+          [literal('MAX("id")'), "id"]
+        ],
+        where: {
+          [Op.or]: [
+            { userId },
+            { status: ["pending", "closed", "group", "chatbot"] }
+          ], // INCLUINDO CHATBOT NA BUSCA
+          queueId:
+            showAll === "true" || showTicketWithoutQueue
+              ? { [Op.or]: [queueIds, null] }
+              : queueIds,
+          companyId
+        },
+        group: ["companyId", "contactId", "whatsappId"]
+      });
+    } else {
+      let whereCondition2: Filterable["where"] = {
+        companyId,
+        [Op.or]: [
+          { userId },
+          { status: ["pending", "closed", "group", "chatbot"] }
+        ] // INCLUINDO CHATBOT NA BUSCA
       };
 
-      if (searchParam) {
-        const sanitizedSearchParam = removeAccents(searchParam.toLocaleLowerCase().trim());
-        if (searchOnMessages === "true") {
-          includeCondition = [
-            ...includeCondition,
-            {
-              model: Message,
-              as: "messages",
-              attributes: ["id", "body"],
-              where: {
-                body: where(
-                  fn("LOWER", fn('unaccent', col("body"))),
-                  "LIKE",
-                  `%${sanitizedSearchParam}%`
-                ),
-              },
-              required: false,
-              duplicating: false
-            }
-          ];
-          whereCondition = {
-            ...whereCondition,
-            [Op.or]: [
-              {
-                "$contact.name$": where(
-                  fn("LOWER", fn("unaccent", col("contact.name"))),
-                  "LIKE",
-                  `%${sanitizedSearchParam}%`
-                )
-              },
-              { "$contact.number$": { [Op.like]: `%${sanitizedSearchParam}%` } },
-              {
-                "$message.body$": where(
-                  fn("LOWER", fn("unaccent", col("body"))),
-                  "LIKE",
-                  `%${sanitizedSearchParam}%`
-                )
-              }
-            ]
-          };
-        } else {
-          whereCondition = {
-            ...whereCondition,
-            [Op.or]: [
-              {
-                "$contact.name$": where(
-                  fn("LOWER", fn("unaccent", col("contact.name"))),
-                  "LIKE",
-                  `%${sanitizedSearchParam}%`
-                )
-              },
-              { "$contact.number$": { [Op.like]: `%${sanitizedSearchParam}%` } },
-            ]
-          };
-        }
-
-      }
-
-      if (Array.isArray(tags) && tags.length > 0) {
-        const contactTagFilter: any[] | null = [];
-        const contactTags = await ContactTag.findAll({
-          where: { tagId: tags }
-        });
-        if (contactTags) {
-          contactTagFilter.push(contactTags.map(t => t.contactId));
-        }
-
-        const contactsIntersection: number[] = intersection(...contactTagFilter);
-
-        whereCondition = {
-          ...whereCondition,
-          contactId: contactsIntersection
+      if (showAll === "false" && user.profile === "admin") {
+        whereCondition2 = {
+          ...whereCondition2,
+          queueId: queueIds
+        };
+      } else if (showAll === "true" && user.profile === "admin") {
+        whereCondition2 = {
+          companyId,
+          queueId: { [Op.or]: [queueIds, null] }
         };
       }
 
-      if (Array.isArray(users) && users.length > 0) {
+      latestTickets = await Ticket.findAll({
+        attributes: [
+          "companyId",
+          "contactId",
+          "whatsappId",
+          [literal('MAX("id")'), "id"]
+        ],
+        where: whereCondition2,
+        group: ["companyId", "contactId", "whatsappId"]
+      });
+    }
+
+    const ticketIds = latestTickets.map(t => t.id);
+
+    whereCondition = {
+      ...whereCondition,
+      id: ticketIds
+    };
+
+    if (searchParam) {
+      const sanitizedSearchParam = removeAccents(
+        searchParam.toLocaleLowerCase().trim()
+      );
+      if (searchOnMessages === "true") {
+        includeCondition = [
+          ...includeCondition,
+          {
+            model: Message,
+            as: "messages",
+            attributes: ["id", "body"],
+            where: {
+              body: where(
+                fn("LOWER", fn("unaccent", col("body"))),
+                "LIKE",
+                `%${sanitizedSearchParam}%`
+              )
+            },
+            required: false,
+            duplicating: false
+          }
+        ];
         whereCondition = {
           ...whereCondition,
-          userId: users
-        };
-      }
-
-
-      if (Array.isArray(whatsappIds) && whatsappIds.length > 0) {
-        whereCondition = {
-          ...whereCondition,
-          whatsappId: whatsappIds
-        };
-      }
-
-      if (Array.isArray(statusFilters) && statusFilters.length > 0) {
-        whereCondition = {
-          ...whereCondition,
-          status: { [Op.in]: statusFilters }
-        };
-      }
-
-    } else
-      if (withUnreadMessages === "true") {
-        whereCondition = {
           [Op.or]: [
             {
-              userId,
-              status: showNotificationPendingValue ? { [Op.notIn]: ["closed", "lgpd", "nps"] } : { [Op.notIn]: ["pending", "closed", "lgpd", "nps", "group"] },
-              queueId: { [Op.in]: userQueueIds },
-              unreadMessages: { [Op.gt]: 0 },
-              companyId,
-              isGroup: showGroups ? { [Op.or]: [true, false] } : false
+              "$contact.name$": where(
+                fn("LOWER", fn("unaccent", col("contact.name"))),
+                "LIKE",
+                `%${sanitizedSearchParam}%`
+              )
             },
+            { "$contact.number$": { [Op.like]: `%${sanitizedSearchParam}%` } },
             {
-              status: showNotificationPendingValue ? { [Op.in]: ["pending", "group", "chatbot"] } : { [Op.in]: ["group", "chatbot"] }, // INCLUINDO CHATBOT
-              queueId: showTicketWithoutQueue ? { [Op.or]: [userQueueIds, null] } : { [Op.or]: [userQueueIds] },
-              unreadMessages: { [Op.gt]: 0 },
-              companyId,
-              isGroup: showGroups ? { [Op.or]: [true, false] } : false
+              "$message.body$": where(
+                fn("LOWER", fn("unaccent", col("body"))),
+                "LIKE",
+                `%${sanitizedSearchParam}%`
+              )
             }
           ]
         };
-
-        if (status === "group" && (user.allowGroup || showAll === "true")) {
-          whereCondition = {
-            ...whereCondition,
-            queueId: { [Op.or]: [userQueueIds, null] },
-          };
-        }
+      } else {
+        whereCondition = {
+          ...whereCondition,
+          [Op.or]: [
+            {
+              "$contact.name$": where(
+                fn("LOWER", fn("unaccent", col("contact.name"))),
+                "LIKE",
+                `%${sanitizedSearchParam}%`
+              )
+            },
+            { "$contact.number$": { [Op.like]: `%${sanitizedSearchParam}%` } }
+          ]
+        };
       }
+    }
+
+    if (Array.isArray(tags) && tags.length > 0) {
+      const contactTagFilter: any[] | null = [];
+      const contactTags = await ContactTag.findAll({
+        where: { tagId: tags }
+      });
+      if (contactTags) {
+        contactTagFilter.push(contactTags.map(t => t.contactId));
+      }
+
+      const contactsIntersection: number[] = intersection(...contactTagFilter);
+
+      whereCondition = {
+        ...whereCondition,
+        contactId: contactsIntersection
+      };
+    }
+
+    if (Array.isArray(users) && users.length > 0) {
+      whereCondition = {
+        ...whereCondition,
+        userId: users
+      };
+    }
+
+    if (Array.isArray(whatsappIds) && whatsappIds.length > 0) {
+      whereCondition = {
+        ...whereCondition,
+        whatsappId: whatsappIds
+      };
+    }
+
+    if (Array.isArray(statusFilters) && statusFilters.length > 0) {
+      whereCondition = {
+        ...whereCondition,
+        status: { [Op.in]: statusFilters }
+      };
+    }
+  } else if (withUnreadMessages === "true") {
+    whereCondition = {
+      [Op.or]: [
+        {
+          userId,
+          status: showNotificationPendingValue
+            ? { [Op.notIn]: ["closed", "lgpd", "nps"] }
+            : { [Op.notIn]: ["pending", "closed", "lgpd", "nps", "group"] },
+          queueId: { [Op.in]: userQueueIds },
+          unreadMessages: { [Op.gt]: 0 },
+          companyId,
+          isGroup: showGroups ? { [Op.or]: [true, false] } : false
+        },
+        {
+          status: showNotificationPendingValue
+            ? { [Op.in]: ["pending", "group", "chatbot"] }
+            : { [Op.in]: ["group", "chatbot"] }, // INCLUINDO CHATBOT
+          queueId: showTicketWithoutQueue
+            ? { [Op.or]: [userQueueIds, null] }
+            : { [Op.or]: [userQueueIds] },
+          unreadMessages: { [Op.gt]: 0 },
+          companyId,
+          isGroup: showGroups ? { [Op.or]: [true, false] } : false
+        }
+      ]
+    };
+
+    if (status === "group" && (user.allowGroup || showAll === "true")) {
+      whereCondition = {
+        ...whereCondition,
+        queueId: { [Op.or]: [userQueueIds, null] }
+      };
+    }
+  }
 
   whereCondition = {
     ...whereCondition,
@@ -531,13 +608,127 @@ const ListTicketsService = async ({
   const { count, rows: tickets } = await Ticket.findAndCountAll({
     where: whereCondition,
     include: includeCondition,
-    attributes: ["id", "uuid", "userId", "queueId", "isGroup", "channel", "status", "contactId", "useIntegration", "lastMessage", "updatedAt", "unreadMessages"],
+    attributes: [
+      "id",
+      "uuid",
+      "userId",
+      "queueId",
+      "isGroup",
+      "channel",
+      "status",
+      "contactId",
+      "useIntegration",
+      "lastMessage",
+      "updatedAt",
+      "unreadMessages"
+    ],
     distinct: true,
     limit,
     offset,
     order: [["updatedAt", sortTickets]],
     subQuery: false
   });
+
+  // 🔥 INJETAR REACTION PREVIEW POR CONTATO
+  // for (const ticket of tickets) {
+  //   const lastMessage = await Message.findOne({
+  //     where: { ticketId: ticket.id },
+  //     order: [["updatedAt", "DESC"]],
+  //     attributes: ["id", "body", "updatedAt"]
+  //   });
+
+  //   console.log(`lastMessage.id =>`, lastMessage.updatedAt);
+  //   console.log(`lastMessage.body =>`, lastMessage.body);
+
+  //   if (!lastMessage) {
+  //     (ticket as any).reactionPreview = null;
+  //     continue;
+  //   }
+
+  //   const lastReaction = await MessageReaction.findOne({
+  //     attributes: ["id", "emoji", "userId", "updatedAt", "messageId"],
+  //     include: [
+  //       {
+  //         model: Message,
+  //         as: "message",
+  //         attributes: ["body", "updatedAt"],
+  //         required: true,
+  //         where: { ticketId: ticket.id }
+  //       }
+  //     ],
+  //     order: [["updatedAt", "DESC"]]
+  //   });
+
+  //   console.log(`lastMessageReaction`, lastReaction);
+
+  //   const lastMessageReaction = await Message.findOne({
+  //     where: { id: lastReaction.messageId },
+  //     order: [["updatedAt", "DESC"]],
+  //     attributes: ["id", "body", "updatedAt"]
+  //   });
+
+  //   if (lastReaction.updatedAt > lastMessage.updatedAt) {
+  //     (ticket as any).setDataValue("reactionPreview", {
+  //       emoji: lastReaction.emoji,
+  //       messagePreview: lastMessageReaction.body,
+  //       reactionUserId: lastReaction.userId
+  //     });
+  //   } else {
+  //     (ticket as any).setDataValue("reactionPreview", null);
+  //   }
+  // }
+
+  for (const ticket of tickets) {
+    const lastMessage = await Message.findOne({
+      where: { ticketId: ticket.id },
+      order: [["updatedAt", "DESC"]],
+      attributes: ["id", "body", "updatedAt"]
+    });
+
+    if (!lastMessage) {
+      (ticket as any).setDataValue("reactionPreview", null);
+      continue;
+    }
+
+    const lastReaction = await MessageReaction.findOne({
+      attributes: ["id", "emoji", "userId", "updatedAt", "messageId"],
+      include: [
+        {
+          model: Message,
+          as: "message",
+          attributes: ["body", "updatedAt"],
+          required: true,
+          where: { ticketId: ticket.id }
+        }
+      ],
+      order: [["updatedAt", "DESC"]]
+    });
+
+    if (!lastReaction) {
+      (ticket as any).setDataValue("reactionPreview", null);
+      continue;
+    }
+
+    const lastMessageReaction = await Message.findOne({
+      where: { id: lastReaction.messageId },
+      attributes: ["id", "body", "updatedAt"]
+    });
+
+    if (!lastMessageReaction) {
+      (ticket as any).setDataValue("reactionPreview", null);
+      continue;
+    }
+
+    if (lastReaction.updatedAt > lastMessage.updatedAt) {
+      (ticket as any).setDataValue("reactionPreview", {
+        emoji: lastReaction.emoji,
+        messagePreview: lastMessageReaction.body,
+        reactionUserId: lastReaction.userId
+      });
+    } else {
+      (ticket as any).setDataValue("reactionPreview", null);
+    }
+  }
 
   const hasMore = count > offset + tickets.length;
 

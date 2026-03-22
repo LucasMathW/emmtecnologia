@@ -5,7 +5,6 @@ import Whatsapp from "../models/Whatsapp";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import MessageReaction from "../models/MessageReaction";
 import SendWhatsappReactionService from "../services/MessageServices/SendWhatsappReactionService";
-import { getIO } from "../libs/socket";
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const rawMessageWid = req.params.messageId;
@@ -43,25 +42,12 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
   let finalEmoji = emoji;
 
-  const whatsapp = await Whatsapp.findByPk(ticket.whatsappId);
+  console.log(`passei aqui:${finalEmoji}`);
 
-  const fromJid = `${whatsapp.number}@s.whatsapp.net`;
-
-  // 🔁 Toggle real
   if (existingReaction) {
     if (!emoji || existingReaction.emoji === emoji) {
-      await existingReaction.destroy();
-      finalEmoji = "";
-    } else {
-      await existingReaction.update({ emoji });
+      finalEmoji = ""; // remove no WhatsApp
     }
-  } else if (emoji) {
-    await MessageReaction.create({
-      messageId: message.id,
-      userId,
-      emoji,
-      fromJid
-    });
   }
 
   // 🔥 ENVIA PARA WHATSAPP

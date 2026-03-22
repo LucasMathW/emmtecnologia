@@ -9,6 +9,7 @@ import ListSettingsServiceOne from "../services/SettingServices/ListSettingsServ
 import GetSettingService from "../services/SettingServices/GetSettingService";
 import UpdateOneSettingService from "../services/SettingServices/UpdateOneSettingService";
 import GetPublicSettingService from "../services/SettingServices/GetPublicSettingService";
+import ResolveCompanyByDomain from "../helpers/resolveCompanyIdNyDomain";
 
 type LogoRequest = {
   mode: string;
@@ -17,6 +18,10 @@ type LogoRequest = {
 type PrivateFileRequest = {
   settingKey: string;
 };
+
+interface Params {
+  settingKey: string;
+}
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
   const { companyId } = req.user;
@@ -35,7 +40,8 @@ export const showOne = async (
   res: Response
 ): Promise<Response> => {
   const { companyId } = req.user;
-  const { settingKey: key } = req.params;
+  const { settingKey } = req.params;
+  const key = Array.isArray(settingKey) ? settingKey[0] : settingKey;
 
   const settingsTransfTicket = await ListSettingsServiceOne({
     companyId: companyId,
@@ -46,7 +52,7 @@ export const showOne = async (
 };
 
 export const update = async (
-  req: Request,
+  req: Request<Params>,
   res: Response
 ): Promise<Response> => {
   if (req.user.profile !== "admin") {
@@ -73,7 +79,7 @@ export const update = async (
 };
 
 export const getSetting = async (
-  req: Request,
+  req: Request<Params>,
   res: Response
 ): Promise<Response> => {
   const { settingKey: key } = req.params;
@@ -84,7 +90,7 @@ export const getSetting = async (
 };
 
 export const updateOne = async (
-  req: Request,
+  req: Request<Params>,
   res: Response
 ): Promise<Response> => {
   const { settingKey: key } = req.params;
@@ -99,13 +105,31 @@ export const updateOne = async (
 };
 
 export const publicShow = async (
-  req: Request,
+  req: Request<Params>,
   res: Response
 ): Promise<Response> => {
   const { settingKey: key } = req.params;
   const { companyId } = req.query;
 
-  const targetCompanyId = companyId ? parseInt(companyId as string) : undefined;
+  let targetCompanyId = companyId
+    ? parseInt(companyId as string, 10)
+    : undefined;
+
+  if (!targetCompanyId) {
+    const origin =
+      req.headers.origin || req.headers.referer || req.headers.host;
+    let host: string | undefined;
+
+    if (typeof origin === "string") {
+      try {
+        host = origin.startsWith("http") ? new URL(origin).host : origin;
+      } catch {
+        host = origin;
+      }
+    }
+
+    targetCompanyId = await ResolveCompanyByDomain(host);
+  }
 
   const settingValue = await GetPublicSettingService({
     key,
