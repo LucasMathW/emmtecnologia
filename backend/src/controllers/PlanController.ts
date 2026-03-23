@@ -14,6 +14,7 @@ import FindAllPlanService from "../services/PlanService/FindAllPlanService";
 import DeletePlanService from "../services/PlanService/DeletePlanService";
 import User from "../models/User";
 import Company from "../models/Company";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 interface TokenPayload {
   id: string;
@@ -138,7 +139,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
@@ -239,7 +240,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");

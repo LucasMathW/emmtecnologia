@@ -19,6 +19,7 @@ import FindAllCompaniesService from "../services/CompanyService/FindAllCompanies
 import ShowPlanCompanyService from "../services/CompanyService/ShowPlanCompanyService";
 import User from "../models/User";
 import ListCompaniesPlanService from "../services/CompanyService/ListCompaniesPlanService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 interface TokenPayload {
   id: string;
@@ -240,7 +241,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
@@ -302,7 +303,7 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
@@ -313,8 +314,7 @@ export const update = async (
   if (requestUser.super === true) {
     const company = await UpdateCompanyService({ id, ...companyData });
 
-    // Invalidar cache da empresa atualizada
-    invalidateCompanyCache(parseInt(id));
+    invalidateCompanyCache(parseInt(id, 10));
 
     return res.status(200).json(company);
   } else if (String(companyData?.id) !== id || String(companyId) !== id) {
@@ -324,8 +324,7 @@ export const update = async (
   } else {
     const company = await UpdateCompanyService({ id, ...companyData });
 
-    // Invalidar cache da empresa atualizada
-    invalidateCompanyCache(parseInt(id));
+    invalidateCompanyCache(parseInt(id, 10));
 
     return res.status(200).json(company);
   }
@@ -336,7 +335,7 @@ export const updateSchedules = async (
   res: Response
 ): Promise<Response> => {
   const { schedules }: SchedulesData = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
@@ -361,7 +360,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
   const decoded = verify(token, authConfig.secret);
@@ -371,8 +370,7 @@ export const remove = async (
   if (requestUser.super === true) {
     const company = await DeleteCompanyService(id);
 
-    // Invalidar cache da empresa removida
-    invalidateCompanyCache(parseInt(id));
+    invalidateCompanyCache(parseInt(id, 10));
 
     return res.status(200).json(company);
   } else {
@@ -386,7 +384,7 @@ export const listPlan = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");

@@ -5,6 +5,7 @@ import DeleteChatBotServices from "../services/ChatBotServices/DeleteChatBotServ
 import ListChatBotServices from "../services/ChatBotServices/ListChatBotServices";
 import ShowChatBotServices from "../services/ChatBotServices/ShowChatBotServices";
 import UpdateChatBotServices from "../services/ChatBotServices/UpdateChatBotServices";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
   const queues = await ListChatBotServices();
@@ -49,7 +50,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { chatbotId } = req.params;
+  const chatbotId = getRequestParam(req.params.chatbotId, "chatbotId");
 
   const queue = await ShowChatBotServices(chatbotId);
   return res.status(200).json(queue);
@@ -59,7 +60,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { chatbotId } = req.params;
+  const chatbotId = getRequestParam(req.params.chatbotId, "chatbotId");
   const { companyId } = req.user;
 
   const chatbot = await UpdateChatBotServices(chatbotId, req.body);
@@ -77,7 +78,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { chatbotId } = req.params;
+  const chatbotId = getRequestParam(req.params.chatbotId, "chatbotId");
   const { companyId } = req.user;
 
   await DeleteChatBotServices(chatbotId);

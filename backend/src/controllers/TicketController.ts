@@ -20,6 +20,7 @@ import ListTicketsServiceReport from "../services/TicketServices/ListTicketsServ
 import RelatorioVendasService from "../services/ReportService/RelatorioVendasService";
 import SetTicketMessagesAsRead from "../helpers/SetTicketMessagesAsRead";
 import { Mutex } from "async-mutex";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -325,7 +326,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { id: userId, companyId } = req.user;
 
   const contact = await ShowTicketService(ticketId, companyId);
@@ -343,7 +344,7 @@ export const showLog = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { id: userId, companyId } = req.user;
 
   const log = await ShowLogTicketService({ ticketId, companyId });
@@ -355,7 +356,7 @@ export const showFromUUID = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { uuid } = req.params;
+  const uuid = getRequestParam(req.params.uuid, "uuid");
   const { id: userId, companyId } = req.user;
 
   const ticket: Ticket = await ShowTicketUUIDService(uuid, companyId);
@@ -381,7 +382,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const ticketData: TicketData = req.body;
   const { companyId } = req.user;
 
@@ -402,7 +403,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { id: userId, companyId } = req.user;
 
   // await ShowTicketService(ticketId, companyId);
@@ -618,7 +619,7 @@ export const triggerFlow = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { flowId } = req.body;
   const { companyId } = req.user;
 
@@ -689,7 +690,7 @@ export const markAsRead = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { companyId } = req.user;
 
   const ticket = await Ticket.findOne({

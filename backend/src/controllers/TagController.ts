@@ -15,23 +15,27 @@ import SimpleListService from "../services/TagServices/SimpleListService";
 import SyncTagService from "../services/TagServices/SyncTagsService";
 import KanbanListService from "../services/TagServices/KanbanListService";
 import ContactTag from "../models/ContactTag";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 // Configuração do multer para upload de mídia
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const companyId = req.user?.companyId;
     if (!companyId) {
-      return cb(new Error('Company ID não encontrado'), '');
+      return cb(new Error("Company ID não encontrado"), "");
     }
-    
-    const uploadPath = path.join(__dirname, `../../public/company${companyId}/lanes`);
+
+    const uploadPath = path.join(
+      __dirname,
+      `../../public/company${companyId}/lanes`
+    );
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, `lane-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });
@@ -39,17 +43,25 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024 // 10MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf',
-      'audio/mpeg', 'audio/wav', 'audio/ogg',
-      'video/mp4', 'video/avi', 'video/mov', 'video/webm',
-      'application/x-ret'
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/ogg",
+      "video/mp4",
+      "video/avi",
+      "video/mov",
+      "video/webm",
+      "application/x-ret"
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -58,7 +70,7 @@ const upload = multer({
   }
 });
 
-export const uploadMiddleware = upload.array('mediaFiles', 5); // Máximo 5 arquivos
+export const uploadMiddleware = upload.array("mediaFiles", 5); // Máximo 5 arquivos
 
 type IndexQuery = {
   searchParam?: string;
@@ -69,7 +81,8 @@ type IndexQuery = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { pageNumber, searchParam, kanban, tagId, limit } = req.query as IndexQuery;
+  const { pageNumber, searchParam, kanban, tagId, limit } =
+    req.query as IndexQuery;
   const { companyId } = req.user;
 
   const { tags, count, hasMore } = await ListService({
@@ -85,24 +98,30 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { name, color, kanban,
+  const {
+    name,
+    color,
+    kanban,
     timeLane,
     nextLaneId,
     greetingMessageLane,
-    rollbackLaneId } = req.body;
+    rollbackLaneId
+  } = req.body;
   const { companyId } = req.user;
 
   // Processar arquivos de mídia
   let mediaFilesData = null;
   if (req.files && Array.isArray(req.files) && req.files.length > 0) {
     const files = req.files as any[];
-    mediaFilesData = JSON.stringify(files.map(file => ({
-      filename: file.filename,
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      path: `/company${companyId}/lanes/${file.filename}`
-    })));
+    mediaFilesData = JSON.stringify(
+      files.map(file => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: `/company${companyId}/lanes/${file.filename}`
+      }))
+    );
   }
 
   const tag = await CreateService({
@@ -118,17 +137,16 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   });
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company${companyId}-tag`, {
-      action: "create",
-      tag
-    });
+  io.of(String(companyId)).emit(`company${companyId}-tag`, {
+    action: "create",
+    tag
+  });
 
   return res.status(200).json(tag);
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { tagId } = req.params;
+  const tagId = getRequestParam(req.params.tagId, "tagId");
 
   const tag = await ShowService(tagId);
 
@@ -146,25 +164,27 @@ export const update = async (
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  const { tagId } = req.params;
+  const tagId = getRequestParam(req.params.tagId, "tagId");
   const { companyId } = req.user;
 
   // Buscar tag existente para preservar mediaFiles se não houver novos uploads
   const existingTag = await ShowService(tagId);
-  
+
   // Processar arquivos de mídia
   let mediaFilesData = existingTag.mediaFiles; // Preservar arquivos existentes por padrão
-  
+
   if (req.files && Array.isArray(req.files) && req.files.length > 0) {
     const files = req.files as any[];
     const companyId = req.user?.companyId;
-    mediaFilesData = JSON.stringify(files.map(file => ({
-      filename: file.filename,
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      path: `/company${companyId}/lanes/${file.filename}`
-    })));
+    mediaFilesData = JSON.stringify(
+      files.map(file => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: `/company${companyId}/lanes/${file.filename}`
+      }))
+    );
   }
 
   const tagData = {
@@ -175,11 +195,10 @@ export const update = async (
   const tag = await UpdateService({ tagData, id: tagId });
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company${companyId}-tag`, {
-      action: "update",
-      tag
-    });
+  io.of(String(companyId)).emit(`company${companyId}-tag`, {
+    action: "update",
+    tag
+  });
 
   return res.status(200).json(tag);
 };
@@ -188,17 +207,16 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { tagId } = req.params;
+  const tagId = getRequestParam(req.params.tagId, "tagId");
   const { companyId } = req.user;
 
   await DeleteService(tagId);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company${companyId}-tag`, {
-      action: "delete",
-      tagId
-    });
+  io.of(String(companyId)).emit(`company${companyId}-tag`, {
+    action: "delete",
+    tagId
+  });
 
   return res.status(200).json({ message: "Tag deleted" });
 };
@@ -212,7 +230,10 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
   return res.json(tags);
 };
 
-export const kanban = async (req: Request, res: Response): Promise<Response> => {
+export const kanban = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { companyId } = req.user;
 
   const tags = await KanbanListService({ companyId });
@@ -236,10 +257,11 @@ export const removeContactTag = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { tagId, contactId } = req.params;
+  const tagId = getRequestParam(req.params.tagId, "tagId");
+  const contactId = getRequestParam(req.params.contactId, "contactId");
   const { companyId } = req.user;
 
-  console.log(tagId, contactId)
+  console.log(tagId, contactId);
 
   await ContactTag.destroy({
     where: {
@@ -251,11 +273,10 @@ export const removeContactTag = async (
   const tag = await ShowService(tagId);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company${companyId}-tag`, {
-      action: "update",
-      tag
-    });
+  io.of(String(companyId)).emit(`company${companyId}-tag`, {
+    action: "update",
+    tag
+  });
 
   return res.status(200).json({ message: "Tag deleted" });
 };

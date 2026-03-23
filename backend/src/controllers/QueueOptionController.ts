@@ -5,6 +5,7 @@ import ListService from "../services/QueueOptionService/ListService";
 import UpdateService from "../services/QueueOptionService/UpdateService";
 import ShowService from "../services/QueueOptionService/ShowService";
 import DeleteService from "../services/QueueOptionService/DeleteService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type FilterList = {
   queueId: string | number;
@@ -29,7 +30,10 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { queueOptionId } = req.params;
+  const queueOptionId = getRequestParam(
+    req.params.queueOptionId,
+    "queueOptionId"
+  );
 
   const queueOption = await ShowService(queueOptionId);
 
@@ -40,7 +44,10 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { queueOptionId } = req.params
+  const queueOptionId = getRequestParam(
+    req.params.queueOptionId,
+    "queueOptionId"
+  );
   const queueOptionData = req.body;
 
   const queueOption = await UpdateService(queueOptionId, queueOptionData);
@@ -52,7 +59,10 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { queueOptionId } = req.params
+  const queueOptionId = getRequestParam(
+    req.params.queueOptionId,
+    "queueOptionId"
+  );
 
   await DeleteService(queueOptionId);
 

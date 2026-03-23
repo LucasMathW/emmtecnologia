@@ -20,7 +20,6 @@ const ToggleChangeWidthService = async ({
     throw new AppError("ERR_NO_USER_FOUND", 404);
   }
 
-
   await user.update({
     defaultTicketsManagerWidth: Number(defaultTicketsManagerWidth)
   });

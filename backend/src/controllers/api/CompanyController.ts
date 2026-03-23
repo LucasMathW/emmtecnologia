@@ -12,6 +12,7 @@ import UpdateSchedulesService from "../../services/CompanyService/UpdateSchedule
 import DeleteCompanyService from "../../services/CompanyService/DeleteCompanyService";
 import FindAllCompaniesService from "../../services/CompanyService/FindAllCompaniesService";
 import ShowEmailCompanyService from "../../services/CompanyService/ShowEmailCompanyService";
+import { getRequestParam } from "../../helpers/getRequestParam";
 
 interface TokenPayload {
   id: string;
@@ -116,7 +117,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const company = await ShowCompanyService(id);
 
@@ -124,7 +125,7 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const showEmail = async (req: Request, res: Response): Promise<Response> => {
-  const { email } = req.params;
+  const email = getRequestParam(req.params.email, "email");
 
   const company = await ShowEmailCompanyService(email);
 
@@ -143,7 +144,7 @@ export const update = async (
 ): Promise<Response> => {
   const companyData: CompanyData = req.body;
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const schema = Yup.object().shape({
     name: Yup.string()
@@ -202,7 +203,7 @@ export const updateSchedules = async (
   res: Response
 ): Promise<Response> => {
   const { schedules }: SchedulesData = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const company = await UpdateSchedulesService({
     id,
@@ -216,7 +217,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const company = await DeleteCompanyService(id);
 

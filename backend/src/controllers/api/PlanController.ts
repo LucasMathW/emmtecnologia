@@ -12,6 +12,7 @@ import UpdatePlanService from "../../services/PlanService/UpdatePlanService";
 import ShowPlanService from "../../services/PlanService/ShowPlanService";
 import FindAllPlanService from "../../services/PlanService/FindAllPlanService";
 import DeletePlanService from "../../services/PlanService/DeletePlanService";
+import { getRequestParam } from "../../helpers/getRequestParam";
 
 interface TokenPayload {
   id: string;
@@ -109,7 +110,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const plan = await ShowPlanService(id);
 
@@ -121,7 +122,7 @@ export const update = async (
   res: Response
 ): Promise<Response> => {
   const planData: UpdatePlanData = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const schema = Yup.object().shape({
     name: Yup.string().required(),
@@ -197,7 +198,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const plan = await DeletePlanService(id);
 

@@ -15,6 +15,7 @@ import Plan from "../models/Plan";
 import ListWhatsAppsService from "../services/WhatsappService/ListWhatsAppsService";
 import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSession";
 import * as Sentry from "@sentry/node";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 // const app = express();
 
@@ -310,7 +311,7 @@ export const webhook = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { type } = req.params;
+  const type = getRequestParam(req.params.type, "type");
   const { evento } = req.body;
 
   //console.log(req.body);
@@ -386,7 +387,7 @@ export const stripewebhook = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { type } = req.params;
+  const type = getRequestParam(req.params.type, "type");
   const { evento } = req.body;
 
   //console.log(req.body);

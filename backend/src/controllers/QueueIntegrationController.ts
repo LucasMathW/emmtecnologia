@@ -6,6 +6,7 @@ import ListQueueIntegrationService from "../services/QueueIntegrationServices/Li
 import ShowQueueIntegrationService from "../services/QueueIntegrationServices/ShowQueueIntegrationService";
 import TestSessionIntegrationService from "../services/QueueIntegrationServices/TestSessionDialogflowService";
 import UpdateQueueIntegrationService from "../services/QueueIntegrationServices/UpdateQueueIntegrationService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -57,7 +58,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { integrationId } = req.params;
+  const integrationId = getRequestParam(req.params.integrationId, "integrationId");
   const { companyId } = req.user;
 
   const queueIntegration = await ShowQueueIntegrationService(integrationId, companyId);
@@ -69,7 +70,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { integrationId } = req.params;
+  const integrationId = getRequestParam(req.params.integrationId, "integrationId");
   const integrationData = req.body;
   const { companyId } = req.user;
 
@@ -89,7 +90,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { integrationId } = req.params;
+  const integrationId = getRequestParam(req.params.integrationId, "integrationId");
   const { companyId } = req.user;
 
   await DeleteQueueIntegrationService(integrationId);

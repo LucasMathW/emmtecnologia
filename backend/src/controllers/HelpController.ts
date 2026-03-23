@@ -12,6 +12,7 @@ import FindService from "../services/HelpServices/FindService";
 import Help from "../models/Help";
 
 import AppError from "../errors/AppError";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -64,7 +65,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await ShowService(id);
 
@@ -88,7 +89,7 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await UpdateService({
     ...data,
@@ -109,7 +110,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   await DeleteService(id);

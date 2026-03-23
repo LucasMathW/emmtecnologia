@@ -26,6 +26,7 @@ import AppError from "../errors/AppError";
 import { CancelService } from "../services/CampaignService/CancelService";
 import { RestartService } from "../services/CampaignService/RestartService";
 import RecurrenceService from "../services/CampaignService/RecurrenceService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -79,10 +80,18 @@ type FindParams = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { searchParam, pageNumber, pageSize, status, isRecurring } = req.query as IndexQuery;
+  const { searchParam, pageNumber, pageSize, status, isRecurring } =
+    req.query as IndexQuery;
   const { companyId } = req.user;
 
-  const { records, count, hasMore, totalPages, currentPage, pageSize: limit } = await ListService({
+  const {
+    records,
+    count,
+    hasMore,
+    totalPages,
+    currentPage,
+    pageSize: limit
+  } = await ListService({
     searchParam,
     pageNumber,
     pageSize,
@@ -91,7 +100,14 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     isRecurring
   });
 
-  return res.json({ records, count, hasMore, totalPages, currentPage, pageSize: limit });
+  return res.json({
+    records,
+    count,
+    hasMore,
+    totalPages,
+    currentPage,
+    pageSize: limit
+  });
 };
 
 // src/controllers/CampaignController.ts - Store method completo
@@ -112,28 +128,39 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     openTicket: Yup.string().required(),
     // Validação de recorrência
     isRecurring: Yup.boolean().default(false),
-    recurrenceType: Yup.string().when('isRecurring', {
+    recurrenceType: Yup.string().when("isRecurring", {
       is: true,
-      then: Yup.string().oneOf(['minutely', 'hourly', 'daily', 'weekly', 'biweekly', 'monthly', 'yearly']).required(),
+      then: Yup.string()
+        .oneOf([
+          "minutely",
+          "hourly",
+          "daily",
+          "weekly",
+          "biweekly",
+          "monthly",
+          "yearly"
+        ])
+        .required(),
       otherwise: Yup.string().nullable()
     }),
-    recurrenceInterval: Yup.number().when('isRecurring', {
+    recurrenceInterval: Yup.number().when("isRecurring", {
       is: true,
       then: Yup.number().min(1).required(),
       otherwise: Yup.number().nullable()
     }),
     recurrenceDaysOfWeek: Yup.mixed().nullable(), // Mixed para aceitar array ou string
-    recurrenceDayOfMonth: Yup.number().when(['isRecurring', 'recurrenceType'], {
-      is: (isRecurring, recurrenceType) => isRecurring && recurrenceType === 'monthly',
+    recurrenceDayOfMonth: Yup.number().when(["isRecurring", "recurrenceType"], {
+      is: (isRecurring, recurrenceType) =>
+        isRecurring && recurrenceType === "monthly",
       then: Yup.number().min(1).max(31).required(),
       otherwise: Yup.number().nullable()
     }),
-    recurrenceEndDate: Yup.date().when('isRecurring', {
+    recurrenceEndDate: Yup.date().when("isRecurring", {
       is: true,
-      then: Yup.date().min(new Date(), 'Data final deve ser futura').nullable(),
+      then: Yup.date().min(new Date(), "Data final deve ser futura").nullable(),
       otherwise: Yup.date().nullable()
     }),
-    maxExecutions: Yup.number().when('isRecurring', {
+    maxExecutions: Yup.number().when("isRecurring", {
       is: true,
       then: Yup.number().min(1).nullable(),
       otherwise: Yup.number().nullable()
@@ -172,7 +199,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       maxExecutions
     }: StoreData = req.body;
 
-    console.log('[Campaign Store] Dados recebidos:', {
+    console.log("[Campaign Store] Dados recebidos:", {
       isRecurring,
       recurrenceType,
       recurrenceDaysOfWeek,
@@ -184,27 +211,33 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     const processedRecurrenceData = {
       isRecurring: isRecurring || false,
       recurrenceType: isRecurring ? recurrenceType : null,
-      recurrenceInterval: isRecurring ? (recurrenceInterval || 1) : null,
+      recurrenceInterval: isRecurring ? recurrenceInterval || 1 : null,
       recurrenceDaysOfWeek: (() => {
         if (!isRecurring) return null;
         if (!recurrenceDaysOfWeek) return null;
         if (Array.isArray(recurrenceDaysOfWeek)) {
-          return recurrenceDaysOfWeek.length > 0 ? JSON.stringify(recurrenceDaysOfWeek) : null;
+          return recurrenceDaysOfWeek.length > 0
+            ? JSON.stringify(recurrenceDaysOfWeek)
+            : null;
         }
-        if (typeof recurrenceDaysOfWeek === 'string') {
+        if (typeof recurrenceDaysOfWeek === "string") {
           return recurrenceDaysOfWeek;
         }
         return null;
       })(),
-      recurrenceDayOfMonth: (isRecurring && recurrenceType === 'monthly') ? recurrenceDayOfMonth : null,
-      recurrenceEndDate: (isRecurring && recurrenceEndDate) ? new Date(recurrenceEndDate) : null,
-      maxExecutions: (isRecurring && maxExecutions) ? maxExecutions : null,
+      recurrenceDayOfMonth:
+        isRecurring && recurrenceType === "monthly"
+          ? recurrenceDayOfMonth
+          : null,
+      recurrenceEndDate:
+        isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+      maxExecutions: isRecurring && maxExecutions ? maxExecutions : null,
       executionCount: 0,
       nextScheduledAt: null,
       lastExecutedAt: null
     };
 
-    console.log('[Campaign Store] Dados processados:', processedRecurrenceData);
+    console.log("[Campaign Store] Dados processados:", processedRecurrenceData);
 
     const processedData = {
       name,
@@ -237,7 +270,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
     const campaign = await Campaign.create(processedData);
 
-    console.log('[Campaign Store] Campanha criada:', campaign.id);
+    console.log("[Campaign Store] Campanha criada:", campaign.id);
 
     // Log detalhado com informações da lista/tag
     let totalContacts = 0;
@@ -246,45 +279,55 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       totalContacts = await ContactListItem.count({
         where: { contactListId: campaign.contactListId }
       });
-      console.log(`[Campaign Store] Campanha por lista - Total de contatos: ${totalContacts}`);
+      console.log(
+        `[Campaign Store] Campanha por lista - Total de contatos: ${totalContacts}`
+      );
     } else if (campaign.tagListId) {
       // Buscar total de contatos na tag
       totalContacts = await ContactTag.count({
         where: { tagId: campaign.tagListId },
-        include: [{
-          model: Contact,
-          as: "contact",
-          where: { companyId: campaign.companyId, active: true },
-          required: true
-        }]
+        include: [
+          {
+            model: Contact,
+            as: "contact",
+            where: { companyId: campaign.companyId, active: true },
+            required: true
+          }
+        ]
       });
-      console.log(`[Campaign Store] Campanha por tag - Total de contatos: ${totalContacts}`);
+      console.log(
+        `[Campaign Store] Campanha por tag - Total de contatos: ${totalContacts}`
+      );
     }
 
     // Se for recorrente, calcular próxima execução
     if (campaign.isRecurring) {
-      console.log('[Campaign Store] Configurando próxima execução para campanha recorrente');
+      console.log(
+        "[Campaign Store] Configurando próxima execução para campanha recorrente"
+      );
       await RecurrenceService.scheduleNextExecution(campaign.id);
     }
 
     const io = getIO();
-    io.of(String(companyId))
-      .emit(`company-${companyId}-campaign`, {
-        action: "create",
-        record: campaign
-      });
+    io.of(String(companyId)).emit(`company-${companyId}-campaign`, {
+      action: "create",
+      record: campaign
+    });
 
     return res.status(200).json(campaign);
   } catch (err: any) {
-    console.error('[Campaign Store] Erro:', err.message);
+    console.error("[Campaign Store] Erro:", err.message);
     throw new AppError(err.message);
   }
 };
 
 // Update method também precisa ser atualizado
-export const update = async (req: Request, res: Response): Promise<Response> => {
+export const update = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { companyId } = req.user;
-  const { campaignId } = req.params;
+  const campaignId = getRequestParam(req.params.campaignId, "campaignId");
 
   const schema = Yup.object().shape({
     name: Yup.string().required(),
@@ -299,28 +342,39 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
     openTicket: Yup.string().required(),
     // Validação de recorrência
     isRecurring: Yup.boolean().default(false),
-    recurrenceType: Yup.string().when('isRecurring', {
+    recurrenceType: Yup.string().when("isRecurring", {
       is: true,
-      then: Yup.string().oneOf(['minutely', 'hourly', 'daily', 'weekly', 'biweekly', 'monthly', 'yearly']).required(),
+      then: Yup.string()
+        .oneOf([
+          "minutely",
+          "hourly",
+          "daily",
+          "weekly",
+          "biweekly",
+          "monthly",
+          "yearly"
+        ])
+        .required(),
       otherwise: Yup.string().nullable()
     }),
-    recurrenceInterval: Yup.number().when('isRecurring', {
+    recurrenceInterval: Yup.number().when("isRecurring", {
       is: true,
       then: Yup.number().min(1).required(),
       otherwise: Yup.number().nullable()
     }),
     recurrenceDaysOfWeek: Yup.mixed().nullable(),
-    recurrenceDayOfMonth: Yup.number().when(['isRecurring', 'recurrenceType'], {
-      is: (isRecurring, recurrenceType) => isRecurring && recurrenceType === 'monthly',
+    recurrenceDayOfMonth: Yup.number().when(["isRecurring", "recurrenceType"], {
+      is: (isRecurring, recurrenceType) =>
+        isRecurring && recurrenceType === "monthly",
       then: Yup.number().min(1).max(31).required(),
       otherwise: Yup.number().nullable()
     }),
-    recurrenceEndDate: Yup.date().when('isRecurring', {
+    recurrenceEndDate: Yup.date().when("isRecurring", {
       is: true,
-      then: Yup.date().min(new Date(), 'Data final deve ser futura').nullable(),
+      then: Yup.date().min(new Date(), "Data final deve ser futura").nullable(),
       otherwise: Yup.date().nullable()
     }),
-    maxExecutions: Yup.number().when('isRecurring', {
+    maxExecutions: Yup.number().when("isRecurring", {
       is: true,
       then: Yup.number().min(1).nullable(),
       otherwise: Yup.number().nullable()
@@ -359,7 +413,7 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
       maxExecutions
     }: StoreData = req.body;
 
-    console.log('[Campaign Update] Dados recebidos:', {
+    console.log("[Campaign Update] Dados recebidos:", {
       campaignId,
       isRecurring,
       recurrenceType,
@@ -372,21 +426,27 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
     const processedRecurrenceData = {
       isRecurring: isRecurring || false,
       recurrenceType: isRecurring ? recurrenceType : null,
-      recurrenceInterval: isRecurring ? (recurrenceInterval || 1) : null,
+      recurrenceInterval: isRecurring ? recurrenceInterval || 1 : null,
       recurrenceDaysOfWeek: (() => {
         if (!isRecurring) return null;
         if (!recurrenceDaysOfWeek) return null;
         if (Array.isArray(recurrenceDaysOfWeek)) {
-          return recurrenceDaysOfWeek.length > 0 ? JSON.stringify(recurrenceDaysOfWeek) : null;
+          return recurrenceDaysOfWeek.length > 0
+            ? JSON.stringify(recurrenceDaysOfWeek)
+            : null;
         }
-        if (typeof recurrenceDaysOfWeek === 'string') {
+        if (typeof recurrenceDaysOfWeek === "string") {
           return recurrenceDaysOfWeek;
         }
         return null;
       })(),
-      recurrenceDayOfMonth: (isRecurring && recurrenceType === 'monthly') ? recurrenceDayOfMonth : null,
-      recurrenceEndDate: (isRecurring && recurrenceEndDate) ? new Date(recurrenceEndDate) : null,
-      maxExecutions: (isRecurring && maxExecutions) ? maxExecutions : null
+      recurrenceDayOfMonth:
+        isRecurring && recurrenceType === "monthly"
+          ? recurrenceDayOfMonth
+          : null,
+      recurrenceEndDate:
+        isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+      maxExecutions: isRecurring && maxExecutions ? maxExecutions : null
     };
 
     const processedData = {
@@ -428,30 +488,31 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
 
     await campaign.update(processedData);
 
-    console.log('[Campaign Update] Campanha atualizada:', campaign.id);
+    console.log("[Campaign Update] Campanha atualizada:", campaign.id);
 
     // Se for recorrente, recalcular próxima execução
     if (campaign.isRecurring) {
-      console.log('[Campaign Update] Reconfigurando próxima execução para campanha recorrente');
+      console.log(
+        "[Campaign Update] Reconfigurando próxima execução para campanha recorrente"
+      );
       await RecurrenceService.scheduleNextExecution(campaign.id);
     }
 
     const io = getIO();
-    io.of(String(companyId))
-      .emit(`company-${companyId}-campaign`, {
-        action: "update",
-        record: campaign
-      });
+    io.of(String(companyId)).emit(`company-${companyId}-campaign`, {
+      action: "update",
+      record: campaign
+    });
 
     return res.status(200).json(campaign);
   } catch (err: any) {
-    console.error('[Campaign Update] Erro:', err.message);
+    console.error("[Campaign Update] Erro:", err.message);
     throw new AppError(err.message);
   }
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await ShowService(id);
 
@@ -462,7 +523,7 @@ export const cancel = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   await CancelService(+id);
 
@@ -473,7 +534,7 @@ export const restart = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   await RestartService(+id);
 
@@ -484,17 +545,16 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   await DeleteService(id);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-campaign`, {
-      action: "delete",
-      id
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-campaign`, {
+    action: "delete",
+    id
+  });
 
   return res.status(200).json({ message: "Campaign deleted" });
 };
@@ -513,7 +573,7 @@ export const mediaUpload = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const files = req.files as Express.Multer.File[];
   const file = head(files);
 
@@ -533,11 +593,15 @@ export const deleteMedia = async (
   res: Response
 ): Promise<Response> => {
   const { companyId } = req.user;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   try {
     const campaign = await Campaign.findByPk(id);
-    const filePath = path.resolve("public", `company${companyId}`, campaign.mediaPath);
+    const filePath = path.resolve(
+      "public",
+      `company${companyId}`,
+      campaign.mediaPath
+    );
     const fileExists = fs.existsSync(filePath);
     if (fileExists) {
       fs.unlinkSync(filePath);
@@ -552,9 +616,17 @@ export const deleteMedia = async (
   }
 };
 
-export const previewRecurrence = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
-  const { recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth } = req.query;
+export const previewRecurrence = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = getRequestParam(req.params.id, "id");
+  const {
+    recurrenceType,
+    recurrenceInterval,
+    recurrenceDaysOfWeek,
+    recurrenceDayOfMonth
+  } = req.query;
 
   try {
     const campaign = await Campaign.findByPk(id);
@@ -565,16 +637,23 @@ export const previewRecurrence = async (req: Request, res: Response): Promise<Re
     const config = {
       type: recurrenceType as string,
       interval: parseInt(recurrenceInterval as string),
-      daysOfWeek: recurrenceDaysOfWeek ? JSON.parse(recurrenceDaysOfWeek as string) : undefined,
-      dayOfMonth: recurrenceDayOfMonth ? parseInt(recurrenceDayOfMonth as string) : undefined
+      daysOfWeek: recurrenceDaysOfWeek
+        ? JSON.parse(recurrenceDaysOfWeek as string)
+        : undefined,
+      dayOfMonth: recurrenceDayOfMonth
+        ? parseInt(recurrenceDayOfMonth as string)
+        : undefined
     };
 
     const executions = [];
     let currentDate = new Date(campaign.scheduledAt);
-    
-    for (let i = 0; i < 10; i++) { // Preview das próximas 10 execuções
+
+    for (let i = 0; i < 10; i++) {
       executions.push(new Date(currentDate));
-      currentDate = RecurrenceService.calculateNextExecution(currentDate, config);
+      currentDate = RecurrenceService.calculateNextExecution(
+        currentDate,
+        config
+      );
     }
 
     return res.json({ executions });
@@ -583,8 +662,11 @@ export const previewRecurrence = async (req: Request, res: Response): Promise<Re
   }
 };
 
-export const stopRecurrence = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+export const stopRecurrence = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   try {
@@ -596,25 +678,29 @@ export const stopRecurrence = async (req: Request, res: Response): Promise<Respo
     await campaign.update({
       isRecurring: false,
       nextScheduledAt: null,
-      status: campaign.status === 'PROGRAMADA' ? 'FINALIZADA' : campaign.status
+      status: campaign.status === "PROGRAMADA" ? "FINALIZADA" : campaign.status
     });
 
     const io = getIO();
-    io.of(String(companyId))
-      .emit(`company-${companyId}-campaign`, {
-        action: "update",
-        record: campaign
-      });
+    io.of(String(companyId)).emit(`company-${companyId}-campaign`, {
+      action: "update",
+      record: campaign
+    });
 
-    return res.status(200).json({ message: "Recorrência interrompida com sucesso" });
+    return res
+      .status(200)
+      .json({ message: "Recorrência interrompida com sucesso" });
   } catch (err: any) {
     throw new AppError(err.message);
   }
 };
 
 // Novo endpoint para dados de shipping com paginação
-export const getShipping = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+export const getShipping = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = getRequestParam(req.params.id, "id");
   const { page = 1, pageSize = 50, searchParam, status } = req.query;
 
   try {
@@ -623,7 +709,7 @@ export const getShipping = async (req: Request, res: Response): Promise<Response
       page: parseInt(page as string),
       pageSize: parseInt(pageSize as string),
       searchParam: searchParam as string,
-      status: status as 'delivered' | 'pending' | 'failed'
+      status: status as "delivered" | "pending" | "failed"
     });
 
     return res.status(200).json(result);
@@ -634,8 +720,11 @@ export const getShipping = async (req: Request, res: Response): Promise<Response
 };
 
 // Novo endpoint para estatísticas da campanha
-export const getStats = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+export const getStats = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = getRequestParam(req.params.id, "id");
 
   try {
     const stats = await CampaignStatsService(id);

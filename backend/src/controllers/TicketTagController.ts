@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import AppError from "../errors/AppError";
-import TicketTag from '../models/TicketTag';
-import Tag from '../models/Tag'
+import TicketTag from "../models/TicketTag";
+import Tag from "../models/Tag";
 import { getIO } from "../libs/socket";
 import Ticket from "../models/Ticket";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
@@ -10,9 +10,11 @@ import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
 import { sendFacebookMessage } from "../services/FacebookServices/sendFacebookMessage";
 import SendWhatsAppMedia from "../services/WbotServices/SendWhatsAppMedia";
 import SendWhatsAppOficialMessage from "../services/WhatsAppOficial/SendWhatsAppOficialMessage";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId, tagId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
+  const tagId = getRequestParam(req.params.tagId, "tagId");
   const { companyId } = req.user;
 
   try {
@@ -20,13 +22,21 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
     if (ticketTag) {
       const nextTag = await Tag.findOne({ where: { id: tagId } });
-      if (!isNil(nextTag.greetingMessageLane) && nextTag.greetingMessageLane !== "") {
+      if (
+        !isNil(nextTag.greetingMessageLane) &&
+        nextTag.greetingMessageLane !== ""
+      ) {
         const ticketUpdate = await ShowTicketService(ticketId, companyId);
-        const bodyMessage = ticketUpdate.user ? `*${ticketUpdate.user.name}:*\n${nextTag.greetingMessageLane}` : nextTag.greetingMessageLane;
+        const bodyMessage = ticketUpdate.user
+          ? `*${ticketUpdate.user.name}:*\n${nextTag.greetingMessageLane}`
+          : nextTag.greetingMessageLane;
 
         if (ticketUpdate.channel === "whatsapp") {
           // Enviar mensagem de texto
-          await SendWhatsAppMessage({ body: bodyMessage, ticket: ticketUpdate });
+          await SendWhatsAppMessage({
+            body: bodyMessage,
+            ticket: ticketUpdate
+          });
 
           // Enviar mídias se existirem
           if (nextTag.mediaFiles) {
@@ -46,19 +56,21 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
         if (["facebook", "instagram"].includes(ticketUpdate.channel)) {
           try {
-            await sendFacebookMessage({ body: `\u200e ${bodyMessage}`, ticket: ticketUpdate });
+            await sendFacebookMessage({
+              body: `\u200e ${bodyMessage}`,
+              ticket: ticketUpdate
+            });
           } catch (error) {
             console.log("error", error);
           }
         }
 
         if (ticketUpdate.channel === "whatsapp_oficial") {
-
           await SendWhatsAppOficialMessage({
             body: bodyMessage,
             ticket: ticketUpdate,
             quotedMsg: null,
-            type: 'text',
+            type: "text",
             media: null,
             vCard: null
           });
@@ -68,13 +80,13 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
               const mediaFiles = JSON.parse(nextTag.mediaFiles);
               for (const mediaFile of mediaFiles) {
                 const mediaSrc = {
-                  fieldname: 'medias',
+                  fieldname: "medias",
                   originalname: mediaFile.originalname,
-                  encoding: '7bit',
+                  encoding: "7bit",
                   mimetype: mediaFile.mimetype,
                   filename: mediaFile.filename,
                   path: mediaFile.path
-                } as Express.Multer.File
+                } as Express.Multer.File;
 
                 await SendWhatsAppOficialMessage({
                   body: "",
@@ -103,13 +115,13 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
     return res.status(201).json(ticketTag);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to store ticket tag.' });
+    return res.status(500).json({ error: "Failed to store ticket tag." });
   }
 };
 
 /*
 export const remove = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
 
   console.log("remove");
   console.log(req.params);
@@ -122,8 +134,11 @@ export const remove = async (req: Request, res: Response): Promise<Response> => 
   }
 };
 */
-export const remove = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId } = req.params;
+export const remove = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { companyId } = req.user;
 
   //console.log("remove");
@@ -132,21 +147,22 @@ export const remove = async (req: Request, res: Response): Promise<Response> => 
   try {
     // Retrieve tagIds associated with the provided ticketId from TicketTags
     const ticketTags = await TicketTag.findAll({ where: { ticketId } });
-    const tagIds = ticketTags.map((ticketTag) => ticketTag.tagId);
+    const tagIds = ticketTags.map(ticketTag => ticketTag.tagId);
 
     // Find the tagIds with kanban = 1 in the Tags table
     const tagsWithKanbanOne = await Tag.findAll({
       where: {
         id: tagIds,
-        kanban: 1,
-      },
+        kanban: 1
+      }
     });
 
     // Remove the tagIds with kanban = 1 from TicketTags
-    const tagIdsWithKanbanOne = tagsWithKanbanOne.map((tag) => tag.id);
+    const tagIdsWithKanbanOne = tagsWithKanbanOne.map(tag => tag.id);
     if (tagIdsWithKanbanOne)
-      await TicketTag.destroy({ where: { ticketId, tagId: tagIdsWithKanbanOne } });
-
+      await TicketTag.destroy({
+        where: { ticketId, tagId: tagIdsWithKanbanOne }
+      });
 
     const ticket = await ShowTicketService(ticketId, companyId);
 
@@ -157,8 +173,10 @@ export const remove = async (req: Request, res: Response): Promise<Response> => 
         action: "update",
         ticket
       });
-    return res.status(200).json({ message: 'Ticket tags removed successfully.' });
+    return res
+      .status(200)
+      .json({ message: "Ticket tags removed successfully." });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to remove ticket tags.' });
+    return res.status(500).json({ error: "Failed to remove ticket tags." });
   }
 };

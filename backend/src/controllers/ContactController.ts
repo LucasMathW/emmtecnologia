@@ -1,7 +1,7 @@
 import * as Yup from "yup";
-import {Request, Response} from "express";
-import {getIO} from "../libs/socket";
-import {head} from "lodash";
+import { Request, Response } from "express";
+import { getIO } from "../libs/socket";
+import { head } from "lodash";
 import ListContactsService from "../services/ContactServices/ListContactsService";
 import CreateContactService from "../services/ContactServices/CreateContactService";
 import ShowContactService from "../services/ContactServices/ShowContactService";
@@ -11,6 +11,9 @@ import GetContactService from "../services/ContactServices/GetContactService";
 import CheckContactNumber from "../services/WbotServices/CheckNumber";
 import GetProfilePicUrl from "../services/WbotServices/GetProfilePicUrl";
 import AppError from "../errors/AppError";
+
+import { getRequestParam } from "../helpers/getRequestParam";
+
 import {
   emailSchema,
   phoneSchema,
@@ -34,7 +37,7 @@ import SimpleListService, {
 } from "../services/ContactServices/SimpleListService";
 import ToggleAcceptAudioContactService from "../services/ContactServices/ToggleAcceptAudioContactService";
 import BlockUnblockContactService from "../services/ContactServices/BlockUnblockContactService";
-import {ImportContactsService} from "../services/ContactServices/ImportContactsService";
+import { ImportContactsService } from "../services/ContactServices/ImportContactsService";
 import NumberSimpleListService from "../services/ContactServices/NumberSimpleListService";
 import CreateOrUpdateContactServiceForImport from "../services/ContactServices/CreateOrUpdateContactServiceForImport";
 import UpdateContactWalletsService from "../services/ContactServices/UpdateContactWalletsService";
@@ -51,7 +54,7 @@ import Contact from "../models/Contact";
 import Tag from "../models/Tag";
 import ContactTag from "../models/ContactTag";
 import logger from "../utils/logger";
-import {createWalletContactUser} from "../services/ContactServices/CreateWalletContactUser";
+import { createWalletContactUser } from "../services/ContactServices/CreateWalletContactUser";
 import User from "../models/User";
 import GetContactMediaService from "../services/ContactServices/GetContactMediaService";
 
@@ -89,25 +92,31 @@ export const importXls = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {companyId} = req.user;
-  const {number, name, email, validateContact, tags, carteira, birthDate} = req.body;
+  const { companyId } = req.user;
+  const { number, name, email, validateContact, tags, carteira, birthDate } =
+    req.body;
 
   try {
     logger.info(`Iniciando importação de contato: ${name} - ${number}`);
     const simpleNumber = String(number).replace(/[^\d.-]+/g, "");
-    let validNumber: any = {jid: simpleNumber};
+    let validNumber: any = { jid: simpleNumber };
 
     if (validateContact === "true") {
       try {
         logger.info(`Validando número: ${simpleNumber}`);
         validNumber = await CheckContactNumber(simpleNumber, companyId);
-        logger.info(`Número validado com sucesso: ${JSON.stringify(validNumber)}`);
+        logger.info(
+          `Número validado com sucesso: ${JSON.stringify(validNumber)}`
+        );
       } catch (validationError) {
-        logger.error(`Erro ao validar número ${simpleNumber}:`, validationError);
-        validNumber = {jid: simpleNumber};
+        logger.error(
+          `Erro ao validar número ${simpleNumber}:`,
+          validationError
+        );
+        validNumber = { jid: simpleNumber };
       }
     } else {
-      validNumber = {jid: `${simpleNumber}@s.whatsapp.net`};
+      validNumber = { jid: `${simpleNumber}@s.whatsapp.net` };
       logger.info(`Usando número sem validação: ${validNumber.jid}`);
     }
 
@@ -116,12 +125,14 @@ export const importXls = async (
 
     try {
       const whatsappPromise = GetDefaultWhatsApp(companyId);
-      const profilePicPromise = validNumber.jid ?
-        GetProfilePicUrl(validNumber.jid, companyId).catch(err => {
-          logger.warn(`Não foi possível obter foto do perfil: ${err.message}`);
-          return "";
-        }) :
-        Promise.resolve("");
+      const profilePicPromise = validNumber.jid
+        ? GetProfilePicUrl(validNumber.jid, companyId).catch(err => {
+            logger.warn(
+              `Não foi possível obter foto do perfil: ${err.message}`
+            );
+            return "";
+          })
+        : Promise.resolve("");
 
       const [defaultWhatsapp, profilePicUrlResult] = await Promise.all([
         whatsappPromise,
@@ -132,7 +143,9 @@ export const importXls = async (
       whatsappId = defaultWhatsapp.id;
       logger.info(`WhatsApp ID obtido: ${whatsappId}`);
     } catch (error) {
-      logger.error(`Erro ao obter foto do perfil ou WhatsApp padrão: ${error.message}`);
+      logger.error(
+        `Erro ao obter foto do perfil ou WhatsApp padrão: ${error.message}`
+      );
     }
 
     // Processar birthDate se fornecido
@@ -140,8 +153,8 @@ export const importXls = async (
     if (birthDate) {
       try {
         // Verificar se é string no formato YYYY-MM-DD
-        if (typeof birthDate === 'string' && birthDate.includes('-')) {
-          const [year, month, day] = birthDate.split('-').map(Number);
+        if (typeof birthDate === "string" && birthDate.includes("-")) {
+          const [year, month, day] = birthDate.split("-").map(Number);
           processedBirthDate = new Date(year, month - 1, day, 12, 0, 0); // Set to midday local time
           if (isNaN(processedBirthDate.getTime())) {
             logger.warn(`Invalid birthDate string provided: ${birthDate}`);
@@ -160,7 +173,9 @@ export const importXls = async (
     }
     const contactData = {
       name: `${name}`,
-      number: validNumber.jid ? validNumber.jid.replace("@s.whatsapp.net", "") : simpleNumber,
+      number: validNumber.jid
+        ? validNumber.jid.replace("@s.whatsapp.net", "")
+        : simpleNumber,
       profilePicUrl,
       isGroup: false,
       email,
@@ -169,7 +184,9 @@ export const importXls = async (
       birthDate: processedBirthDate
     };
 
-    logger.info(`RDS: Criando/atualizando contato: ${JSON.stringify(contactData)}`);
+    logger.info(
+      `RDS: Criando/atualizando contato: ${JSON.stringify(contactData)}`
+    );
     const contact = await CreateOrUpdateContactServiceForImport(contactData);
 
     if (tags) {
@@ -179,7 +196,7 @@ export const importXls = async (
       for (const tagName of tagList) {
         try {
           let [tag, created] = await Tag.findOrCreate({
-            where: {name: tagName, companyId, color: "#A4CCCC", kanban: 0}
+            where: { name: tagName, companyId, color: "#A4CCCC", kanban: 0 }
           });
 
           await ContactTag.findOrCreate({
@@ -239,7 +256,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     contactTag: tagIdsStringified,
     isGroup
   } = req.query as IndexQuery;
-  const {id: userId, companyId} = req.user;
+  const { id: userId, companyId } = req.user;
 
   let tagsIds: number[] = [];
 
@@ -247,7 +264,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     tagsIds = JSON.parse(tagIdsStringified);
   }
 
-  const {contacts, count, hasMore} = await ListContactsService({
+  const { contacts, count, hasMore } = await ListContactsService({
     searchParam,
     pageNumber,
     companyId,
@@ -256,15 +273,15 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     userId: Number(userId)
   });
 
-  return res.json({contacts, count, hasMore});
+  return res.json({ contacts, count, hasMore });
 };
 
 export const getContact = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {name, number} = req.body as IndexGetContactQuery;
-  const {companyId} = req.user;
+  const { name, number } = req.body as IndexGetContactQuery;
+  const { companyId } = req.user;
 
   const contact = await GetContactService({
     name,
@@ -276,7 +293,7 @@ export const getContact = async (
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const {companyId} = req.user;
+  const { companyId } = req.user;
   const newContact: ContactData = req.body;
   newContact.number = newContact.number.replace("-", "").replace(" ", "");
 
@@ -335,8 +352,8 @@ export const update = async (
   res: Response
 ): Promise<Response> => {
   const contactData: ContactData = req.body;
-  const {companyId} = req.user;
-  const {contactId} = req.params;
+  const { companyId } = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
 
   const schema = Yup.object().shape({
     name: Yup.string(),
@@ -402,8 +419,8 @@ export const update = async (
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   const contact = await ShowContactService(contactId, companyId);
 
@@ -414,8 +431,8 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   await ShowContactService(contactId, companyId);
 
@@ -427,12 +444,12 @@ export const remove = async (
     contactId
   });
 
-  return res.status(200).json({message: "Contact deleted"});
+  return res.status(200).json({ message: "Contact deleted" });
 };
 
 export const list = async (req: Request, res: Response): Promise<Response> => {
-  const {name} = req.query as unknown as SearchContactParams;
-  const {companyId, id: userId} = req.user;
+  const { name } = req.query as unknown as SearchContactParams;
+  const { companyId, id: userId } = req.user;
 
   const contacts = await SimpleListService({
     name,
@@ -447,9 +464,9 @@ export const toggleAcceptAudio = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  var {contactId} = req.params;
-  const {companyId} = req.user;
-  const contact = await ToggleAcceptAudioContactService({contactId});
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
+  const contact = await ToggleAcceptAudioContactService({ contactId });
 
   const io = getIO();
   io.of(String(companyId)).emit(`company-${companyId}-contact`, {
@@ -464,9 +481,9 @@ export const blockUnblock = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  var {contactId} = req.params;
-  const {companyId} = req.user;
-  const {active} = req.body;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
+  const { active } = req.body;
 
   const contact = await BlockUnblockContactService({
     contactId,
@@ -486,7 +503,7 @@ export const blockUnblock = async (
 export const upload = async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   const file: Express.Multer.File = head(files) as Express.Multer.File;
-  const {companyId} = req.user;
+  const { companyId } = req.user;
 
   const response = await ImportContactsService(companyId, file);
 
@@ -501,8 +518,8 @@ export const upload = async (req: Request, res: Response) => {
 };
 
 export const getContactProfileURL = async (req: Request, res: Response) => {
-  const {number} = req.params;
-  const {companyId} = req.user;
+  const number = getRequestParam(req.params.number, "number");
+  const { companyId } = req.user;
 
   if (number) {
     const validNumber: any = await CheckContactNumber(number, companyId);
@@ -538,8 +555,8 @@ export const getContactVcard = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {name, number} = req.query as IndexGetContactQuery;
-  const {companyId} = req.user;
+  const { name, number } = req.query as IndexGetContactQuery;
+  const { companyId } = req.user;
 
   let vNumber = number;
   const numberDDI = vNumber.toString().substr(0, 2);
@@ -569,9 +586,9 @@ export const getContactTags = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
 
-  const contactTags = await FindContactTags({contactId});
+  const contactTags = await FindContactTags({ contactId });
 
   let tags = false;
 
@@ -579,16 +596,16 @@ export const getContactTags = async (
     tags = true;
   }
 
-  return res.status(200).json({tags: tags});
+  return res.status(200).json({ tags: tags });
 };
 
 export const toggleDisableBot = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  var {contactId} = req.params;
-  const {companyId} = req.user;
-  const contact = await ToggleDisableBotContactService({contactId});
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
+  const contact = await ToggleDisableBotContactService({ contactId });
 
   const io = getIO();
   io.of(String(companyId)).emit(`company-${companyId}-contact`, {
@@ -603,9 +620,9 @@ export const updateContactWallet = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {wallets} = req.body;
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const { wallets } = req.body;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   const userId = wallets.userId;
   const queueId = wallets.queueId;
@@ -624,8 +641,8 @@ export const deleteContactWallet = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   const contact = await DeleteContactWalletService({
     contactId,
@@ -639,10 +656,10 @@ export const listWhatsapp = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {name} = req.query as unknown as SearchContactParams;
-  const {companyId} = req.user;
+  const { name } = req.query as unknown as SearchContactParams;
+  const { companyId } = req.user;
 
-  const contactsAll = await SimpleListService({name, companyId});
+  const contactsAll = await SimpleListService({ name, companyId });
 
   const contacts = contactsAll.filter(contact => contact.channel == "whatsapp");
 
@@ -653,8 +670,8 @@ export const listWallets = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {searchParam, pageNumber, userId} = req.query as any;
-  const {companyId} = req.user;
+  const { searchParam, pageNumber, userId } = req.query as any;
+  const { companyId } = req.user;
 
   const wallets = await ListWalletsService({
     searchParam,
@@ -670,8 +687,8 @@ export const getContactMedia = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   const media = await GetContactMediaService({
     contactId: Number(contactId),
@@ -685,8 +702,8 @@ export const getGroupParticipants = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
-  const {companyId} = req.user;
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { companyId } = req.user;
 
   try {
     const participants = await GetGroupParticipantsService({
@@ -708,12 +725,12 @@ export const searchMessages = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const {contactId} = req.params;
-  const {searchParam, pageNumber} = req.query as {
+  const contactId = getRequestParam(req.params.contactId, "contactId");
+  const { searchParam, pageNumber } = req.query as {
     searchParam: string;
     pageNumber?: string;
   };
-  const {companyId} = req.user;
+  const { companyId } = req.user;
 
   if (!searchParam || searchParam.trim().length < 2) {
     return res.status(400).json({
@@ -722,7 +739,7 @@ export const searchMessages = async (
   }
 
   try {
-    const {messages, count, hasMore} = await SearchContactMessagesService({
+    const { messages, count, hasMore } = await SearchContactMessagesService({
       contactId: Number(contactId),
       companyId,
       searchParam: searchParam.trim(),
@@ -755,10 +772,12 @@ export const bulkDelete = async (
   });
 
   try {
-    const {contactIds} = await bulkDeleteSchema.validate(req.body);
-    const {companyId} = req.user;
+    const { contactIds } = await bulkDeleteSchema.validate(req.body);
+    const { companyId } = req.user;
 
-    const sanitizedIds = contactIds.map(id => sanitizeNumber(id)).filter(id => id > 0);
+    const sanitizedIds = contactIds
+      .map(id => sanitizeNumber(id))
+      .filter(id => id > 0);
 
     if (sanitizedIds.length === 0) {
       throw new AppError("No valid contact IDs provided", 400);
@@ -782,7 +801,7 @@ export const bulkDelete = async (
       contactIds: sanitizedIds
     });
   } catch (err: any) {
-    if (err.name === 'ValidationError') {
+    if (err.name === "ValidationError") {
       throw new AppError(`Validation error: ${err.message}`, 400);
     }
     throw err;
@@ -797,17 +816,17 @@ export const deleteAll = async (
     confirmation: Yup.string()
       .required("Confirmation is required")
       .matches(/^DELETE_ALL_CONTACTS$/, "Invalid confirmation string"),
-    excludeIds: Yup.array()
-      .of(idSchema)
-      .nullable()
+    excludeIds: Yup.array().of(idSchema).nullable()
   });
 
   try {
     const validatedData = await deleteAllSchema.validate(req.body);
-    const {companyId} = req.user;
-    const {excludeIds = []} = validatedData;
+    const { companyId } = req.user;
+    const { excludeIds = [] } = validatedData;
 
-    const sanitizedExcludeIds = excludeIds.map(id => sanitizeNumber(id)).filter(id => id > 0);
+    const sanitizedExcludeIds = excludeIds
+      .map(id => sanitizeNumber(id))
+      .filter(id => id > 0);
 
     const deletedCount = await DeleteAllContactsService({
       companyId,
@@ -826,7 +845,7 @@ export const deleteAll = async (
       deletedCount
     });
   } catch (err: any) {
-    if (err.name === 'ValidationError') {
+    if (err.name === "ValidationError") {
       throw new AppError(`Validation error: ${err.message}`, 400);
     }
     throw err;

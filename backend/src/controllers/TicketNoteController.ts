@@ -10,6 +10,7 @@ import ShowTicketNoteService from "../services/TicketNoteService/ShowTicketNoteS
 import FindAllTicketNotesService from "../services/TicketNoteService/FindAllTicketNotesService";
 import DeleteTicketNoteService from "../services/TicketNoteService/DeleteTicketNoteService";
 import FindNotesByContactIdAndTicketId from "../services/TicketNoteService/FindNotesByContactIdAndTicketId";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -77,7 +78,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const ticketNote = await ShowTicketNoteService(id);
 
@@ -109,7 +110,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   if (req.user.profile !== "admin") {
     throw new AppError("ERR_NO_PERMISSION", 403);

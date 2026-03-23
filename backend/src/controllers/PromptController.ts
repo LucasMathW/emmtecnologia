@@ -8,6 +8,7 @@ import UpdatePromptService from "../services/PromptServices/UpdatePromptService"
 import Whatsapp from "../models/Whatsapp";
 import { verify } from "jsonwebtoken";
 import authConfig from "../config/auth";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 interface TokenPayload {
   id: string;
@@ -53,7 +54,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { promptId } = req.params;
+  const promptId = getRequestParam(req.params.promptId, "promptId");
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
   const decoded = verify(token, authConfig.secret);
@@ -67,7 +68,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { promptId } = req.params;
+  const promptId = getRequestParam(req.params.promptId, "promptId");
   const promptData = req.body;
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
@@ -90,7 +91,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { promptId } = req.params;
+  const promptId = getRequestParam(req.params.promptId, "promptId");
   const authHeader = req.headers.authorization;
   const [, token] = authHeader.split(" ");
   const decoded = verify(token, authConfig.secret);

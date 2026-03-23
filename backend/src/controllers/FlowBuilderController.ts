@@ -15,6 +15,7 @@ import UploadImgFlowBuilderService from "../services/FlowBuilderService/UploadIm
 import UploadAudioFlowBuilderService from "../services/FlowBuilderService/UploadAudioFlowBuilderService";
 import DuplicateFlowBuilderService from "../services/FlowBuilderService/DuplicateFlowBuilderService";
 import UploadAllFlowBuilderService from "../services/FlowBuilderService/UploadAllFlowBuilderService";
+import { getRequestParam } from "../helpers/getRequestParam";
 // import { handleMessage } from "../services/FacebookServices/facebookMessageListener";
 
 export const createFlow = async (
@@ -58,7 +59,7 @@ export const deleteFlow = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { idFlow } = req.params;
+  const idFlow = getRequestParam(req.params.idFlow, "idFlow");
 
   const flowIdInt = parseInt(idFlow);
 
@@ -84,7 +85,7 @@ export const flowOne = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { idFlow } = req.params;
+  const idFlow = getRequestParam(req.params.idFlow, "idFlow");
 
   const { companyId } = req.user;
 
@@ -124,7 +125,7 @@ export const FlowDataGetOne = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { idFlow } = req.params;
+  const idFlow = getRequestParam(req.params.idFlow, "idFlow");
 
   const { companyId } = req.user;
 

@@ -5,6 +5,7 @@ import GetFlowsCampaignDataService from "../services/FlowCampaignService/GetFlow
 import DeleteFlowCampaignService from "../services/FlowCampaignService/DeleteFlowCampaignService";
 import UpdateFlowCampaignService from "../services/FlowCampaignService/UpdateFlowCampaignService";
 import AppError from "../errors/AppError";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 export const createFlowCampaign = async (
   req: Request,
@@ -143,7 +144,7 @@ export const flowCampaign = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { idFlow } = req.params;
+    const idFlow = getRequestParam(req.params.idFlow, "idFlow");
     const { companyId } = req.user;
 
     if (!idFlow) {
@@ -288,7 +289,7 @@ export const deleteFlowCampaign = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { idFlow } = req.params;
+    const idFlow = getRequestParam(req.params.idFlow, "idFlow");
 
     if (!idFlow) {
       return res.status(400).json({

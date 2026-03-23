@@ -6,6 +6,7 @@ import ListQueuesService from "../services/QueueService/ListQueuesService";
 import ShowQueueService from "../services/QueueService/ShowQueueService";
 import UpdateQueueService from "../services/QueueService/UpdateQueueService";
 import { isNil } from "lodash";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type QueueFilter = {
   companyId: number;
@@ -75,7 +76,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { queueId } = req.params;
+  const queueId = getRequestParam(req.params.queueId, "queueId");
   const { companyId } = req.user;
 
   const queue = await ShowQueueService(queueId, companyId);
@@ -87,7 +88,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { queueId } = req.params;
+  const queueId = getRequestParam(req.params.queueId, "queueId");
   const { companyId } = req.user;
 
   const {
@@ -141,7 +142,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { queueId } = req.params;
+  const queueId = getRequestParam(req.params.queueId, "queueId");
   const { companyId } = req.user;
 
   await DeleteQueueService(queueId, companyId);

@@ -5,6 +5,7 @@ import CreateTicketFinalizationReasonService from "../services/TicketFinalizatio
 import ListTicketFinalizationReasonsService from "../services/TicketFinalizationReasonService/ListTicketFinalizationReasonsService";
 import UpdateTicketFinalizationReasonService from "../services/TicketFinalizationReasonService/UpdateTicketFinalizationReasonService";
 import DeleteTicketFinalizationReasonService from "../services/TicketFinalizationReasonService/DeleteTicketFinalizationReasonService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const { name, description } = req.body;
@@ -41,7 +42,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { name, description } = req.body;
   const { companyId } = req.user;
 
@@ -65,7 +66,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   await DeleteTicketFinalizationReasonService({

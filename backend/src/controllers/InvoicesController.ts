@@ -9,6 +9,7 @@ import ShowInvoceService from "../services/InvoicesService/ShowInvoiceService";
 import UpdateInvoiceService from "../services/InvoicesService/UpdateInvoiceService";
 import DeleteInvoiceService from "../services/InvoicesService/DeleteInvoiceService";
 import CreateInvoiceService from "../services/InvoicesService/CreateInvoiceService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -53,7 +54,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const invoice = await ShowInvoceService(id);
 
@@ -124,7 +125,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const invoice = await DeleteInvoiceService(id);
 

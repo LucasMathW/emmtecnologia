@@ -23,6 +23,7 @@ import Company from "../models/Company";
 import EditMessageService from "../services/ChatService/EditMessageService";
 import DeleteMessageService from "../services/ChatService/DeleteMessageService";
 import ForwardMessageService from "../services/ChatService/ForwardMessageService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 const getMediaTypeFromMimeType = (mimetype: string): string => {
   const documentMimeTypes = [
@@ -137,7 +138,7 @@ export const update = async (
 ): Promise<Response> => {
   const { companyId } = req.user;
   const data = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await UpdateService({
     ...data,
@@ -158,7 +159,7 @@ export const update = async (
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await ShowFromUuidService(id);
 
@@ -169,7 +170,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId, profile } = req.user;
 
   // Verificar se o usuário é admin
@@ -197,7 +198,7 @@ export const saveMessage = async (
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
   const { message } = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const senderId = +req.user.id;
   const chatId = +id;
 
@@ -257,7 +258,7 @@ export const checkAsRead = async (
 ): Promise<Response> => {
   const { companyId } = req.user;
   const { userId } = req.body;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const chatUser = await ChatUser.findOne({ where: { chatId: id, userId } });
   await chatUser.update({ unreads: 0 });
@@ -288,7 +289,7 @@ export const messages = async (
   res: Response
 ): Promise<Response> => {
   const { pageNumber } = req.query as unknown as IndexQuery;
-  const { id: chatId } = req.params;
+  const chatId = getRequestParam(req.params.id, "id");
   const ownerId = +req.user.id;
 
   const { records, count, hasMore } = await FindMessages({
@@ -402,7 +403,7 @@ export const editMessage = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { messageId } = req.params;
+  const messageId = getRequestParam(req.params.messageId, "messageId");
   const { message } = req.body;
   const { companyId } = req.user;
   const userId = +req.user.id;
@@ -421,7 +422,7 @@ export const deleteMessage = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { messageId } = req.params;
+  const messageId = getRequestParam(req.params.messageId, "messageId");
   const { companyId } = req.user;
   const userId = +req.user.id;
 
@@ -438,7 +439,7 @@ export const forwardMessage = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { messageId } = req.params;
+  const messageId = getRequestParam(req.params.messageId, "messageId");
   const { targetChatId } = req.body;
   const { companyId } = req.user;
   const userId = +req.user.id;
@@ -480,7 +481,7 @@ export const uploadGroupImage = async (
   });
 };
 
-
+//
 export default {
   index,
   store,

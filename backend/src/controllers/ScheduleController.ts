@@ -13,6 +13,7 @@ import Schedule from "../models/Schedule";
 import path from "path";
 import fs from "fs";
 import { head } from "lodash";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam?: string;
@@ -22,7 +23,8 @@ type IndexQuery = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { contactId, userId, pageNumber, searchParam } = req.query as IndexQuery;
+  const { contactId, userId, pageNumber, searchParam } =
+    req.query as IndexQuery;
   const { companyId } = req.user;
 
   const { schedules, count, hasMore } = await ListService({
@@ -48,9 +50,9 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     statusTicket,
     whatsappId,
     intervalo = 1,
-		valorIntervalo = 0,
-		enviarQuantasVezes = 1,
-		tipoDias=  4,
+    valorIntervalo = 0,
+    enviarQuantasVezes = 1,
+    tipoDias = 4,
     contadorEnvio = 0,
     assinar = false,
     // ✅ Campos de lembrete
@@ -77,12 +79,11 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     contadorEnvio,
     assinar,
     // ✅ Incluir campos de lembrete
-    reminderDate,
+    reminderDate
   });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.of(String(companyId)).emit(`company${companyId}-schedule`, {
     action: "create",
     schedule
   });
@@ -91,7 +92,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { scheduleId } = req.params;
+  const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
   const { companyId } = req.user;
 
   const schedule = await ShowService(scheduleId, companyId);
@@ -107,15 +108,18 @@ export const update = async (
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  const { scheduleId } = req.params;
+  const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
   const scheduleData = req.body;
   const { companyId } = req.user;
 
-  const schedule = await UpdateService({ scheduleData, id: scheduleId, companyId });
+  const schedule = await UpdateService({
+    scheduleData,
+    id: scheduleId,
+    companyId
+  });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.of(String(companyId)).emit(`company${companyId}-schedule`, {
     action: "update",
     schedule
   });
@@ -127,14 +131,13 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { scheduleId } = req.params;
+  const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
   const { companyId } = req.user;
 
   await DeleteService(scheduleId, companyId);
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.of(String(companyId)).emit(`company${companyId}-schedule`, {
     action: "delete",
     scheduleId
   });
@@ -146,7 +149,7 @@ export const mediaUpload = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const files = req.files as Express.Multer.File[];
   const file = head(files);
 
@@ -157,8 +160,8 @@ export const mediaUpload = async (
 
     await schedule.save();
     return res.send({ mensagem: "Arquivo Anexado" });
-    } catch (err: any) {
-      throw new AppError(err.message);
+  } catch (err: any) {
+    throw new AppError(err.message);
   }
 };
 
@@ -166,7 +169,7 @@ export const deleteMedia = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   try {
     const schedule = await Schedule.findByPk(id);
@@ -179,7 +182,7 @@ export const deleteMedia = async (
     schedule.mediaName = null;
     await schedule.save();
     return res.send({ mensagem: "Arquivo Excluído" });
-    } catch (err: any) {
-      throw new AppError(err.message);
+  } catch (err: any) {
+    throw new AppError(err.message);
   }
 };

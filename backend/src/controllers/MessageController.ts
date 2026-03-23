@@ -54,6 +54,7 @@ import CheckContactNumber from "../services/WbotServices/CheckNumber";
 import TranscribeAudioMessageToText from "../services/MessageServices/TranscribeAudioMessageService";
 import QuickMessage from "../models/QuickMessage";
 import QuickMessageComponent from "../models/QuickMessageComponent";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   pageNumber: string;
@@ -91,7 +92,7 @@ type MessageTemplateData = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { pageNumber, selectedQueues: queueIdsStringified } =
     req.query as IndexQuery;
   const { companyId, profile } = req.user;
@@ -195,7 +196,7 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { body, quotedMsg, vCard, isPrivate = "false" }: MessageData = req.body;
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
@@ -922,7 +923,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { messageId } = req.params;
+  const messageId = getRequestParam(req.params.messageId, "messageId");
   const { companyId } = req.user;
 
   const message = await DeleteWhatsAppMessage(messageId, companyId);
@@ -1043,7 +1044,7 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const edit = async (req: Request, res: Response): Promise<Response> => {
-  const { messageId } = req.params;
+  const messageId = getRequestParam(req.params.messageId, "messageId");
   const { companyId } = req.user;
   const { body }: MessageData = req.body;
 
@@ -1072,7 +1073,7 @@ export const storeTemplate = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { ticketId } = req.params;
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
 
   const { quotedMsg, templateId, variables, bodyToSave }: MessageTemplateData =
     req.body;

@@ -10,6 +10,7 @@ import GetSettingService from "../services/SettingServices/GetSettingService";
 import UpdateOneSettingService from "../services/SettingServices/UpdateOneSettingService";
 import GetPublicSettingService from "../services/SettingServices/GetPublicSettingService";
 import ResolveCompanyByDomain from "../helpers/resolveCompanyIdNyDomain";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type LogoRequest = {
   mode: string;
@@ -40,7 +41,7 @@ export const showOne = async (
   res: Response
 ): Promise<Response> => {
   const { companyId } = req.user;
-  const { settingKey } = req.params;
+  const settingKey = getRequestParam(req.params.settingKey, "settingKey");
   const key = Array.isArray(settingKey) ? settingKey[0] : settingKey;
 
   const settingsTransfTicket = await ListSettingsServiceOne({
@@ -59,7 +60,7 @@ export const update = async (
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  const { settingKey: key } = req.params;
+  const key = getRequestParam(req.params.settingKey, "settingKey");
   const { value } = req.body;
   const { companyId } = req.user;
 
@@ -82,7 +83,7 @@ export const getSetting = async (
   req: Request<Params>,
   res: Response
 ): Promise<Response> => {
-  const { settingKey: key } = req.params;
+  const key = getRequestParam(req.params.settingKey, "settingKey");
 
   const setting = await GetSettingService({ key });
 
@@ -93,7 +94,7 @@ export const updateOne = async (
   req: Request<Params>,
   res: Response
 ): Promise<Response> => {
-  const { settingKey: key } = req.params;
+  const key = getRequestParam(req.params.settingKey, "settingKey");
   const { value } = req.body;
 
   const setting = await UpdateOneSettingService({
@@ -108,7 +109,7 @@ export const publicShow = async (
   req: Request<Params>,
   res: Response
 ): Promise<Response> => {
-  const { settingKey: key } = req.params;
+  const key = getRequestParam(req.params.settingKey, "settingKey");
   const { companyId } = req.query;
 
   let targetCompanyId = companyId

@@ -6,6 +6,7 @@ import { CreatePresetWebhookService } from "../services/PresetWebhookServices/Cr
 import { UpdatePresetWebhookService } from "../services/PresetWebhookServices/UpdatePresetWebhookService";
 import { DeletePresetWebhookService } from "../services/PresetWebhookServices/DeletePresetWebhookService";
 import AppError from "../errors/AppError";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 export const list = async (req: Request, res: Response): Promise<Response> => {
   const { isActive, provider, includeSystem } = req.params;
@@ -26,7 +27,7 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const companyId = req.user?.companyId;
 
   if (!companyId) {
@@ -59,7 +60,7 @@ export const create = async (req: Request, res: Response): Promise<Response> => 
 };
 
 export const update = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const companyId = req.user?.companyId;
 
   if (!companyId) {
@@ -76,7 +77,7 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
 };
 
 export const remove = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const companyId = req.user?.companyId;
 
   if (!companyId) {

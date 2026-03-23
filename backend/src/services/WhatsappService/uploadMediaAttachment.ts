@@ -4,9 +4,10 @@ import AppError from "../../errors/AppError";
 import Whatsapp from "../../models/Whatsapp";
 import path from "path";
 import fs from "fs";
+import { getRequestParam } from "../../helpers/getRequestParam";
 
 export const mediaUpload = async (req: Request, res: Response): Promise<Response> => {
-    const { whatsappId } = req.params;
+    const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
     const files = req.files as Express.Multer.File[];
     const file = head(files);
   
@@ -29,7 +30,7 @@ export const deleteMedia = async (
     req: Request,
     res: Response
   ): Promise<Response> => {
-    const { whatsappId } = req.params;
+    const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   
     try {
       const whatsapp = await Whatsapp.findByPk(whatsappId);

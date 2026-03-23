@@ -9,6 +9,7 @@ import ListService from "../services/ScheduledMessagesService/ListService";
 import UpdateService from "../services/ScheduledMessagesService/UpdateService";
 import ShowService from "../services/ScheduledMessagesService/ShowService";
 import DeleteService from "../services/ScheduledMessagesService/DeleteService";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
     searchParam?: string;
@@ -69,7 +70,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-    const { scheduleId } = req.params;
+    const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
     const { companyId } = req.user;
 
     const schedule = await ShowService(scheduleId);
@@ -82,7 +83,7 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
         throw new AppError("ERR_NO_PERMISSION", 403);
     }
 
-    const { scheduleId } = req.params;
+    const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
     const scheduleData = req.body;
     const files = req.files as Express.Multer.File[];
     const file = head(files);
@@ -96,7 +97,7 @@ export const remove = async (
     req: Request,
     res: Response
 ): Promise<Response> => {
-    const { scheduleId } = req.params;
+    const scheduleId = getRequestParam(req.params.scheduleId, "scheduleId");
     const { companyId } = req.user;
 
     await DeleteService(+scheduleId, +companyId);

@@ -14,7 +14,7 @@ import DeleteAllService from "../services/FileServices/DeleteAllService";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import UpdateTicketService from "../services/TicketServices/UpdateTicketService";
 import FilesOptions from "../models/FilesOptions";
-
+import { getRequestParam } from "../helpers/getRequestParam";
 type IndexQuery = {
   searchParam?: string;
   pageNumber?: string | number;
@@ -45,17 +45,16 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   });
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company${companyId}-file`, {
-      action: "create",
-      fileList
-    });
+  io.of(String(companyId)).emit(`company${companyId}-file`, {
+    action: "create",
+    fileList
+  });
 
   return res.status(200).json(fileList);
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { fileId } = req.params;
+  const fileId = getRequestParam(req.params.fileId, "fileId");
   const { companyId } = req.user;
 
   const file = await ShowService(fileId, companyId);
@@ -63,16 +62,17 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json(file);
 };
 
-export const uploadMedias = async (req: Request, res: Response): Promise<Response> => {
+export const uploadMedias = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { fileId, id, mediaType } = req.body;
   const files = req.files as Express.Multer.File[];
   const file = head(files);
 
   try {
-
-    let fileOpt
+    let fileOpt;
     if (files.length > 0) {
-
       for (const [index, file] of files.entries()) {
         fileOpt = await FilesOptions.findOne({
           where: {
@@ -82,7 +82,9 @@ export const uploadMedias = async (req: Request, res: Response): Promise<Respons
         });
 
         await fileOpt.update({
-          path: `/company${req.user.companyId}/fileList/${fileId}/${file.filename.replace('/', '-')}`,
+          path: `/company${
+            req.user.companyId
+          }/fileList/${fileId}/${file.filename.replace("/", "-")}`,
           mediaType: Array.isArray(mediaType) ? mediaType[index] : mediaType
         });
       }
@@ -102,15 +104,14 @@ export const update = async (
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  const { fileId } = req.params;
+  const fileId = getRequestParam(req.params.fileId, "fileId");
   const fileData = req.body;
   const { companyId } = req.user;
 
   const fileList = await UpdateService({ fileData, id: fileId, companyId });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-file`, {
+  io.of(String(companyId)).emit(`company${companyId}-file`, {
     action: "update",
     fileList
   });
@@ -118,19 +119,17 @@ export const update = async (
   return res.status(200).json(fileList);
 };
 
-
 export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { fileId } = req.params;
+  const fileId = getRequestParam(req.params.fileId, "fileId");
   const { companyId } = req.user;
 
   await DeleteService(fileId, companyId);
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-file`, {
+  io.of(String(companyId)).emit(`company${companyId}-file`, {
     action: "delete",
     fileId
   });

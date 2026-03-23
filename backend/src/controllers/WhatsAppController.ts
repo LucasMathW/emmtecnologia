@@ -40,7 +40,7 @@ import {
 import QuickMessageComponent from "../models/QuickMessageComponent";
 import CreateService from "../services/QuickMessageService/CreateService";
 import QuickMessage from "../models/QuickMessage";
-
+import { getRequestParam } from "../helpers/getRequestParam";
 interface WhatsappData {
   name: string;
   queueIds: number[];
@@ -406,7 +406,7 @@ export const storeFacebook = async (
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   const { session } = req.query;
 
@@ -420,7 +420,7 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const whatsappData = req.body;
   const { companyId } = req.user;
 
@@ -475,7 +475,7 @@ export const update = async (
 };
 
 export const closedTickets = async (req: Request, res: Response) => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
 
   closeTicketsImported(whatsappId);
 
@@ -486,7 +486,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId, profile } = req.user;
   const io = getIO();
 
@@ -585,7 +585,7 @@ export const updateAdmin = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const whatsappData = req.body;
   const { companyId } = req.user;
 
@@ -615,7 +615,7 @@ export const removeAdmin = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   const io = getIO();
   console.log("REMOVING WHATSAPP ADMIN", whatsappId);
@@ -663,7 +663,7 @@ export const showAdmin = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   // console.log("SHOWING WHATSAPP ADMIN", whatsappId)
   const whatsapp = await ShowWhatsAppServiceAdmin(whatsappId);
@@ -676,7 +676,7 @@ export const syncTemplatesOficial = async (
   res: Response
 ): Promise<Response> => {
   const { companyId, id: userId } = req.user;
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
 
   const whatsapp = await Whatsapp.findByPk(whatsappId);
 
@@ -703,7 +703,10 @@ export const syncTemplatesOficial = async (
 
         if (quickMessage) {
           await quickMessage.update({
-            message: template.components?.find((c: any) => c.type === 'BODY' || c.type === 'body')?.text || template.name,
+            message:
+              template.components?.find(
+                (c: any) => c.type === "BODY" || c.type === "body"
+              )?.text || template.name,
             category: template.category,
             status: template.status,
             language: template.language
@@ -742,7 +745,10 @@ export const syncTemplatesOficial = async (
         } else {
           const templateData = {
             shortcode: template.name,
-            message: template.components?.find((c: any) => c.type === 'BODY' || c.type === 'body')?.text || template.name,
+            message:
+              template.components?.find(
+                (c: any) => c.type === "BODY" || c.type === "body"
+              )?.text || template.name,
             companyId: companyId,
             userId: userId,
             geral: true,

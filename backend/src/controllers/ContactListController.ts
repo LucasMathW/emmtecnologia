@@ -14,6 +14,7 @@ import ContactList from "../models/ContactList";
 
 import AppError from "../errors/AppError";
 import { ImportContacts } from "../services/ContactListService/ImportContacts";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -73,7 +74,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await ShowService(id);
 
@@ -97,7 +98,7 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await UpdateService({
     ...data,
@@ -118,7 +119,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   await DeleteService(id);
@@ -146,7 +147,7 @@ export const findList = async (
 export const upload = async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   const file: Express.Multer.File = head(files) as Express.Multer.File;
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   const response = await ImportContacts(+id, companyId, file);

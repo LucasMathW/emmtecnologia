@@ -5,6 +5,7 @@ import AppError from "../errors/AppError";
 import ListService from "../services/CampaignSettingServices/ListService";
 import CreateService from "../services/CampaignSettingServices/CreateService";
 import UpdateServiceCampaignSettings from "../services/CampaignSettingServices/UpdateServiceCampaignSettings";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 interface StoreData {
   settings: any;
@@ -54,7 +55,7 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await UpdateServiceCampaignSettings({
     ...data,

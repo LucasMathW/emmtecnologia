@@ -19,6 +19,8 @@ import path from "path";
 import AppError from "../errors/AppError";
 import ShowCompanyService from "../services/CompanyService/ShowCompanyService";
 
+import { getRequestParam } from "../helpers/getRequestParam";
+
 type IndexQuery = {
   searchParam: string;
   pageNumber: string;
@@ -110,19 +112,18 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   }
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-quickmessage`, {
-      action: "create",
-      record
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-quickmessage`, {
+    action: "create",
+    record
+  });
 
   return res.status(200).json(record);
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
-  
+
   const record = await ShowService(id, companyId);
 
   return res.status(200).json(record);
@@ -146,12 +147,12 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
 
   const record = await UpdateService({
     ...data,
     userId: req.user.id,
-    id,
+    id
   });
 
   // Se marcar como iniciador, garante unicidade por WhatsApp na empresa
@@ -189,11 +190,10 @@ export const update = async (
   }
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-quickmessage`, {
-      action: "update",
-      record
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-quickmessage`, {
+    action: "update",
+    record
+  });
 
   return res.status(200).json(record);
 };
@@ -202,17 +202,16 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const { companyId } = req.user;
 
   await DeleteService(id);
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-quickmessage`, {
-      action: "delete",
-      id
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-quickmessage`, {
+    action: "delete",
+    id
+  });
 
   return res.status(200).json({ message: "Contact deleted" });
 };
@@ -227,14 +226,17 @@ export const findList = async (
   return res.status(200).json(records);
 };
 
-export const audioUpload = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+export const audioUpload = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = getRequestParam(req.params.id, "id");
   const files = req.files as Express.Multer.File[];
   const file = head(files);
 
   try {
     if (!file) throw new AppError("Nenhum arquivo recebido");
-    
+
     console.log("📁 Processando arquivo de áudio:", {
       originalname: file.originalname,
       filename: file.filename,
@@ -246,13 +248,14 @@ export const audioUpload = async (req: Request, res: Response): Promise<Response
     if (!quickmessage) {
       throw new AppError("Quick message não encontrada");
     }
-    
+
     // ✅ CORREÇÃO: Garantir que seja sempre salvo como tipo 'audio'
     // independente do mimetype original (webm, ogg, etc)
     await quickmessage.update({
       mediaPath: file.filename, // Nome que o multer gerou (sempre .ogg)
-      mediaName: file.originalname || `Áudio gravado - ${new Date().toLocaleString()}`,
-      mediaType: 'audio' // ✅ SEMPRE 'audio' para compatibilidade
+      mediaName:
+        file.originalname || `Áudio gravado - ${new Date().toLocaleString()}`,
+      mediaType: "audio" // ✅ SEMPRE 'audio' para compatibilidade
     });
 
     console.log("✅ Quick message atualizada:", {
@@ -262,11 +265,11 @@ export const audioUpload = async (req: Request, res: Response): Promise<Response
       mediaType: quickmessage.mediaType
     });
 
-    return res.send({ 
+    return res.send({
       mensagem: "Áudio gravado anexado com sucesso",
       mediaPath: file.filename,
       mediaName: file.originalname,
-      mediaType: 'audio'
+      mediaType: "audio"
     });
   } catch (err: any) {
     console.error("❌ Erro no audioUpload:", err);
@@ -278,25 +281,31 @@ export const mediaUpload = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
+  const id = getRequestParam(req.params.id, "id");
   const files = req.files as Express.Multer.File[];
   const file = head(files);
 
   try {
     const quickmessage = await QuickMessage.findByPk(id);
-    
+
     // ✅ CORREÇÃO: Melhor detecção do tipo de mídia
     const fileExtension = path.extname(file.originalname).toLowerCase();
-    let mediaType = 'document'; // padrão
-    
+    let mediaType = "document"; // padrão
+
     // ✅ CORREÇÃO: Detectar áudio por extensão E mimetype
-    if (['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.webm'].includes(fileExtension) || 
-        file.mimetype.startsWith('audio/')) {
-      mediaType = 'audio';
-    } else if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(fileExtension)) {
-      mediaType = 'image';
-    } else if (['.mp4', '.avi', '.mov'].includes(fileExtension)) {
-      mediaType = 'video';
+    if (
+      [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"].includes(
+        fileExtension
+      ) ||
+      file.mimetype.startsWith("audio/")
+    ) {
+      mediaType = "audio";
+    } else if (
+      [".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(fileExtension)
+    ) {
+      mediaType = "image";
+    } else if ([".mp4", ".avi", ".mov"].includes(fileExtension)) {
+      mediaType = "video";
     }
 
     console.log("📎 Tipo de mídia detectado:", {
@@ -313,7 +322,7 @@ export const mediaUpload = async (
       mediaType: mediaType
     });
 
-    return res.send({ 
+    return res.send({
       mensagem: "Arquivo Anexado",
       mediaType: mediaType
     });
@@ -326,12 +335,17 @@ export const deleteMedia = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { id } = req.params;
-  const { companyId } = req.user
+  const id = getRequestParam(req.params.id, "id");
+  const { companyId } = req.user;
 
   try {
     const quickmessage = await QuickMessage.findByPk(id);
-    const filePath = path.resolve("public", `company${companyId}`, "quickMessage", quickmessage.mediaName);
+    const filePath = path.resolve(
+      "public",
+      `company${companyId}`,
+      "quickMessage",
+      quickmessage.mediaName
+    );
     const fileExists = fs.existsSync(filePath);
     if (fileExists) {
       fs.unlinkSync(filePath);

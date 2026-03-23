@@ -6,9 +6,10 @@ import UpdateWhatsAppService from "../services/WhatsappService/UpdateWhatsAppSer
 import DeleteBaileysService from "../services/BaileysServices/DeleteBaileysService";
 import cacheLayer from "../libs/cache";
 import Whatsapp from "../models/Whatsapp";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 const store = async (req: Request, res: Response): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
 
   // console.log("STARTING SESSION", whatsappId)
@@ -20,7 +21,7 @@ const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const update = async (req: Request, res: Response): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
 
   // const { whatsapp } = await UpdateWhatsAppService({
@@ -40,7 +41,7 @@ const update = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const remove = async (req: Request, res: Response): Promise<Response> => {
-  const { whatsappId } = req.params;
+  const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   console.log("DISCONNECTING SESSION", whatsappId)
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);

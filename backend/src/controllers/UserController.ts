@@ -27,6 +27,7 @@ import Chat from "../models/Chat";
 import ChatUser from "../models/ChatUser";
 import Plan from "../models/Plan";
 import axios from "axios";
+import { getRequestParam } from "../helpers/getRequestParam";
 
 type IndexQuery = {
   searchParam: string;
@@ -254,7 +255,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
-  const { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const { companyId } = req.user;
 
   const user = await ShowUserService(userId, companyId);
@@ -266,7 +267,7 @@ export const showEmail = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { email } = req.params;
+  const email = getRequestParam(req.params.email, "email");
 
   const user = await APIShowEmailUserService(email);
 
@@ -286,7 +287,7 @@ export const update = async (
   }
 
   const { id: requestUserId, companyId } = req.user;
-  const { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const userData = req.body;
 
   const user = await UpdateUserService({
@@ -309,7 +310,7 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const { companyId, id, profile } = req.user;
 
   if (profile !== "admin") {
@@ -356,7 +357,7 @@ export const mediaUpload = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const { companyId } = req.user;
   const files = req.files as Express.Multer.File[];
   const file = head(files);
@@ -404,7 +405,7 @@ export const toggleChangeWidht = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  var { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const { defaultTicketsManagerWidth } = req.body;
 
   const { companyId } = req.user;
@@ -426,7 +427,7 @@ export const updateOnlineStatus = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { userId } = req.params;
+  const userId = getRequestParam(req.params.userId, "userId");
   const { online } = req.body;
 
   await UpdateUserOnlineStatusService({
