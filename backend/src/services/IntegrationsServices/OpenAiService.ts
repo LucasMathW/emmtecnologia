@@ -5,7 +5,7 @@ import {
   keepOnlySpecifiedChars,
   transferQueue,
   verifyMediaMessage,
-  verifyMessage,
+  verifyMessage
 } from "../WbotServices/wbotMessageListener";
 import { isNil } from "lodash";
 import fs from "fs";
@@ -77,21 +77,21 @@ const sanitizeName = (name: string): string => {
 // Função para detectar solicitação de transferência para atendente
 const detectTransferRequest = (message: string): boolean => {
   const transferKeywords = [
-    'falar com atendente',
-    'quero um atendente',
-    'atendente humano',
-    'pessoa real',
-    'sair do bot',
-    'parar bot',
-    'atendimento humano',
-    'falar com alguém',
-    'não estou conseguindo',
-    'isso não funciona',
-    'não entendi',
-    'preciso de ajuda real',
-    'quero falar com uma pessoa',
-    'me transfere',
-    'atendente por favor'
+    "falar com atendente",
+    "quero um atendente",
+    "atendente humano",
+    "pessoa real",
+    "sair do bot",
+    "parar bot",
+    "atendimento humano",
+    "falar com alguém",
+    "não estou conseguindo",
+    "isso não funciona",
+    "não entendi",
+    "preciso de ajuda real",
+    "quero falar com uma pessoa",
+    "me transfere",
+    "atendente por favor"
   ];
 
   const lowerMessage = message.toLowerCase();
@@ -99,13 +99,18 @@ const detectTransferRequest = (message: string): boolean => {
 };
 
 // Função para detectar solicitação de continuação do fluxo
-const detectFlowContinuation = (message: string, continueKeywords: string[]): boolean => {
+const detectFlowContinuation = (
+  message: string,
+  continueKeywords: string[]
+): boolean => {
   if (!continueKeywords || continueKeywords.length === 0) {
     return false;
   }
 
   const lowerMessage = message.toLowerCase().trim();
-  return continueKeywords.some(keyword => lowerMessage.includes(keyword.toLowerCase()));
+  return continueKeywords.some(keyword =>
+    lowerMessage.includes(keyword.toLowerCase())
+  );
 };
 
 // Função para detectar se o objetivo foi completado (usando IA)
@@ -120,8 +125,8 @@ const checkObjectiveCompletion = async (
     // Preparar histórico da conversa para análise
     const conversationText = conversation
       .slice(-5) // Últimas 5 mensagens
-      .map(msg => `${msg.fromMe ? 'Bot' : 'User'}: ${msg.body}`)
-      .join('\n');
+      .map(msg => `${msg.fromMe ? "Bot" : "User"}: ${msg.body}`)
+      .join("\n");
 
     const analysisPrompt = `
 Objetivo: ${objective}
@@ -141,9 +146,11 @@ Pergunta: O objetivo foi completado com sucesso? Responda apenas "SIM" ou "NÃO"
 
     const result = response.choices[0]?.message?.content?.trim().toUpperCase();
     return result === "SIM";
-
   } catch (error) {
-    logger.error("[AI SERVICE] Erro ao verificar completude do objetivo:", error);
+    logger.error(
+      "[AI SERVICE] Erro ao verificar completude do objetivo:",
+      error
+    );
     return false;
   }
 };
@@ -151,12 +158,17 @@ Pergunta: O objetivo foi completado com sucesso? Responda apenas "SIM" ou "NÃO"
 // Função para retornar ao fluxo
 const returnToFlow = async (ticket: Ticket, reason: string): Promise<void> => {
   try {
-    const flowContinuation = (ticket.dataWebhook && typeof ticket.dataWebhook === "object" && "flowContinuation" in ticket.dataWebhook)
-      ? (ticket.dataWebhook as any).flowContinuation
-      : undefined;
+    const flowContinuation =
+      ticket.dataWebhook &&
+      typeof ticket.dataWebhook === "object" &&
+      "flowContinuation" in ticket.dataWebhook
+        ? (ticket.dataWebhook as any).flowContinuation
+        : undefined;
 
     if (!flowContinuation || !flowContinuation.nextNodeId) {
-      logger.warn(`[FLOW CONTINUATION] Informações de continuação não encontradas - ticket ${ticket.id}`);
+      logger.warn(
+        `[FLOW CONTINUATION] Informações de continuação não encontradas - ticket ${ticket.id}`
+      );
       await ticket.update({
         useIntegration: false,
         isBot: false,
@@ -165,12 +177,15 @@ const returnToFlow = async (ticket: Ticket, reason: string): Promise<void> => {
       return;
     }
 
-    logger.info(`[FLOW CONTINUATION] Retornando ao fluxo - ticket ${ticket.id}, razão: ${reason}`);
+    logger.info(
+      `[FLOW CONTINUATION] Retornando ao fluxo - ticket ${ticket.id}, razão: ${reason}`
+    );
 
     // Enviar mensagem de transição
     const transitionMessages = {
       user_requested: "Perfeito! Vou prosseguir com o atendimento.",
-      max_interactions: "Obrigado pelas informações! Vou continuar com o próximo passo.",
+      max_interactions:
+        "Obrigado pelas informações! Vou continuar com o próximo passo.",
       timeout: "Vou prosseguir com o atendimento.",
       objective_completed: "Ótimo! Completamos essa etapa. Vamos continuar!"
     };
@@ -193,9 +208,13 @@ const returnToFlow = async (ticket: Ticket, reason: string): Promise<void> => {
 
     // Continuar fluxo no próximo nó
     if (flowContinuation.nextNodeId) {
-      logger.info(`[FLOW CONTINUATION] Continuando fluxo no nó ${flowContinuation.nextNodeId} - ticket ${ticket.id}`);
+      logger.info(
+        `[FLOW CONTINUATION] Continuando fluxo no nó ${flowContinuation.nextNodeId} - ticket ${ticket.id}`
+      );
 
-      const { ActionsWebhookService } = await import("../WebhookService/ActionsWebhookService");
+      const { ActionsWebhookService } = await import(
+        "../WebhookService/ActionsWebhookService"
+      );
 
       const flow = await FlowBuilderModel.findOne({
         where: { id: ticket.flowStopped }
@@ -225,7 +244,6 @@ const returnToFlow = async (ticket: Ticket, reason: string): Promise<void> => {
         );
       }
     }
-
   } catch (error) {
     logger.error(`[FLOW CONTINUATION] Erro ao retornar ao fluxo:`, error);
 
@@ -238,7 +256,11 @@ const returnToFlow = async (ticket: Ticket, reason: string): Promise<void> => {
 };
 
 // Prepara as mensagens de IA a partir das mensagens passadas
-const prepareMessagesAI = (pastMessages: Message[], isGeminiModel: boolean, promptSystem: string): any[] => {
+const prepareMessagesAI = (
+  pastMessages: Message[],
+  isGeminiModel: boolean,
+  promptSystem: string
+): any[] => {
   const messagesAI: any[] = [];
 
   // Para OpenAI, incluir o prompt do sistema como 'system' role
@@ -249,7 +271,10 @@ const prepareMessagesAI = (pastMessages: Message[], isGeminiModel: boolean, prom
 
   // Mapear mensagens passadas para formato da IA
   for (const message of pastMessages) {
-    if (message.mediaType === "conversation" || message.mediaType === "extendedTextMessage") {
+    if (
+      message.mediaType === "conversation" ||
+      message.mediaType === "extendedTextMessage"
+    ) {
       if (message.fromMe) {
         messagesAI.push({ role: "assistant", content: message.body });
       } else {
@@ -274,11 +299,13 @@ const processResponse = async (
   let response = responseText;
 
   // Verificar se o usuário pediu para falar com atendente
-  const userMessage = getBodyMessage(msg) || "";
+  const userMessage = getBodyMessage(msg as any) || "";
   const userRequestedTransfer = detectTransferRequest(userMessage);
 
   if (userRequestedTransfer) {
-    logger.info(`[AI SERVICE] Usuário solicitou transferência para atendente - ticket ${ticket.id}`);
+    logger.info(
+      `[AI SERVICE] Usuário solicitou transferência para atendente - ticket ${ticket.id}`
+    );
 
     // Desabilitar modo IA
     await ticket.update({
@@ -288,10 +315,11 @@ const processResponse = async (
       status: "pending"
     });
 
-    const transferMessage = "Entendi que você gostaria de falar com um atendente humano. Estou transferindo você agora. Aguarde um momento!";
+    const transferMessage =
+      "Entendi que você gostaria de falar com um atendente humano. Estou transferindo você agora. Aguarde um momento!";
 
     const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-      text: `\u200e ${transferMessage}`,
+      text: `\u200e ${transferMessage}`
     });
 
     await verifyMessage(sentMessage!, ticket, contact);
@@ -300,13 +328,21 @@ const processResponse = async (
       await transferQueue(aiSettings.queueId, ticket, contact);
     }
 
-    logger.info(`[AI SERVICE] Ticket ${ticket.id} transferido para atendimento humano`);
+    logger.info(
+      `[AI SERVICE] Ticket ${ticket.id} transferido para atendimento humano`
+    );
     return;
   }
 
   // Verificar ação de transferência da IA
-  if (response?.toLowerCase().includes("ação: transferir para o setor de atendimento")) {
-    logger.info(`[AI SERVICE] IA solicitou transferência para atendente - ticket ${ticket.id}`);
+  if (
+    response
+      ?.toLowerCase()
+      .includes("ação: transferir para o setor de atendimento")
+  ) {
+    logger.info(
+      `[AI SERVICE] IA solicitou transferência para atendente - ticket ${ticket.id}`
+    );
 
     await ticket.update({
       useIntegration: false,
@@ -319,24 +355,36 @@ const processResponse = async (
       await transferQueue(aiSettings.queueId, ticket, contact);
     }
 
-    response = response.replace(/ação: transferir para o setor de atendimento/i, "").trim();
+    response = response
+      .replace(/ação: transferir para o setor de atendimento/i, "")
+      .trim();
 
-    logger.info(`[AI SERVICE] Ticket ${ticket.id} transferido por solicitação da IA`);
+    logger.info(
+      `[AI SERVICE] Ticket ${ticket.id} transferido por solicitação da IA`
+    );
   }
 
   if (!response && !userRequestedTransfer) {
     return;
   }
 
-  const publicFolder: string = path.resolve(__dirname, "..", "..", "..", "public", `company${ticket.companyId}`);
+  const publicFolder: string = path.resolve(
+    __dirname,
+    "..",
+    "..",
+    "..",
+    "public",
+    `company${ticket.companyId}`
+  );
 
   // Enviar resposta baseada no formato preferido (texto ou voz)
   // IMPORTANTE: Gemini sempre responde em texto, OpenAI pode usar voz
-  const useVoice = aiSettings.provider === "openai" && aiSettings.voice !== "texto";
+  const useVoice =
+    aiSettings.provider === "openai" && aiSettings.voice !== "texto";
 
   if (!useVoice) {
     const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-      text: `\u200e ${response}`,
+      text: `\u200e ${response}`
     });
     await verifyMessage(sentMessage!, ticket, contact);
   } else {
@@ -354,16 +402,24 @@ const processResponse = async (
       const sendMessage = await wbot.sendMessage(msg.key.remoteJid!, {
         audio: { url: `${publicFolder}/${fileNameWithOutExtension}.mp3` },
         mimetype: "audio/mpeg",
-        ptt: true,
+        ptt: true
       });
-      await verifyMediaMessage(sendMessage!, ticket, contact, ticketTraking, false, false, wbot);
+      await verifyMediaMessage(
+        sendMessage!,
+        ticket,
+        contact,
+        ticketTraking,
+        false,
+        false,
+        wbot
+      );
       deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.mp3`);
       deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.wav`);
     } catch (error) {
       console.error(`Erro para responder com audio: ${error}`);
       // Fallback para texto
       const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-        text: `\u200e ${response}`,
+        text: `\u200e ${response}`
       });
       await verifyMessage(sentMessage!, ticket, contact);
     }
@@ -371,13 +427,17 @@ const processResponse = async (
 };
 
 // Manipula requisição OpenAI
-const handleOpenAIRequest = async (openai: SessionOpenAi, messagesAI: any[], aiSettings: IOpenAi): Promise<string> => {
+const handleOpenAIRequest = async (
+  openai: SessionOpenAi,
+  messagesAI: any[],
+  aiSettings: IOpenAi
+): Promise<string> => {
   try {
     const chat = await openai.chat.completions.create({
       model: aiSettings.model,
       messages: messagesAI as any,
       max_tokens: aiSettings.maxTokens,
-      temperature: aiSettings.temperature,
+      temperature: aiSettings.temperature
     });
     return chat.choices[0].message?.content || "";
   } catch (error) {
@@ -397,13 +457,13 @@ const handleGeminiRequest = async (
   try {
     const model = gemini.getGenerativeModel({
       model: aiSettings.model,
-      systemInstruction: promptSystem,
+      systemInstruction: promptSystem
     });
 
     // Converte o histórico para o formato do Gemini
     const geminiHistory: Content[] = messagesAI.map(msg => ({
       role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }],
+      parts: [{ text: msg.content }]
     }));
 
     const chat = model.startChat({ history: geminiHistory });
@@ -438,23 +498,35 @@ export const handleOpenAiFlow = async (
 
     // Verificar modo temporário e continuação de fluxo
     const isTemporaryMode = aiSettings.flowMode === "temporary";
-    const flowContinuation = (ticket.dataWebhook && typeof ticket.dataWebhook === "object" && "flowContinuation" in ticket.dataWebhook)
-      ? (ticket.dataWebhook as any).flowContinuation
-      : undefined;
+    const flowContinuation =
+      ticket.dataWebhook &&
+      typeof ticket.dataWebhook === "object" &&
+      "flowContinuation" in ticket.dataWebhook
+        ? (ticket.dataWebhook as any).flowContinuation
+        : undefined;
 
     // Verificações para voltar ao fluxo (apenas no modo temporário)
     if (isTemporaryMode && flowContinuation) {
-      const bodyMessage = getBodyMessage(msg) || "";
+      const bodyMessage = getBodyMessage(msg as any) || "";
 
       // 1. Verificar palavras-chave de continuação
-      if (detectFlowContinuation(bodyMessage, aiSettings.continueKeywords || [])) {
-        logger.info(`[AI SERVICE] Usuário solicitou continuação do fluxo - ticket ${ticket.id}`);
+      if (
+        detectFlowContinuation(bodyMessage, aiSettings.continueKeywords || [])
+      ) {
+        logger.info(
+          `[AI SERVICE] Usuário solicitou continuação do fluxo - ticket ${ticket.id}`
+        );
         return await returnToFlow(ticket, "user_requested");
       }
 
       // 2. Verificar limite de interações
-      if (aiSettings.maxInteractions && flowContinuation.interactionCount >= aiSettings.maxInteractions) {
-        logger.info(`[AI SERVICE] Limite de interações atingido - ticket ${ticket.id}`);
+      if (
+        aiSettings.maxInteractions &&
+        flowContinuation.interactionCount >= aiSettings.maxInteractions
+      ) {
+        logger.info(
+          `[AI SERVICE] Limite de interações atingido - ticket ${ticket.id}`
+        );
         return await returnToFlow(ticket, "max_interactions");
       }
 
@@ -462,9 +534,10 @@ export const handleOpenAiFlow = async (
       if (aiSettings.completionTimeout) {
         const startTime = new Date(flowContinuation.startTime);
         const now = new Date();
-        const minutesElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60);
+        const minutesElapsed =
+          (now.getTime() - startTime.getTime()) / (1000 * 60);
 
-if (minutesElapsed >= aiSettings.completionTimeout) {
+        if (minutesElapsed >= aiSettings.completionTimeout) {
           logger.info(`[AI SERVICE] Timeout atingido - ticket ${ticket.id}`);
           return await returnToFlow(ticket, "timeout");
         }
@@ -487,32 +560,39 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
 
     try {
       if (msg && msg.message) {
-        bodyMessage = getBodyMessage(msg) || "";
+        bodyMessage = getBodyMessage(msg as any) || "";
       } else if (msg && msg.key) {
         const messageFromDB = await Message.findOne({
           where: { wid: msg.key.id },
-          order: [['createdAt', 'DESC']]
+          order: [["createdAt", "DESC"]]
         });
 
         if (messageFromDB) {
           bodyMessage = messageFromDB.body || "";
-          logger.info(`[AI SERVICE] Usando mensagem do banco: "${bodyMessage}"`);
+          logger.info(
+            `[AI SERVICE] Usando mensagem do banco: "${bodyMessage}"`
+          );
         }
       }
     } catch (error) {
-      logger.warn("[AI SERVICE] Erro ao extrair bodyMessage, tentando buscar última mensagem:", error);
+      logger.warn(
+        "[AI SERVICE] Erro ao extrair bodyMessage, tentando buscar última mensagem:",
+        error
+      );
 
       const lastMessage = await Message.findOne({
         where: {
           ticketId: ticket.id,
           fromMe: false
         },
-        order: [['createdAt', 'DESC']]
+        order: [["createdAt", "DESC"]]
       });
 
       if (lastMessage) {
         bodyMessage = lastMessage.body || "";
-        logger.info(`[AI SERVICE] Usando última mensagem como fallback: "${bodyMessage}"`);
+        logger.info(
+          `[AI SERVICE] Usando última mensagem como fallback: "${bodyMessage}"`
+        );
       }
     }
 
@@ -532,12 +612,21 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
       return;
     }
 
-    const publicFolder: string = path.resolve(__dirname, "..", "..", "..", "public", `company${ticket.companyId}`);
+    const publicFolder: string = path.resolve(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "public",
+      `company${ticket.companyId}`
+    );
 
     // Definir se é OpenAI ou Gemini baseado no provider
-    const provider = aiSettings.provider || (aiSettings.model.startsWith('gpt-') ? 'openai' : 'gemini');
-    const isOpenAIModel = provider === 'openai';
-    const isGeminiModel = provider === 'gemini';
+    const provider =
+      aiSettings.provider ||
+      (aiSettings.model.startsWith("gpt-") ? "openai" : "gemini");
+    const isOpenAIModel = provider === "openai";
+    const isGeminiModel = provider === "gemini";
 
     if (!isOpenAIModel && !isGeminiModel) {
       logger.error(`[AI SERVICE] Provider não suportado: ${provider}`);
@@ -593,16 +682,30 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
 
     // Processar mensagem de texto
     if (bodyMessage) {
-      const messagesAI = prepareMessagesAI(messages, isGeminiModel, promptSystem);
+      const messagesAI = prepareMessagesAI(
+        messages,
+        isGeminiModel,
+        promptSystem
+      );
 
       try {
         let responseText: string | null = null;
 
         if (isOpenAIModel && openai) {
           messagesAI.push({ role: "user", content: bodyMessage });
-          responseText = await handleOpenAIRequest(openai, messagesAI, aiSettings);
+          responseText = await handleOpenAIRequest(
+            openai,
+            messagesAI,
+            aiSettings
+          );
         } else if (isGeminiModel && gemini) {
-          responseText = await handleGeminiRequest(gemini, messagesAI, aiSettings, bodyMessage, promptSystem);
+          responseText = await handleGeminiRequest(
+            gemini,
+            messagesAI,
+            aiSettings,
+            bodyMessage,
+            promptSystem
+          );
         }
 
         if (!responseText) {
@@ -610,12 +713,27 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
           return;
         }
 
-        await processResponse(responseText, wbot, msg, ticket, contact, aiSettings, ticketTraking);
+        await processResponse(
+          responseText,
+          wbot,
+          msg,
+          ticket,
+          contact,
+          aiSettings,
+          ticketTraking
+        );
 
-        logger.info(`[AI SERVICE] Resposta processada com sucesso para ticket ${ticket.id}`);
+        logger.info(
+          `[AI SERVICE] Resposta processada com sucesso para ticket ${ticket.id}`
+        );
 
         // APÓS RESPOSTA: Verificar se deve continuar fluxo por objetivo completado
-        if (isTemporaryMode && aiSettings.autoCompleteOnObjective && aiSettings.objective && openai) {
+        if (
+          isTemporaryMode &&
+          aiSettings.autoCompleteOnObjective &&
+          aiSettings.objective &&
+          openai
+        ) {
           const recentMessages = await Message.findAll({
             where: { ticketId: ticket.id },
             order: [["createdAt", "DESC"]],
@@ -629,15 +747,17 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
           );
 
           if (objectiveCompleted) {
-            logger.info(`[AI SERVICE] Objetivo completado automaticamente - ticket ${ticket.id}`);
+            logger.info(
+              `[AI SERVICE] Objetivo completado automaticamente - ticket ${ticket.id}`
+            );
             return await returnToFlow(ticket, "objective_completed");
           }
         }
-
       } catch (error: any) {
         logger.error("[AI SERVICE] Falha na requisição para IA:", error);
 
-        const errorMessage = "Desculpe, estou com dificuldades técnicas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.";
+        const errorMessage =
+          "Desculpe, estou com dificuldades técnicas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.";
 
         const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
           text: errorMessage
@@ -649,7 +769,9 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
     // Processar áudio (apenas para OpenAI)
     else if (msg.message?.audioMessage && mediaSent && isOpenAIModel) {
       if (!openai) {
-        logger.error("[AI SERVICE] Sessão OpenAI necessária para transcrição mas não inicializada");
+        logger.error(
+          "[AI SERVICE] Sessão OpenAI necessária para transcrição mas não inicializada"
+        );
         await wbot.sendMessage(msg.key.remoteJid!, {
           text: "Desculpe, a transcrição de áudio não está configurada corretamente."
         });
@@ -661,7 +783,9 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
         const audioFilePath = `${publicFolder}/${mediaUrl}`;
 
         if (!fs.existsSync(audioFilePath)) {
-          logger.error(`[AI SERVICE] Arquivo de áudio não encontrado: ${audioFilePath}`);
+          logger.error(
+            `[AI SERVICE] Arquivo de áudio não encontrado: ${audioFilePath}`
+          );
           await wbot.sendMessage(msg.key.remoteJid!, {
             text: "Desculpe, não foi possível processar seu áudio. Por favor, tente novamente."
           });
@@ -671,7 +795,7 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
         const file = fs.createReadStream(audioFilePath);
         const transcriptionResult = await openai.audio.transcriptions.create({
           model: "whisper-1",
-          file: file,
+          file: file
         });
 
         const transcription = transcriptionResult.text;
@@ -685,48 +809,74 @@ if (minutesElapsed >= aiSettings.completionTimeout) {
         }
 
         // Enviar transcrição para o usuário
-        const sentTranscriptMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-          text: `🎤 *Sua mensagem de voz:* ${transcription}`,
-        });
+        const sentTranscriptMessage = await wbot.sendMessage(
+          msg.key.remoteJid!,
+          {
+            text: `🎤 *Sua mensagem de voz:* ${transcription}`
+          }
+        );
         await verifyMessage(sentTranscriptMessage!, ticket, contact);
 
         // Obter resposta da IA para a transcrição
-        const messagesAI = prepareMessagesAI(messages, isGeminiModel, promptSystem);
+        const messagesAI = prepareMessagesAI(
+          messages,
+          isGeminiModel,
+          promptSystem
+        );
         let responseText: string | null = null;
 
         if (isOpenAIModel) {
           messagesAI.push({ role: "user", content: transcription });
-          responseText = await handleOpenAIRequest(openai, messagesAI, aiSettings);
+          responseText = await handleOpenAIRequest(
+            openai,
+            messagesAI,
+            aiSettings
+          );
         } else if (isGeminiModel && gemini) {
-          responseText = await handleGeminiRequest(gemini, messagesAI, aiSettings, transcription, promptSystem);
+          responseText = await handleGeminiRequest(
+            gemini,
+            messagesAI,
+            aiSettings,
+            transcription,
+            promptSystem
+          );
         }
 
         if (responseText) {
-          await processResponse(responseText, wbot, msg, ticket, contact, aiSettings, ticketTraking);
+          await processResponse(
+            responseText,
+            wbot,
+            msg,
+            ticket,
+            contact,
+            aiSettings,
+            ticketTraking
+          );
         }
-
       } catch (error: any) {
         logger.error("[AI SERVICE] Erro no processamento de áudio:", error);
-        const errorMessage = error?.response?.error?.message || error.message || "Erro desconhecido";
+        const errorMessage =
+          error?.response?.error?.message ||
+          error.message ||
+          "Erro desconhecido";
         const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-          text: `Desculpe, houve um erro ao processar seu áudio: ${errorMessage}`,
+          text: `Desculpe, houve um erro ao processar seu áudio: ${errorMessage}`
         });
         await verifyMessage(sentMessage!, ticket, contact);
       }
     } else if (msg.message?.audioMessage && isGeminiModel) {
       // Gemini não suporta áudio, apenas texto
       const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-        text: "Desculpe, no momento só posso processar mensagens de texto. Por favor, envie sua pergunta por escrito.",
+        text: "Desculpe, no momento só posso processar mensagens de texto. Por favor, envie sua pergunta por escrito."
       });
       await verifyMessage(sentMessage!, ticket, contact);
     }
-
   } catch (error) {
     logger.error("[AI SERVICE] Erro geral no serviço:", error);
 
     try {
       const sentMessage = await wbot.sendMessage(msg.key.remoteJid!, {
-        text: "Desculpe, ocorreu um erro interno. Por favor, tente novamente mais tarde.",
+        text: "Desculpe, ocorreu um erro interno. Por favor, tente novamente mais tarde."
       });
       await verifyMessage(sentMessage!, ticket, contact);
     } catch (sendError) {
