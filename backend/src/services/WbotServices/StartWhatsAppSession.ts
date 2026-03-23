@@ -20,7 +20,8 @@ export const StartWhatsAppSession = async (
   });
 
   try {
-    const wbot = await initWASocket(whatsapp);
+    const wbot = (await initWASocket(whatsapp)) as any;
+    wbot.id = whatsapp.id;
 
     if (wbot.id) {
       const groups = await wbot.groupFetchAllParticipating();

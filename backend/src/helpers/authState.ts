@@ -12,7 +12,11 @@ const KEY_MAP: { [T in keyof SignalDataTypeMap]: string } = {
   "sender-key": "senderKeys",
   "app-state-sync-key": "appStateSyncKeys",
   "app-state-sync-version": "appStateVersions",
-  "sender-key-memory": "senderKeyMemory"
+  "sender-key-memory": "senderKeyMemory",
+  // Add missing mappings
+  "lid-mapping": "lidMapping",
+  "device-list": "deviceList",
+  tctoken: "tcToken"
 };
 
 const authState = async (
@@ -31,15 +35,29 @@ const authState = async (
     }
   };
 
-  // const getSessionDatabase = await whatsappById(whatsapp.id);
-
   if (whatsapp.session && whatsapp.session !== null) {
     const result = JSON.parse(whatsapp.session, BufferJSON.reviver);
     creds = result.creds;
     keys = result.keys;
+
+    // Initialize missing properties if they don't exist
+    if (!keys.lidMapping) keys.lidMapping = {};
+    if (!keys.deviceList) keys.deviceList = {};
+    if (!keys.tcToken) keys.tcToken = {};
   } else {
     creds = initAuthCreds();
-    keys = {};
+    keys = {
+      preKeys: {},
+      sessions: {},
+      senderKeys: {},
+      appStateSyncKeys: {},
+      appStateVersions: {},
+      senderKeyMemory: {},
+      // Initialize new properties
+      lidMapping: {},
+      deviceList: {},
+      tcToken: {}
+    };
   }
 
   return {
@@ -48,6 +66,12 @@ const authState = async (
       keys: {
         get: (type, ids) => {
           const key = KEY_MAP[type];
+          // Handle case where key might not exist in KEY_MAP
+          if (!key) {
+            console.warn(`Unknown key type: ${type}`);
+            return {};
+          }
+
           return ids.reduce((dict: any, id) => {
             let value = keys[key]?.[id];
             if (value) {
@@ -63,6 +87,11 @@ const authState = async (
           // eslint-disable-next-line no-restricted-syntax, guard-for-in
           for (const i in data) {
             const key = KEY_MAP[i as keyof SignalDataTypeMap];
+            // Skip if key doesn't exist in mapping
+            if (!key) {
+              console.warn(`Unknown data type: ${i}`);
+              continue;
+            }
             keys[key] = keys[key] || {};
             Object.assign(keys[key], data[i]);
           }

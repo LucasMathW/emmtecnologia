@@ -5,10 +5,11 @@ import { getWbot } from "../libs/wbot";
 import logger from "../utils/logger";
 import { Op } from "sequelize";
 
-
 const populateContactLids = async (companyId?: number) => {
   try {
-    logger.info("RDS - Iniciando população de LIDs para contatos existentes...");
+    logger.info(
+      "RDS - Iniciando população de LIDs para contatos existentes..."
+    );
 
     const whereCondition = companyId ? { companyId } : {};
 
@@ -20,30 +21,35 @@ const populateContactLids = async (companyId?: number) => {
     });
 
     if (!whatsapps.length) {
-      logger.error("RDS - Nenhum WhatsApp conectado encontrado. O script não pode continuar.");
+      logger.error(
+        "RDS - Nenhum WhatsApp conectado encontrado. O script não pode continuar."
+      );
       return;
     }
 
-    logger.info(`RDS - Encontrados ${whatsapps.length} conexões WhatsApp para processar.`);
+    logger.info(
+      `RDS - Encontrados ${whatsapps.length} conexões WhatsApp para processar.`
+    );
 
     for (const whatsapp of whatsapps) {
       try {
         const wbot = await getWbot(whatsapp.id);
         if (!wbot) {
-          logger.error(`WhatsApp ID ${whatsapp.id} não encontrado no wbot. Pulando...`);
+          logger.error(
+            `WhatsApp ID ${whatsapp.id} não encontrado no wbot. Pulando...`
+          );
           continue;
         }
 
-        logger.info(`RDS - Processando contatos da empresa ${whatsapp.companyId} com WhatsApp ID ${whatsapp.id}...`);
+        logger.info(
+          `RDS - Processando contatos da empresa ${whatsapp.companyId} com WhatsApp ID ${whatsapp.id}...`
+        );
 
         const contacts = await Contact.findAll({
           where: {
             companyId: whatsapp.companyId,
             isGroup: false,
-            [Op.or]: [
-              { lid: null },
-              { lid: "" }
-            ]
+            [Op.or]: [{ lid: null }, { lid: "" }]
           },
           include: [
             {
@@ -53,7 +59,9 @@ const populateContactLids = async (companyId?: number) => {
           ]
         });
 
-        logger.info(`RDS - Encontrados ${contacts.length} contatos sem LID para processar na empresa ${whatsapp.companyId}`);
+        logger.info(
+          `RDS - Encontrados ${contacts.length} contatos sem LID para processar na empresa ${whatsapp.companyId}`
+        );
 
         let successCount = 0;
         let errorCount = 0;
@@ -63,7 +71,7 @@ const populateContactLids = async (companyId?: number) => {
         for (let i = 0; i < contacts.length; i += batchSize) {
           const batch = contacts.slice(i, i + batchSize);
 
-          const promises = batch.map(async (contact) => {
+          const promises = batch.map(async contact => {
             try {
               const existingMap = await WhatsappLidMap.findOne({
                 where: {
@@ -82,9 +90,10 @@ const populateContactLids = async (companyId?: number) => {
                 : `${contact.number}@s.whatsapp.net`;
 
               const result = await wbot.onWhatsApp(formattedNumber);
+              const waResult = result?.[0] as any;
 
-              if (result && result.length > 0 && result[0].exists && result[0].lid) {
-                const lid = result[0].lid as string;
+              if (waResult?.exists && waResult?.lid) {
+                const lid = waResult.lid as string;
 
                 await contact.update({ lid });
 
@@ -94,14 +103,24 @@ const populateContactLids = async (companyId?: number) => {
                   companyId: contact.companyId
                 });
 
-                logger.info(`RDS - Mapeado LID ${lid} para contato ${contact.id} (${contact.name || contact.number})`);
+                logger.info(
+                  `RDS - Mapeado LID ${lid} para contato ${contact.id} (${
+                    contact.name || contact.number
+                  })`
+                );
                 successCount++;
               } else {
-                logger.warn(`RDS - Contato ${contact.id} (${contact.name || contact.number}) não existe no WhatsApp ou não retornou LID`);
+                logger.warn(
+                  `RDS - Contato ${contact.id} (${
+                    contact.name || contact.number
+                  }) não existe no WhatsApp ou não retornou LID`
+                );
                 errorCount++;
               }
             } catch (error) {
-              logger.error(`RDS - Erro ao processar contato ${contact.id}: ${error.message}`);
+              logger.error(
+                `RDS - Erro ao processar contato ${contact.id}: ${error.message}`
+              );
               errorCount++;
             }
           });
@@ -112,18 +131,29 @@ const populateContactLids = async (companyId?: number) => {
           // Pausa para evitar sobrecarga na API do WhatsApp
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          logger.info(`RDS - Progresso: ${Math.min(i + batchSize, contacts.length)}/${contacts.length} contatos processados`);
+          logger.info(
+            `RDS - Progresso: ${Math.min(i + batchSize, contacts.length)}/${
+              contacts.length
+            } contatos processados`
+          );
         }
 
-        logger.info(`RDS - Empresa ${whatsapp.companyId}: ${successCount} contatos mapeados com sucesso, ${errorCount} falhas, ${existingCount} já existentes.`);
+        logger.info(
+          `RDS - Empresa ${whatsapp.companyId}: ${successCount} contatos mapeados com sucesso, ${errorCount} falhas, ${existingCount} já existentes.`
+        );
       } catch (error) {
-        logger.error(`RDS - Erro ao processar WhatsApp ${whatsapp.id}: ${error.message}`);
+        logger.error(
+          `RDS - Erro ao processar WhatsApp ${whatsapp.id}: ${error.message}`
+        );
       }
     }
 
     logger.info("RDS - Processo de população de LIDs concluído!");
   } catch (error) {
-    logger.error("RDS - Erro durante a execução do script de população de LIDs:", error);
+    logger.error(
+      "RDS - Erro durante a execução do script de população de LIDs:",
+      error
+    );
     throw error;
   }
 };
@@ -138,7 +168,10 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch(error => {
-      logger.error("RDS - Erro ao executar script de população de LIDs:", error);
+      logger.error(
+        "RDS - Erro ao executar script de população de LIDs:",
+        error
+      );
       process.exit(1);
     });
 }

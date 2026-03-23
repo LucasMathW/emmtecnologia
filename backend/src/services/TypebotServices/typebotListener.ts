@@ -59,7 +59,7 @@ const typebotListener = async ({
     return "Boa madrugada";
   }
 
-  let body = getBodyMessage(msg);
+  let body = getBodyMessage(msg as any);
 
   async function createSession(msg, typebot, number) {
     try {

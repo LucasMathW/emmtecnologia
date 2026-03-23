@@ -183,15 +183,10 @@ const FindOrCreateTicketService = async (
       if (
         (Number(ticket?.userId) !== Number(userId) &&
           userId !== 0 &&
-          userId !== "" &&
-          userId !== "0" &&
           !isNil(userId) &&
           !ticket.isGroup) ||
-        // @ts-ignore: Unreachable code error
         (queueId !== 0 &&
           Number(ticket?.queueId) !== Number(queueId) &&
-          queueId !== "" &&
-          queueId !== "0" &&
           !isNil(queueId))
       ) {
         throw new AppError(

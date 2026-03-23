@@ -208,9 +208,10 @@ export async function verifyContact(
       if (!foundContact.whatsappLidMap) {
         try {
           const ow = await wbot.onWhatsApp(msgContact.id);
+          const owItem = ow?.[0] as any;
 
-          if (ow?.[0]?.exists) {
-            const lid = ow?.[0]?.lid as string;
+          if (owItem?.exists) {
+            const lid = owItem?.lid as string;
 
             if (lid) {
               await checkAndDedup(foundContact, lid);
@@ -287,7 +288,8 @@ export async function verifyContact(
           return CreateOrUpdateContactService(contactData);
         }
 
-        let lid = ow?.[0]?.lid as string;
+        const owItem = ow?.[0] as any;
+        let lid = owItem?.lid as string;
 
         if (!lid && originalLid) {
           lid = originalLid;

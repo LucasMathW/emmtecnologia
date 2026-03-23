@@ -74,9 +74,7 @@ const sendMessage = async (
   if (ENABLE_LID_DEBUG) {
     logger.info(`[RDS-LID] ChatBot - Enviando para JID tradicional: ${jid}`);
     logger.info(`[RDS-LID] ChatBot - Contact lid: ${contact.lid}`);
-    logger.info(
-      `[RDS-LID] ChatBot - Contact remoteJid: ${contact.remoteJid}`
-    );
+    logger.info(`[RDS-LID] ChatBot - Contact remoteJid: ${contact.remoteJid}`);
   }
 
   let sentMessage: WAMessage;
@@ -796,7 +794,9 @@ export const sayChatbot = async (
 ): Promise<any> => {
   // ✅ VERIFICAÇÃO PREVENTIVA: Não processar se ticket estiver "open" (aceito por atendente)
   if (ticket.status === "open") {
-    console.log(`[CHATBOT] Ticket ${ticket.id} está "open" - ChatBot não deve processar`);
+    console.log(
+      `[CHATBOT] Ticket ${ticket.id} está "open" - ChatBot não deve processar`
+    );
     return;
   }
 
@@ -809,7 +809,7 @@ export const sayChatbot = async (
   const selectedOption =
     msg?.message?.buttonsResponseMessage?.selectedButtonId ||
     msg?.message?.listResponseMessage?.singleSelectReply.selectedRowId ||
-    getBodyMessage(msg);
+    getBodyMessage(msg as any);
 
   if (!queueId && selectedOption && msg.key.fromMe) return;
 
@@ -1479,9 +1479,13 @@ export const sayChatbot = async (
   if (String(selectedOption).toLocaleLowerCase() === "sair") {
     const complationMessage = ticket.whatsapp?.complationMessage;
     if (!isNil(complationMessage)) {
-      const textMessage = { text: formatBody(`\u200e${complationMessage}`, ticket) };
+      const textMessage = {
+        text: formatBody(`\u200e${complationMessage}`, ticket)
+      };
       const sendMsg = await wbot.sendMessage(
-        `${ticket?.contact?.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`,
+        `${ticket?.contact?.number}@${
+          ticket.isGroup ? "g.us" : "s.whatsapp.net"
+        }`,
         textMessage
       );
       await verifyMessage(sendMsg, ticket, ticket.contact);
@@ -1563,7 +1567,7 @@ export const sayChatbot = async (
     const selectedOptions =
       msg?.message?.buttonsResponseMessage?.selectedButtonId ||
       msg?.message?.listResponseMessage?.singleSelectReply.selectedRowId ||
-      getBodyMessage(msg);
+      getBodyMessage(msg as any);
 
     const choosenQueue = queue.chatbots[+selectedOptions - 1];
 
@@ -1686,7 +1690,8 @@ export const sayChatbot = async (
     const bots = await ShowChatBotServices(getStageBot.chatbotId);
 
     if (selected === 0 || +selected > bots.options.length) {
-      const body = "\u200eOpção inválida! Digite um número válido para continuar!";
+      const body =
+        "\u200eOpção inválida! Digite um número válido para continuar!";
       await sleep(2000);
       await sendMessage(wbot, ticket.contact, ticket, body);
       return;

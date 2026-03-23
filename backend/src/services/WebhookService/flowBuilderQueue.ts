@@ -17,7 +17,7 @@ const flowBuilderQueue = async (
   contact: Contact,
   isFirstMsg: Ticket
 ) => {
-  const body = getBodyMessage(msg);
+  const body = getBodyMessage(msg as any);
 
   // Verificar se existe fluxo interrompido válido
   if (!ticket.flowStopped || !ticket.lastFlowId) {
@@ -34,7 +34,9 @@ const flowBuilderQueue = async (
     });
 
     if (!flow) {
-      console.log(`Fluxo ${ticket.flowStopped} não encontrado para a empresa ${companyId}`);
+      console.log(
+        `Fluxo ${ticket.flowStopped} não encontrado para a empresa ${companyId}`
+      );
       return;
     }
 
@@ -61,9 +63,10 @@ const flowBuilderQueue = async (
       ticket.id,
       mountDataContact
     );
-    
-    console.log(`Fluxo interrompido ${ticket.flowStopped} executado com sucesso`);
 
+    console.log(
+      `Fluxo interrompido ${ticket.flowStopped} executado com sucesso`
+    );
   } catch (error) {
     console.error("Erro ao executar fluxo interrompido:", error);
   }
