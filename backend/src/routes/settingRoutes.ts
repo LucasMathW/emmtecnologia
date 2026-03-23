@@ -13,34 +13,51 @@ const uploadPrivate = multer(uploadPrivateConfig);
 
 const settingRoutes = Router();
 
-settingRoutes.get("/settings", isAuth, SettingController.index);
+settingRoutes.get("/settings", isAuth, SettingController.index as any);
 
-settingRoutes.get("/settings/:settingKey", isAuth, SettingController.showOne);
+settingRoutes.get(
+  "/settings/:settingKey",
+  isAuth,
+  SettingController.showOne as any
+);
 
 // change setting key to key in future
-settingRoutes.put("/settings/:settingKey", isAuth, SettingController.update);
+settingRoutes.put(
+  "/settings/:settingKey",
+  isAuth,
+  SettingController.update as any
+);
 
-settingRoutes.get("/setting/:settingKey", isAuth, SettingController.getSetting);
+settingRoutes.get(
+  "/setting/:settingKey",
+  isAuth,
+  SettingController.getSetting as any
+);
 
-settingRoutes.put("/setting/:settingKey", isAuth, SettingController.updateOne);
+settingRoutes.put(
+  "/setting/:settingKey",
+  isAuth,
+  SettingController.updateOne as any
+);
 
 settingRoutes.get(
   "/public-settings/:settingKey",
   envTokenAuth,
-  SettingController.publicShow
+  SettingController.publicShow as any
 );
 
 settingRoutes.post(
   "/settings-whitelabel/logo",
   isAuth,
   upload.single("file"),
-  SettingController.storeLogo
+  SettingController.storeLogo as any
 );
 
 settingRoutes.post(
   "/settings/privateFile",
   isAuth,
   uploadPrivate.single("file"),
-  SettingController.storePrivateFile
+  SettingController.storePrivateFile as any
 );
+
 export default settingRoutes;
