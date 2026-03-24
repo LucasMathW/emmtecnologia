@@ -5,4 +5,3 @@ declare module "express-serve-static-core" {
     companyId?: number;
   }
 }
-EOF;

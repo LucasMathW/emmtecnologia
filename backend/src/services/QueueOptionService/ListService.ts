@@ -7,9 +7,13 @@ type QueueOptionFilter = {
   parentId: string | number | boolean;
 };
 
-const ListService = async ({ queueId, queueOptionId, parentId }: QueueOptionFilter): Promise<QueueOption[]> => {
-
+const ListService = async ({
+  queueId,
+  queueOptionId,
+  parentId
+}: QueueOptionFilter): Promise<QueueOption[]> => {
   const whereOptions: WhereOptions = {};
+  const parsedParentId = Number(parentId);
 
   if (queueId) {
     whereOptions.queueId = queueId;
@@ -19,12 +23,12 @@ const ListService = async ({ queueId, queueOptionId, parentId }: QueueOptionFilt
     whereOptions.id = queueOptionId;
   }
 
-  if (parentId == -1) {
+  if (!Number.isNaN(parsedParentId) && parsedParentId === -1) {
     whereOptions.parentId = null;
   }
 
-  if (parentId > 0) {
-    whereOptions.parentId = parentId;
+  if (!Number.isNaN(parsedParentId) && parsedParentId > 0) {
+    whereOptions.parentId = parsedParentId;
   }
 
   const queueOptions = await QueueOption.findAll({
