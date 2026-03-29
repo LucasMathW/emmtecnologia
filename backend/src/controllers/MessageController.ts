@@ -214,79 +214,57 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
   try {
     if (medias) {
-      await Promise.all(
-        medias.map(async (media: Express.Multer.File, index) => {
-          console.log(`🔍 Processando mídia ${index + 1}:`, {
-            originalname: media.originalname,
-            mimetype: media.mimetype,
-            fieldname: media.fieldname,
-            size: media.size
+      for (const [index, media] of medias.entries()) {
+        console.log(`🔍 Processando mídia ${index + 1}:`, {
+          originalname: media.originalname,
+          mimetype: media.mimetype,
+          fieldname: media.fieldname,
+          size: media.size
+        });
+
+        if (isAudioFile(media)) {
+          console.log("🎵 Processando como arquivo de áudio");
+        } else {
+          console.log("📎 Processando como arquivo comum");
+        }
+
+        if (ticket.channel === "whatsapp") {
+          await SendWhatsAppMedia({
+            media,
+            ticket,
+            quotedMsg,
+            body: Array.isArray(body) ? body[index] : body,
+            isPrivate: isPrivate === "true",
+            isForwarded: false
           });
+        }
 
-          // ✅ CORREÇÃO: Verificação melhorada para áudio
-          if (isAudioFile(media)) {
-            console.log("🎵 Processando como arquivo de áudio");
-          } else {
-            console.log("📎 Processando como arquivo comum");
-          }
+        if (ticket.channel === "whatsapp_oficial") {
+          await SendWhatsAppOficialMessage({
+            media,
+            body: Array.isArray(body) ? body[index] : body,
+            ticket,
+            type: null,
+            quotedMsg
+          });
+        }
 
-          if (ticket.channel === "whatsapp") {
-            await SendWhatsAppMedia({
+        if (["facebook", "instagram"].includes(ticket.channel)) {
+          try {
+            const sentMedia = await sendFacebookMessageMedia({
               media,
               ticket,
-              body: Array.isArray(body) ? body[index] : body,
-              isPrivate: isPrivate === "true",
-              isForwarded: false
+              body: Array.isArray(body) ? body[index] : body
             });
-          }
 
-          if (ticket.channel == "whatsapp_oficial") {
-            await SendWhatsAppOficialMessage({
-              media,
-              body: Array.isArray(body) ? body[index] : body,
-              ticket,
-              type: null,
-              quotedMsg
-            });
-          }
-
-          if (["facebook", "instagram"].includes(ticket.channel)) {
-            try {
-              const sentMedia = await sendFacebookMessageMedia({
-                media,
-                ticket,
-                body: Array.isArray(body) ? body[index] : body
-              });
-
-              if (ticket.channel === "facebook") {
-                await verifyMessageMedia(
-                  sentMedia,
-                  ticket,
-                  ticket.contact,
-                  true
-                );
-              }
-            } catch (error) {
-              console.log(error);
+            if (ticket.channel === "facebook") {
+              await verifyMessageMedia(sentMedia, ticket, ticket.contact, true);
             }
+          } catch (error) {
+            console.log(error);
           }
-
-          // ✅ CORREÇÃO: Limpar arquivo após envio (exceto para privadas)
-          // if (isPrivate === "false") {
-          //   const filePath = path.resolve("public", `company${companyId}`, media.filename);
-          //   const fileExists = fs.existsSync(filePath);
-
-          //   if (fileExists) {
-          //     try {
-          //       // fs.unlinkSync(filePath);
-          //       // console.log("🗑️ Arquivo temporário removido:", filePath);
-          //     } catch (unlinkError) {
-          //       console.warn("⚠️ Erro ao remover arquivo temporário:", unlinkError);
-          //     }
-          //   }
-          // }
-        })
-      );
+        }
+      }
     } else {
       // Tratamento para mensagens sem mídia (código existente)
       if (ticket.channel === "whatsapp" && isPrivate === "false") {
@@ -727,14 +705,15 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
         }
       } else if (isPrivate === "true") {
         const messageData = {
-          wid: `PVT${ticket.updatedAt.toString().replace(" ", "")}`,
+          // wid: `PVT${ticket.updatedAt.toString().replace(" ", "")}`,
+          wid: `PVT${ticket.id}_${Date.now()}`,
           ticketId: ticket.id,
           contactId: undefined,
           body,
           fromMe: true,
           mediaType: !isNil(vCard) ? "contactMessage" : "extendedTextMessage",
           read: true,
-          quotedMsgId: null,
+          quotedMsgId: quotedMsg?.id ?? null,
           ack: 2,
           remoteJid: ticket.contact?.remoteJid,
           participant: null,
@@ -760,8 +739,9 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     }
     return res.send();
   } catch (error) {
-    console.error("❌ Erro no envio de mensagem:", error);
-    return res.status(400).json({ error: error.message });
+    const errorMessage = error?.message || String(error) || "Erro desconhecido";
+    console.error("❌ Erro no envio:", errorMessage);
+    return res.status(400).json({ error: errorMessage });
   }
 };
 
@@ -1213,8 +1193,9 @@ export const storeTemplate = async (
 
     return res.send(200);
   } catch (error) {
-    console.log(error);
-    return res.status(400).json({ error: error.message });
+    const errorMessage = error?.message || String(error) || "Erro desconhecido";
+    console.error("❌ Erro no envio:", errorMessage);
+    return res.status(400).json({ error: errorMessage });
   }
 };
 
