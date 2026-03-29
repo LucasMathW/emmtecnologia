@@ -17,6 +17,7 @@ import logger from "../../utils/logger";
 import { ENABLE_LID_DEBUG } from "../../config/debug";
 import { normalizeJid } from "../../utils";
 import { getJidOf } from "./getJidOf";
+import Message from "../../models/Message";
 
 ffmpeg.setFfmpegPath(ffmpegStatic!);
 
@@ -119,6 +120,7 @@ const getMediaTypeFromMimeType = (mimetype: string): string => {
 interface Request {
   media: Express.Multer.File;
   ticket: Ticket;
+  quotedMsg?: Message;
   companyId?: number;
   body?: string;
   isPrivate?: boolean;
@@ -190,13 +192,13 @@ export const convertPngToJpg = async (
     // Usar ffmpeg para converter qualquer formato de imagem para JPG
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
-        .outputFormat('mjpeg')
-        .outputOptions('-q:v', '2') // Qualidade alta
-        .on('end', () => {
+        .outputFormat("mjpeg")
+        .outputOptions("-q:v", "2") // Qualidade alta
+        .on("end", () => {
           console.log("✅ Conversão para JPG concluída");
           resolve();
         })
-        .on('error', (err) => {
+        .on("error", err => {
           console.error("❌ Erro na conversão para JPG:", err);
           reject(err);
         })
@@ -295,6 +297,7 @@ export const getMessageOptions = async (
 const SendWhatsAppMedia = async ({
   media,
   ticket,
+  quotedMsg,
   body = "",
   isPrivate = false,
   isForwarded = false
@@ -307,18 +310,54 @@ const SendWhatsAppMedia = async ({
     let pathMedia;
 
     // Verificar se media.path já é um caminho absoluto ou relativo
-    if (media.path.startsWith('/') && !media.path.includes('public')) {
+    if (media.path.startsWith("/") && !media.path.includes("public")) {
       // Caminho relativo como /company1/fileList/4/arquivo.pdf
       pathMedia = path.join(publicFolder, media.path);
-    } else if (media.path.includes('public')) {
+    } else if (media.path.includes("public")) {
       // Caminho já absoluto, usar diretamente
       pathMedia = media.path;
-    } else if (media.path.startsWith('company')) {
+    } else if (media.path.startsWith("company")) {
       // Caminho que começa com company (ex: company1/fileList/4/arquivo.pdf)
       pathMedia = path.join(publicFolder, media.path);
     } else {
       // Caminho relativo sem barra inicial
       pathMedia = path.join(publicFolder, media.path);
+    }
+
+    let sendOptions: any = {};
+
+    if (quotedMsg) {
+      const quotedId: any = (quotedMsg as any)?.id ?? quotedMsg;
+
+      if (
+        quotedId !== undefined &&
+        quotedId !== null &&
+        String(quotedId).trim() !== ""
+      ) {
+        const chatMessages = await Message.findOne({ where: { id: quotedId } });
+
+        if (chatMessages) {
+          const msgFound = JSON.parse(chatMessages.dataJson);
+
+          sendOptions = {
+            quoted: {
+              key: msgFound.key,
+              message:
+                msgFound.message.extendedTextMessage !== undefined
+                  ? {
+                      extendedTextMessage: msgFound.message.extendedTextMessage
+                    }
+                  : { conversation: msgFound.message.conversation }
+            }
+          };
+
+          if (ENABLE_LID_DEBUG) {
+            logger.info(
+              `[RDS-LID] SendWhatsAppMedia - ContextInfo configurado para resposta`
+            );
+          }
+        }
+      }
     }
 
     // Debug: verificar se o arquivo existe
@@ -419,7 +458,10 @@ const SendWhatsAppMedia = async ({
         if (media.mimetype.includes("png") || media.mimetype.includes("webp")) {
           // ✅ Converter PNG/WebP para JPG antes de enviar
           console.log("🔄 Detectado arquivo PNG/WebP, convertendo para JPG...");
-          const imageBuffer = await convertPngToJpg(pathMedia, ticket.companyId);
+          const imageBuffer = await convertPngToJpg(
+            pathMedia,
+            ticket.companyId
+          );
           options = {
             image: imageBuffer,
             caption: bodyMedia,
@@ -452,7 +494,7 @@ const SendWhatsAppMedia = async ({
         mediaUrl: media.filename,
         mediaType: getMediaTypeFromMimeType(media.mimetype),
         read: true,
-        quotedMsgId: null,
+        quotedMsgId: (quotedMsg as any)?.id ?? null,
         ack: 2,
         remoteJid: null,
         participant: null,
@@ -477,7 +519,9 @@ const SendWhatsAppMedia = async ({
     ) {
       jid = contactNumber.remoteJid;
     } else {
-      jid = `${contactNumber.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`;
+      jid = `${contactNumber.number}@${
+        ticket.isGroup ? "g.us" : "s.whatsapp.net"
+      }`;
     }
     jid = normalizeJid(jid);
 
@@ -491,7 +535,11 @@ const SendWhatsAppMedia = async ({
       try {
         // sentMessage = await wbot.sendMessage(jid, options);
 
-        sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
+        sentMessage = await wbot.sendMessage(
+          getJidOf(ticket),
+          options,
+          sendOptions
+        );
       } catch (err1) {
         if (err1.message && err1.message.includes("senderMessageKeys")) {
           // const simpleOptions = { ...options } as any;
@@ -501,7 +549,11 @@ const SendWhatsAppMedia = async ({
 
           // sentMessage = await wbot.sendMessage(jid, simpleOptions);
 
-          sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
+          sentMessage = await wbot.sendMessage(
+            getJidOf(ticket),
+            options,
+            sendOptions
+          );
         } else {
           // const otherOptions = { ...options } as any;
           // if (otherOptions.contextInfo) {
@@ -509,12 +561,20 @@ const SendWhatsAppMedia = async ({
           // }
           // sentMessage = await wbot.sendMessage(jid, otherOptions);
 
-          sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
+          sentMessage = await wbot.sendMessage(
+            getJidOf(ticket),
+            options,
+            sendOptions
+          );
         }
       }
     } else {
       // sentMessage = await wbot.sendMessage(jid, options);
-      sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
+      sentMessage = await wbot.sendMessage(
+        getJidOf(ticket),
+        options,
+        sendOptions
+      );
     }
 
     wbot.store(sentMessage);
