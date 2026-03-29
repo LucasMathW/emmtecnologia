@@ -32,7 +32,9 @@ const SendWhatsAppMessage = async ({
 }: Request): Promise<WAMessage> => {
   let options = {};
 
-  console.error(`Chegou SendWhatsAppMessage - ticketId: ${ticket.id} - contactId: ${ticket.contactId}`);
+  console.error(
+    `Chegou SendWhatsAppMessage - ticketId: ${ticket.id} - contactId: ${ticket.contactId}`
+  );
 
   const wbot = await GetTicketWbot(ticket);
   const contactNumber = await Contact.findByPk(ticket.contactId);
@@ -41,8 +43,9 @@ const SendWhatsAppMessage = async ({
   }
 
   // Sempre envie para o JID tradicional
-  let jid = `${contactNumber.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"
-    }`;
+  let jid = `${contactNumber.number}@${
+    ticket.isGroup ? "g.us" : "s.whatsapp.net"
+  }`;
   jid = normalizeJid(jid);
 
   if (ENABLE_LID_DEBUG) {
@@ -62,7 +65,11 @@ const SendWhatsAppMessage = async ({
     // quotedMsg pode vir como objeto ou apenas um id/string
     const quotedId: any = (quotedMsg as any)?.id ?? quotedMsg;
     let chatMessages: Message | null = null;
-    if (quotedId !== undefined && quotedId !== null && String(quotedId).trim() !== "") {
+    if (
+      quotedId !== undefined &&
+      quotedId !== null &&
+      String(quotedId).trim() !== ""
+    ) {
       chatMessages = await Message.findOne({
         where: {
           id: quotedId
@@ -159,8 +166,7 @@ const SendWhatsAppMessage = async ({
         }
       },
       {
-        ...options,
-
+        ...options
       }
     );
     wbot.store(sentMessage);
@@ -193,26 +199,36 @@ const SendWhatsAppMessage = async ({
     );
 
     if (ENABLE_LID_DEBUG) {
-      logger.error(`[RDS-LID] Erro ao enviar mensagem para ${jid}: ${err.message}`);
+      logger.error(
+        `[RDS-LID] Erro ao enviar mensagem para ${jid}: ${err.message}`
+      );
 
       if (contactNumber.number?.includes("@lid")) {
-        logger.error(`[RDS-LID] Contato com formato @lid detectado: ${contactNumber.number}`);
+        logger.error(
+          `[RDS-LID] Contato com formato @lid detectado: ${contactNumber.number}`
+        );
 
         try {
-          const parts = contactNumber.number.split('@');
+          const parts = contactNumber.number.split("@");
           if (parts.length > 0 && /^\d+$/.test(parts[0])) {
             const correctNumber = parts[0];
-            logger.info(`[RDS-LID] Tentando corrigir número: ${contactNumber.number} -> ${correctNumber}`);
+            logger.info(
+              `[RDS-LID] Tentando corrigir número: ${contactNumber.number} -> ${correctNumber}`
+            );
 
             await contactNumber.update({
               number: correctNumber,
               remoteJid: `${correctNumber}@s.whatsapp.net`
             });
 
-            logger.info(`[RDS-LID] Contato atualizado com sucesso: ${correctNumber}`);
+            logger.info(
+              `[RDS-LID] Contato atualizado com sucesso: ${correctNumber}`
+            );
           }
         } catch (updateError) {
-          logger.error(`[RDS-LID] Erro ao atualizar contato: ${updateError.message}`);
+          logger.error(
+            `[RDS-LID] Erro ao atualizar contato: ${updateError.message}`
+          );
         }
       }
     }

@@ -1252,6 +1252,16 @@ const MessageInput = ({
 
     const sendMessage = inputMessage.trim();
 
+    const quotedMsg = replyingMessage
+      ? {
+          id: replyingMessage.id,
+          body: replyingMessage.body,
+          fromMe: replyingMessage.fromMe,
+          mediaUrl: replyingMessage.mediaUrl,
+          mediaType: replyingMessage.mediaType,
+        }
+      : null;
+
     const message = {
       read: 1,
       fromMe: true,
@@ -1263,7 +1273,7 @@ const MessageInput = ({
         !editingMessage
           ? `*${userName}:*\n${sendMessage}`
           : sendMessage,
-      quotedMsg: replyingMessage,
+      quotedMsg: quotedMsg,
       isPrivate: privateMessage || isTicketPending() ? "true" : "false",
     };
 
@@ -1288,6 +1298,8 @@ const MessageInput = ({
         detail: optimisticMessage,
       }),
     );
+
+    console.log("MESSAGE:", message);
 
     try {
       if (editingMessage !== null) {
