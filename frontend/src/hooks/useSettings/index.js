@@ -35,21 +35,7 @@ const useSettings = () => {
   };
 
   const getPublicSetting = async (key, companyId = null) => {
-    // console.log(`key:${key}`);
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlCompanyId = urlParams.get("companyId");
-
-    if (!companyId && urlCompanyId) {
-      companyId = parseInt(urlCompanyId, 10);
-    }
-
-    if (!companyId) {
-      const storedCompanyId = localStorage.getItem("companyId");
-      if (storedCompanyId) {
-        companyId = parseInt(storedCompanyId, 10);
-      }
-    }
-
+    console.log(`COMPANYID:${companyId}`);
     const cacheKey = `setting_${companyId || "global"}_${key}`;
     const cached = localStorage.getItem(cacheKey);
 

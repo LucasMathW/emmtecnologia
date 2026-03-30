@@ -212,5 +212,7 @@ export const resolveCompany = async (
     return res.status(404).json({ error: "Company not found" });
   }
 
+  console.log(`ComapnyID:${companyId}`);
+
   return res.status(200).json({ companyId });
 };
