@@ -386,7 +386,8 @@ const App = () => {
     const init = async () => {
       let companyId = null;
 
-      if (process.env.NODE_ENV === "production") {
+      if (process.env.REACT_APP_ENV === "production") {
+        console.log(`cai aqui`);
         // Em produção: tenta cache, senão pergunta ao backend pelo domínio
         const cached = localStorage.getItem("companyId");
         if (cached) {
