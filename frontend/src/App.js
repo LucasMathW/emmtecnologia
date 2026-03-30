@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import api from "./services/api";
+import api, { openApi } from "./services/api";
 import "react-toastify/dist/ReactToastify.css";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { createTheme, ThemeProvider } from "@material-ui/core/styles";
@@ -24,8 +24,6 @@ const App = () => {
   const resolveCompanyId = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlCompanyId = urlParams.get("companyId");
-
-    console.log("urlParans:", urlParams);
 
     if (urlCompanyId) {
       return parseInt(urlCompanyId, 10);
