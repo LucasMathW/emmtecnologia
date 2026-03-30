@@ -60,4 +60,6 @@ settingRoutes.post(
   SettingController.storePrivateFile as any
 );
 
+settingRoutes.get("/resolve-company", SettingController.resolveCompany);
+
 export default settingRoutes;

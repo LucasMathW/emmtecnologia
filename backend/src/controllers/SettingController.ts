@@ -188,3 +188,29 @@ export const storePrivateFile = async (
 
   return res.status(200).json(setting.value);
 };
+
+// SettingController.ts ou PublicController.ts
+export const resolveCompany = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const forwardedHost = req.headers["x-forwarded-host"];
+  const origin = forwardedHost || req.headers.host || req.headers.origin;
+
+  let host: string | undefined;
+  if (typeof origin === "string") {
+    try {
+      host = origin.startsWith("http") ? new URL(origin).host : origin;
+    } catch {
+      host = origin;
+    }
+  }
+
+  const companyId = await ResolveCompanyByDomain(host);
+
+  if (!companyId) {
+    return res.status(404).json({ error: "Company not found" });
+  }
+
+  return res.status(200).json({ companyId });
+};

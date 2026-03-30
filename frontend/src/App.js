@@ -25,6 +25,8 @@ const App = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlCompanyId = urlParams.get("companyId");
 
+    console.log("urlParans:", urlParams);
+
     if (urlCompanyId) {
       return parseInt(urlCompanyId, 10);
     }
@@ -63,27 +65,6 @@ const App = () => {
 
   const currentCompanyId = resolveCompanyId();
 
-  console.log("currentCompanyId", currentCompanyId);
-
-  // const appColorLightLocalStorage = sanitizeColor(
-  //   readCachedSetting(
-  //     `setting_${currentCompanyId || "global"}_primaryColorLight`,
-  //     "#065183",
-  //   ),
-  //   "#065183",
-  // );
-
-  // const appColorDarkLocalStorage = sanitizeColor(
-  //   readCachedSetting(
-  //     `setting_${currentCompanyId || "global"}_primaryColorDark`,
-  //     "#065183",
-  //   ),
-  //   "#065183",
-  // );
-
-  // console.log("appColorLightLocalStorage", appColorLightLocalStorage);
-  // console.log("appColorDarkLocalStorage", appColorDarkLocalStorage);
-
   const appNameLocalStorage = readCachedSetting(
     `setting_${currentCompanyId || "global"}_appName`,
     "",
@@ -95,7 +76,6 @@ const App = () => {
 
   const [primaryColorLight, setPrimaryColorLight] = useState("#065183");
   const [primaryColorDark, setPrimaryColorDark] = useState("#065183");
-
   const [appLogoLight, setAppLogoLight] = useState(defaultLogoLight);
   const [appLogoDark, setAppLogoDark] = useState(defaultLogoDark);
   const [appLogoFavicon, setAppLogoFavicon] = useState(defaultLogoFavicon);
@@ -404,73 +384,147 @@ const App = () => {
     window.localStorage.setItem("preferredTheme", mode);
   }, [mode]);
 
+  // useEffect(() => {
+  //   const companyId = resolveCompanyId();
+
+  //   if (companyId) {
+  //     localStorage.setItem("companyId", String(companyId));
+  //   }
+  // }, []);
+
+  // useEffect(() => {
+  //   const companyId = resolveCompanyId();
+
+  //   getPublicSetting("primaryColorLight", companyId)
+  //     .then((color) => {
+  //       setPrimaryColorLight(sanitizeColor(color, "#25142D"));
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //       setPrimaryColorLight("#25142D");
+  //     });
+
+  //   getPublicSetting("primaryColorDark", companyId)
+  //     .then((color) => {
+  //       setPrimaryColorDark(sanitizeColor(color, "#25142D"));
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //       setPrimaryColorDark("#25142D");
+  //     });
+
+  //   getPublicSetting("appLogoLight", companyId)
+  //     .then((file) => {
+  //       setAppLogoLight(
+  //         file ? getBackendUrl() + "/public/" + file : defaultLogoLight,
+  //       );
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //     });
+
+  //   getPublicSetting("appLogoDark", companyId)
+  //     .then((file) => {
+  //       setAppLogoDark(
+  //         file ? getBackendUrl() + "/public/" + file : defaultLogoDark,
+  //       );
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //     });
+
+  //   getPublicSetting("appLogoFavicon", companyId)
+  //     .then((file) => {
+  //       setAppLogoFavicon(
+  //         file ? getBackendUrl() + "/public/" + file : defaultLogoFavicon,
+  //       );
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //     });
+
+  //   getPublicSetting("appName", companyId)
+  //     .then((name) => {
+  //       setAppName(name || "AtendeChat");
+  //     })
+  //     .catch((error) => {
+  //       console.log("Error reading setting", error);
+  //       setAppName("AtendeChat");
+  //     });
+  // }, []);
+
   useEffect(() => {
-    const companyId = resolveCompanyId();
+    const init = async () => {
+      let companyId = null;
 
-    if (companyId) {
-      localStorage.setItem("companyId", String(companyId));
-    }
-  }, []);
+      if (process.env.NODE_ENV === "production") {
+        // Em produção: tenta cache, senão pergunta ao backend pelo domínio
+        const cached = localStorage.getItem("companyId");
+        if (cached) {
+          companyId = parseInt(cached, 10);
+        } else {
+          try {
+            const { data } = await openApi.get("/resolve-company");
+            companyId = data.companyId;
+            localStorage.setItem("companyId", String(companyId));
+          } catch (e) {
+            console.error("Não foi possível resolver empresa pelo domínio", e);
+          }
+        }
+      } else {
+        // Em dev: pega da URL ou localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCompanyId = urlParams.get("companyId");
+        if (urlCompanyId) {
+          companyId = parseInt(urlCompanyId, 10);
+          localStorage.setItem("companyId", String(companyId));
+        } else {
+          const stored = localStorage.getItem("companyId");
+          if (stored) companyId = parseInt(stored, 10);
+        }
+      }
 
-  useEffect(() => {
-    const companyId = resolveCompanyId();
+      if (!companyId) return;
 
-    getPublicSetting("primaryColorLight", companyId)
-      .then((color) => {
-        setPrimaryColorLight(sanitizeColor(color, "#25142D"));
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-        setPrimaryColorLight("#25142D");
-      });
+      // Busca todas as settings com o companyId já resolvido
+      getPublicSetting("primaryColorLight", companyId)
+        .then((color) => setPrimaryColorLight(sanitizeColor(color, "#25142D")))
+        .catch(() => setPrimaryColorLight("#25142D"));
 
-    getPublicSetting("primaryColorDark", companyId)
-      .then((color) => {
-        setPrimaryColorDark(sanitizeColor(color, "#25142D"));
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-        setPrimaryColorDark("#25142D");
-      });
+      getPublicSetting("primaryColorDark", companyId)
+        .then((color) => setPrimaryColorDark(sanitizeColor(color, "#25142D")))
+        .catch(() => setPrimaryColorDark("#25142D"));
 
-    getPublicSetting("appLogoLight", companyId)
-      .then((file) => {
-        setAppLogoLight(
-          file ? getBackendUrl() + "/public/" + file : defaultLogoLight,
-        );
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-      });
+      getPublicSetting("appLogoLight", companyId)
+        .then((file) =>
+          setAppLogoLight(
+            file ? getBackendUrl() + "/public/" + file : defaultLogoLight,
+          ),
+        )
+        .catch(() => {});
 
-    getPublicSetting("appLogoDark", companyId)
-      .then((file) => {
-        setAppLogoDark(
-          file ? getBackendUrl() + "/public/" + file : defaultLogoDark,
-        );
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-      });
+      getPublicSetting("appLogoDark", companyId)
+        .then((file) =>
+          setAppLogoDark(
+            file ? getBackendUrl() + "/public/" + file : defaultLogoDark,
+          ),
+        )
+        .catch(() => {});
 
-    getPublicSetting("appLogoFavicon", companyId)
-      .then((file) => {
-        setAppLogoFavicon(
-          file ? getBackendUrl() + "/public/" + file : defaultLogoFavicon,
-        );
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-      });
+      getPublicSetting("appLogoFavicon", companyId)
+        .then((file) =>
+          setAppLogoFavicon(
+            file ? getBackendUrl() + "/public/" + file : defaultLogoFavicon,
+          ),
+        )
+        .catch(() => {});
 
-    getPublicSetting("appName", companyId)
-      .then((name) => {
-        setAppName(name || "AtendeChat");
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-        setAppName("AtendeChat");
-      });
+      getPublicSetting("appName", companyId)
+        .then((name) => setAppName(name || "AtendeChat"))
+        .catch(() => setAppName("AtendeChat"));
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
