@@ -189,13 +189,18 @@ export const storePrivateFile = async (
   return res.status(200).json(setting.value);
 };
 
-// SettingController.ts ou PublicController.ts
 export const resolveCompany = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
   const forwardedHost = req.headers["x-forwarded-host"];
   const origin = forwardedHost || req.headers.host || req.headers.origin;
+
+  console.log("Headers:", {
+    forwardedHost,
+    host: req.headers.host,
+    origin: req.headers.origin
+  });
 
   let host: string | undefined;
   if (typeof origin === "string") {
