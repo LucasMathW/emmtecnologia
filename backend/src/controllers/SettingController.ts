@@ -106,37 +106,23 @@ export const updateOne = async (
 };
 
 export const publicShow = async (
-  req: Request<Params>,
+  req: Request,
   res: Response
 ): Promise<Response> => {
-  const key = getRequestParam(req.params.settingKey, "settingKey");
-  const { companyId } = req.query;
+  const { settingKey: key } = req.params;
 
-  let targetCompanyId = companyId
-    ? parseInt(companyId as string, 10)
-    : undefined;
+  // ✅ companyId já vem resolvido pelo middleware resolveCompany
+  const companyId = req.companyId;
 
-  if (!targetCompanyId) {
-    const origin =
-      req.headers.origin || req.headers.referer || req.headers.host;
-    let host: string | undefined;
-
-    if (typeof origin === "string") {
-      try {
-        host = origin.startsWith("http") ? new URL(origin).host : origin;
-      } catch {
-        host = origin;
-      }
-    }
-
-    targetCompanyId = await ResolveCompanyByDomain(host);
+  if (!companyId) {
+    return res.status(404).json({ error: "Empresa não encontrada" });
   }
 
-  const settingValue = await GetPublicSettingService({
-    key,
-    companyId: targetCompanyId
-  });
+  // console.log(`companyId:${companyId}`);
+  // console.log(`key:${key}`);
 
+  const settingValue = await GetPublicSettingService({ key, companyId });
+  console.log(`seetingValue:${settingValue}`);
   return res.status(200).json(settingValue);
 };
 
@@ -189,35 +175,19 @@ export const storePrivateFile = async (
   return res.status(200).json(setting.value);
 };
 
+// ✅ Endpoint GET /resolve-company — usado pelo frontend no boot
 export const resolveCompany = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const forwardedHost = req.headers["x-forwarded-host"];
-  const origin = forwardedHost || req.headers.host || req.headers.origin;
-
-  console.log("Headers:", {
-    forwardedHost,
-    host: req.headers.host,
-    origin: req.headers.origin
-  });
-
-  let host: string | undefined;
-  if (typeof origin === "string") {
-    try {
-      host = origin.startsWith("http") ? new URL(origin).host : origin;
-    } catch {
-      host = origin;
-    }
-  }
-
-  const companyId = await ResolveCompanyByDomain(host);
+  // companyId já resolvido pelo middleware
+  const { companyId } = req;
 
   if (!companyId) {
-    return res.status(404).json({ error: "Company not found" });
+    return res
+      .status(404)
+      .json({ error: "Empresa não encontrada para este domínio" });
   }
-
-  console.log(`ComapnyID:${companyId}`);
 
   return res.status(200).json({ companyId });
 };
