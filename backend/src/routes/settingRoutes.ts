@@ -7,6 +7,7 @@ import * as SettingController from "../controllers/SettingController";
 import isSuper from "../middleware/isSuper";
 import uploadConfig from "../config/upload";
 import uploadPrivateConfig from "../config/privateFiles";
+import resolveCompany from "../middleware/resolveCompany";
 
 const upload = multer(uploadConfig);
 const uploadPrivate = multer(uploadPrivateConfig);
@@ -43,6 +44,7 @@ settingRoutes.put(
 settingRoutes.get(
   "/public-settings/:settingKey",
   envTokenAuth,
+  resolveCompany,
   SettingController.publicShow as any
 );
 
@@ -60,6 +62,10 @@ settingRoutes.post(
   SettingController.storePrivateFile as any
 );
 
-settingRoutes.get("/resolve-company", SettingController.resolveCompany);
+settingRoutes.get(
+  "/resolve-company",
+  resolveCompany,
+  SettingController.resolveCompany
+);
 
 export default settingRoutes;
