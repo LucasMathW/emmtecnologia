@@ -12,11 +12,19 @@ import { toast } from "react-toastify";
 import { makeStyles } from "@material-ui/core/styles";
 import { grey, blue } from "@material-ui/core/colors";
 import OnlyForSuperUser from "../OnlyForSuperUser";
-import useAuth from "../../hooks/useAuth.js";
+import useAuth from "../../hooks/useAuth";
 
 import { IconButton, InputAdornment, Chip } from "@material-ui/core";
 
-import { Colorize, AttachFile, Delete, Palette, Image, Language, Apps } from "@material-ui/icons";
+import {
+  Colorize,
+  AttachFile,
+  Delete,
+  Palette,
+  Image,
+  Language,
+  Apps,
+} from "@material-ui/icons";
 import ColorPicker from "../ColorPicker";
 import ColorModeContext from "../../layout/themeContext";
 import api from "../../services/api";
@@ -264,34 +272,34 @@ export default function Whitelabel(props) {
 
     if (Array.isArray(settings) && settings.length) {
       const primaryColorLight = settings.find(
-        (s) => s.key === "primaryColorLight"
+        (s) => s.key === "primaryColorLight",
       )?.value;
       const primaryColorDark = settings.find(
-        (s) => s.key === "primaryColorDark"
+        (s) => s.key === "primaryColorDark",
       )?.value;
       const appLogoLight = settings.find(
-        (s) => s.key === "appLogoLight"
+        (s) => s.key === "appLogoLight",
       )?.value;
       const appLogoDark = settings.find((s) => s.key === "appLogoDark")?.value;
       const appLogoFavicon = settings.find(
-        (s) => s.key === "appLogoFavicon"
+        (s) => s.key === "appLogoFavicon",
       )?.value;
       const appLogoBackgroundLight = settings.find(
-        (s) => s.key === "appLogoBackgroundLight"
+        (s) => s.key === "appLogoBackgroundLight",
       )?.value;
       const appLogoBackgroundDark = settings.find(
-        (s) => s.key === "appLogoBackgroundDark"
+        (s) => s.key === "appLogoBackgroundDark",
       )?.value;
       const appName = settings.find((s) => s.key === "appName")?.value;
       const enabledLanguagesSetting = settings.find(
-        (s) => s.key === "enabledLanguages"
+        (s) => s.key === "enabledLanguages",
       )?.value;
       let langs = ["pt-BR", "en"];
       try {
         if (enabledLanguagesSetting) {
           langs = JSON.parse(enabledLanguagesSetting);
         }
-      } catch { }
+      } catch {}
 
       if (isMounted) {
         setAppName(appName || "");
@@ -310,8 +318,7 @@ export default function Whitelabel(props) {
         });
         setLoading(false);
       }
-    }
-    else {
+    } else {
       setLoading(false);
     }
 
@@ -358,7 +365,7 @@ export default function Whitelabel(props) {
         if (mode === "BackgroundLight" || mode === "BackgroundDark") {
         } else {
           colorMode[`setAppLogo${mode}`](
-            getBackendUrl() + "/public/" + response.data
+            getBackendUrl() + "/public/" + response.data,
           );
         }
       })
@@ -370,7 +377,9 @@ export default function Whitelabel(props) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>
+      <div
+        style={{ display: "flex", justifyContent: "center", padding: "50px" }}
+      >
         <div>Carregando configurações...</div>
       </div>
     );
@@ -449,7 +458,8 @@ export default function Whitelabel(props) {
                           <InputAdornment position="start">
                             <div
                               style={{
-                                backgroundColor: settingsLoaded.primaryColorLight,
+                                backgroundColor:
+                                  settingsLoaded.primaryColorLight,
                               }}
                               className={classes.colorAdorment}
                             ></div>
@@ -492,7 +502,8 @@ export default function Whitelabel(props) {
                           <InputAdornment position="start">
                             <div
                               style={{
-                                backgroundColor: settingsLoaded.primaryColorDark,
+                                backgroundColor:
+                                  settingsLoaded.primaryColorDark,
                               }}
                               className={classes.colorAdorment}
                             ></div>
@@ -665,7 +676,9 @@ export default function Whitelabel(props) {
                                 color="default"
                                 onClick={() => {
                                   handleSaveSetting("appLogoFavicon", "");
-                                  colorMode.setAppLogoFavicon(defaultLogoFavicon);
+                                  colorMode.setAppLogoFavicon(
+                                    defaultLogoFavicon,
+                                  );
                                 }}
                               >
                                 <Delete
@@ -718,7 +731,10 @@ export default function Whitelabel(props) {
                                 size="small"
                                 color="default"
                                 onClick={() => {
-                                  handleSaveSetting("appLogoBackgroundLight", "");
+                                  handleSaveSetting(
+                                    "appLogoBackgroundLight",
+                                    "",
+                                  );
                                 }}
                               >
                                 <Delete
@@ -771,7 +787,10 @@ export default function Whitelabel(props) {
                                 size="small"
                                 color="default"
                                 onClick={() => {
-                                  handleSaveSetting("appLogoBackgroundDark", "");
+                                  handleSaveSetting(
+                                    "appLogoBackgroundDark",
+                                    "",
+                                  );
                                 }}
                               >
                                 <Delete
@@ -809,17 +828,26 @@ export default function Whitelabel(props) {
 
               {/* Preview Section */}
               <div className={classes.previewContainer}>
-                <Typography variant="subtitle2" gutterBottom style={{ fontWeight: 600, marginBottom: 16 }}>
+                <Typography
+                  variant="subtitle2"
+                  gutterBottom
+                  style={{ fontWeight: 600, marginBottom: 16 }}
+                >
                   {i18n.t("whitelabel.preview")}
                 </Typography>
                 <Grid container spacing={2} className={classes.previewGrid}>
                   <Grid xs={12} sm={6} md={3} item>
-                    <div className={`${classes.previewCard} ${classes.previewCardLight}`}>
+                    <div
+                      className={`${classes.previewCard} ${classes.previewCardLight}`}
+                    >
                       <img
                         className={classes.previewImage}
-                        src={settingsLoaded.appLogoLight ?
-                          getBackendUrl() + "/public/" + settingsLoaded.appLogoLight :
-                          defaultLogoLight
+                        src={
+                          settingsLoaded.appLogoLight
+                            ? getBackendUrl() +
+                              "/public/" +
+                              settingsLoaded.appLogoLight
+                            : defaultLogoLight
                         }
                         alt={i18n.t("whitelabel.preview") + " light-logo"}
                         onError={(e) => {
@@ -833,31 +861,43 @@ export default function Whitelabel(props) {
                   </Grid>
 
                   <Grid xs={12} sm={6} md={3} item>
-                    <div className={`${classes.previewCard} ${classes.previewCardDark}`}>
+                    <div
+                      className={`${classes.previewCard} ${classes.previewCardDark}`}
+                    >
                       <img
                         className={classes.previewImage}
-                        src={settingsLoaded.appLogoDark ?
-                          getBackendUrl() + "/public/" + settingsLoaded.appLogoDark :
-                          defaultLogoDark
+                        src={
+                          settingsLoaded.appLogoDark
+                            ? getBackendUrl() +
+                              "/public/" +
+                              settingsLoaded.appLogoDark
+                            : defaultLogoDark
                         }
                         alt={i18n.t("whitelabel.preview") + " dark-logo"}
                         onError={(e) => {
                           e.target.src = defaultLogoDark;
                         }}
                       />
-                      <div className={`${classes.previewLabel} ${classes.previewLabelDark}`}>
+                      <div
+                        className={`${classes.previewLabel} ${classes.previewLabelDark}`}
+                      >
                         {i18n.t("whitelabel.logoDark")}
                       </div>
                     </div>
                   </Grid>
 
                   <Grid xs={12} sm={6} md={3} item>
-                    <div className={`${classes.previewCard} ${classes.previewCardFavicon}`}>
+                    <div
+                      className={`${classes.previewCard} ${classes.previewCardFavicon}`}
+                    >
                       <img
                         className={classes.previewImage}
-                        src={settingsLoaded.appLogoFavicon ?
-                          getBackendUrl() + "/public/" + settingsLoaded.appLogoFavicon :
-                          defaultLogoFavicon
+                        src={
+                          settingsLoaded.appLogoFavicon
+                            ? getBackendUrl() +
+                              "/public/" +
+                              settingsLoaded.appLogoFavicon
+                            : defaultLogoFavicon
                         }
                         alt={i18n.t("whitelabel.preview") + " favicon"}
                         onError={(e) => {
@@ -871,7 +911,9 @@ export default function Whitelabel(props) {
                   </Grid>
 
                   <Grid xs={12} sm={6} md={6} item>
-                    <div className={`${classes.previewCard} ${classes.previewCardLight}`}>
+                    <div
+                      className={`${classes.previewCard} ${classes.previewCardLight}`}
+                    >
                       {settingsLoaded.appLogoBackgroundLight ? (
                         <img
                           className={classes.previewBackgroundImage}
@@ -880,7 +922,9 @@ export default function Whitelabel(props) {
                             "/public/" +
                             settingsLoaded.appLogoBackgroundLight
                           }
-                          alt={i18n.t("whitelabel.preview") + " background-light"}
+                          alt={
+                            i18n.t("whitelabel.preview") + " background-light"
+                          }
                           onError={(e) => {
                             e.target.style.display = "none";
                           }}
@@ -894,7 +938,9 @@ export default function Whitelabel(props) {
                   </Grid>
 
                   <Grid xs={12} sm={6} md={6} item>
-                    <div className={`${classes.previewCard} ${classes.previewCardDark}`}>
+                    <div
+                      className={`${classes.previewCard} ${classes.previewCardDark}`}
+                    >
                       {settingsLoaded.appLogoBackgroundDark ? (
                         <img
                           className={classes.previewBackgroundImage}
@@ -903,13 +949,17 @@ export default function Whitelabel(props) {
                             "/public/" +
                             settingsLoaded.appLogoBackgroundDark
                           }
-                          alt={i18n.t("whitelabel.preview") + " background-dark"}
+                          alt={
+                            i18n.t("whitelabel.preview") + " background-dark"
+                          }
                           onError={(e) => {
                             e.target.style.display = "none";
                           }}
                         />
                       ) : (
-                        <div className={`${classes.previewLabel} ${classes.previewLabelDark}`}>
+                        <div
+                          className={`${classes.previewLabel} ${classes.previewLabelDark}`}
+                        >
                           {i18n.t("whitelabel.backgroundDark")}
                         </div>
                       )}
@@ -946,7 +996,7 @@ export default function Whitelabel(props) {
                             : enabledLanguages.filter((c) => c !== lang.code);
                           if (newLangs.length === 0) {
                             toast.error(
-                              i18n.t("whitelabel.atLeastOneLanguage")
+                              i18n.t("whitelabel.atLeastOneLanguage"),
                             );
                             return;
                           }
