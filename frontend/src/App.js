@@ -21,22 +21,6 @@ const App = () => {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const preferredTheme = window.localStorage.getItem("preferredTheme");
 
-  const resolveCompanyId = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlCompanyId = urlParams.get("companyId");
-
-    if (urlCompanyId) {
-      return parseInt(urlCompanyId, 10);
-    }
-
-    const storedCompanyId = localStorage.getItem("companyId");
-    if (storedCompanyId) {
-      return parseInt(storedCompanyId, 10);
-    }
-
-    return null;
-  };
-
   const sanitizeColor = (value, fallback = "#065183") => {
     const cleaned = String(value ?? fallback)
       .trim()
@@ -60,13 +44,6 @@ const App = () => {
       return raw;
     }
   };
-
-  const currentCompanyId = resolveCompanyId();
-
-  const appNameLocalStorage = readCachedSetting(
-    `setting_${currentCompanyId || "global"}_appName`,
-    "",
-  );
 
   const [mode, setMode] = useState(
     preferredTheme ? preferredTheme : prefersDarkMode ? "dark" : "light",
@@ -384,48 +361,22 @@ const App = () => {
 
   useEffect(() => {
     const init = async () => {
-      let companyId = null;
-
-      if (process.env.REACT_APP_ENV === "production") {
-        console.log(`cai aqui`);
-        // Em produção: tenta cache, senão pergunta ao backend pelo domínio
-        const cached = localStorage.getItem("companyId");
-        if (cached) {
-          companyId = parseInt(cached, 10);
-        } else {
-          try {
-            const { data } = await openApi.get("/resolve-company");
-            companyId = data.companyId;
-            localStorage.setItem("companyId", String(companyId));
-          } catch (e) {
-            console.error("Não foi possível resolver empresa pelo domínio", e);
-          }
-        }
-      } else {
-        // Em dev: pega da URL ou localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlCompanyId = urlParams.get("companyId");
-        if (urlCompanyId) {
-          companyId = parseInt(urlCompanyId, 10);
-          localStorage.setItem("companyId", String(companyId));
-        } else {
-          const stored = localStorage.getItem("companyId");
-          if (stored) companyId = parseInt(stored, 10);
-        }
-      }
-
-      if (!companyId) return;
-
-      // Busca todas as settings com o companyId já resolvido
-      getPublicSetting("primaryColorLight", companyId)
-        .then((color) => setPrimaryColorLight(sanitizeColor(color, "#25142D")))
+      // ✅ Sem companyId — backend resolve pelo domínio
+      // getPublicSetting já não recebe companyId
+      getPublicSetting("primaryColorLight")
+        .then((color) => {
+          console.log("🔥 [App] primaryColorLight RAW:", color);
+          const sanitized = sanitizeColor(color, "#25142D");
+          console.log("🔥 [App] primaryColorLight SANITIZED:", sanitized);
+          setPrimaryColorLight(sanitized);
+        })
         .catch(() => setPrimaryColorLight("#25142D"));
 
-      getPublicSetting("primaryColorDark", companyId)
+      getPublicSetting("primaryColorDark")
         .then((color) => setPrimaryColorDark(sanitizeColor(color, "#25142D")))
         .catch(() => setPrimaryColorDark("#25142D"));
 
-      getPublicSetting("appLogoLight", companyId)
+      getPublicSetting("appLogoLight")
         .then((file) =>
           setAppLogoLight(
             file ? getBackendUrl() + "/public/" + file : defaultLogoLight,
@@ -433,7 +384,7 @@ const App = () => {
         )
         .catch(() => {});
 
-      getPublicSetting("appLogoDark", companyId)
+      getPublicSetting("appLogoDark")
         .then((file) =>
           setAppLogoDark(
             file ? getBackendUrl() + "/public/" + file : defaultLogoDark,
@@ -441,7 +392,7 @@ const App = () => {
         )
         .catch(() => {});
 
-      getPublicSetting("appLogoFavicon", companyId)
+      getPublicSetting("appLogoFavicon")
         .then((file) =>
           setAppLogoFavicon(
             file ? getBackendUrl() + "/public/" + file : defaultLogoFavicon,
@@ -449,7 +400,7 @@ const App = () => {
         )
         .catch(() => {});
 
-      getPublicSetting("appName", companyId)
+      getPublicSetting("appName")
         .then((name) => setAppName(name || "AtendeChat"))
         .catch(() => setAppName("AtendeChat"));
     };
