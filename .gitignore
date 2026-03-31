@@ -3,10 +3,10 @@
 *.ogg
 
 # node
-node_modules/
+*/node_modules
 
-# build
-dist/
+# backend build
+backend/dist/
 
 # ENV
 .env
@@ -16,3 +16,7 @@ dist/
 
 # uploads das empresas
 backend/public/company*/
+
+
+# frontend build
+frontend/build/
