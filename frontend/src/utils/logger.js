@@ -1,5 +1,8 @@
 // Simple structured logger for frontend
+const isDev = process.env.NODE_ENV === "development";
+
 export const logInfo = (msg, data = {}) => {
+  if (!isDev) return;
   try {
     // eslint-disable-next-line no-console
     console.info(`[INFO] ${msg}`, data);
@@ -21,4 +24,3 @@ export const logError = (msg, err = {}) => {
 };
 
 export default { logInfo, logWarn, logError };
-

@@ -1,5 +1,6 @@
 import { Token } from "@mui/icons-material";
 import api, { openApi } from "../../services/api";
+import logger from "../../utils/logger";
 
 const useSettings = () => {
   const getAll = async (params) => {
@@ -37,8 +38,7 @@ const useSettings = () => {
     const cacheKey = `setting_${window.location.hostname}_${key}`;
     const cached = localStorage.getItem(cacheKey);
 
-    // console.log(`chaceKey:${cacheKey}`);
-    // console.log(`cached:${cached}`);
+    logger.logInfo(`CACHED`, cached);
 
     if (cached !== null) {
       try {
@@ -65,7 +65,7 @@ const useSettings = () => {
       },
     });
 
-    console.log(`getPublicSetting return:${JSON.stringify(data)}`);
+    // logger.logInfo("/public-Settings reutrn", JSON.stringify(data));
 
     if (data !== "" && data !== null && data !== undefined) {
       localStorage.setItem(cacheKey, JSON.stringify(data));
