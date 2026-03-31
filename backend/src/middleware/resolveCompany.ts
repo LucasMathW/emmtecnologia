@@ -10,6 +10,7 @@ const resolveCompany = async (
   // console.log(`req =>`, req.headers);
 
   const raw =
+    (req.headers["x-app-domain"] as string) ||
     (req.headers["x-forwarded-host"] as string) ||
     req.headers.host ||
     req.headers.origin ||
