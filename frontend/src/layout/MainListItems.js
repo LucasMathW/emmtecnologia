@@ -469,7 +469,12 @@ const MainListItems = ({ collapsed, drawerClose }) => {
   useEffect(() => {
     async function fetchData() {
       const companyId = user.companyId;
+
+      if (!companyId) return;
+
       const planConfigs = await getPlanCompany(undefined, companyId);
+
+      if (!planConfigs?.plan) return;
 
       setShowCampaigns(planConfigs.plan.useCampaigns);
       setShowKanban(planConfigs.plan.useKanban);
