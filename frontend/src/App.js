@@ -365,9 +365,9 @@ const App = () => {
       // getPublicSetting já não recebe companyId
       getPublicSetting("primaryColorLight")
         .then((color) => {
-          console.log("🔥 [App] primaryColorLight RAW:", color);
+          // console.log("🔥 [App] primaryColorLight RAW:", color);
           const sanitized = sanitizeColor(color, "#25142D");
-          console.log("🔥 [App] primaryColorLight SANITIZED:", sanitized);
+          // console.log("🔥 [App] primaryColorLight SANITIZED:", sanitized);
           setPrimaryColorLight(sanitized);
         })
         .catch(() => setPrimaryColorLight("#25142D"));

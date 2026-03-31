@@ -37,8 +37,8 @@ const useSettings = () => {
     const cacheKey = `setting_${window.location.hostname}_${key}`;
     const cached = localStorage.getItem(cacheKey);
 
-    console.log(`chaceKey:${cacheKey}`);
-    console.log(`cached:${cached}`);
+    // console.log(`chaceKey:${cacheKey}`);
+    // console.log(`cached:${cached}`);
 
     if (cached !== null) {
       try {
@@ -54,7 +54,7 @@ const useSettings = () => {
       }
     }
 
-    console.log(`2 - useSetting > getPublicSetting > Key:${key}`);
+    // console.log(`2 - useSetting > getPublicSetting > Key:${key}`);
 
     const { data } = await openApi.request({
       url: `/public-settings/${key}`,
