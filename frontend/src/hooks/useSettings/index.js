@@ -18,10 +18,9 @@ const useSettings = () => {
       data,
     });
 
-    const companyId = localStorage.getItem("companyId") || "global";
-    const cacheKey = `setting_${companyId}_${data.key}`;
-
-    localStorage.setItem(cacheKey, JSON.stringify(responseData.value));
+    // const companyId = localStorage.getItem("companyId") || "global";
+    const publicCacheKey = `setting_${window.location.hostname}_${data.key}`;
+    localStorage.setItem(publicCacheKey, JSON.stringify(responseData.value));
 
     return responseData;
   };
@@ -34,10 +33,12 @@ const useSettings = () => {
     return data;
   };
 
-  const getPublicSetting = async (key, companyId = null) => {
-    console.log(`COMPANYID:${companyId}`);
-    const cacheKey = `setting_${companyId || "global"}_${key}`;
+  const getPublicSetting = async (key) => {
+    const cacheKey = `setting_${window.location.hostname}_${key}`;
     const cached = localStorage.getItem(cacheKey);
+
+    console.log(`chaceKey:${cacheKey}`);
+    console.log(`cached:${cached}`);
 
     if (cached !== null) {
       try {
@@ -53,19 +54,18 @@ const useSettings = () => {
       }
     }
 
-    const params = {
-      token: process.env.REACT_APP_ENV_TOKEN,
-    };
-
-    if (companyId) {
-      params.companyId = companyId;
-    }
+    console.log(`2 - useSetting > getPublicSetting > Key:${key}`);
 
     const { data } = await openApi.request({
       url: `/public-settings/${key}`,
       method: "GET",
-      params,
+      params: {
+        token: process.env.REACT_APP_ENV_TOKEN,
+        // ✅ Removido: companyId — backend resolve pelo domínio
+      },
     });
+
+    console.log(`getPublicSetting return:${JSON.stringify(data)}`);
 
     if (data !== "" && data !== null && data !== undefined) {
       localStorage.setItem(cacheKey, JSON.stringify(data));
