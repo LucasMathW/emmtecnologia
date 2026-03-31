@@ -26,9 +26,10 @@ const GetPublicSettingService = async ({
     return null;
   }
 
-  const targetCompanyId = companyId ?? 2;
+  const targetCompanyId = companyId ?? 5;
 
-  // console.log(`targetCompanuId:${targetCompanyId}`);
+  // console.log(`🔥🔥targetCompanyID:${targetCompanyId}🔥🔥`);
+  // console.log(`🔥🔥Key:${key}🔥🔥`);
 
   const setting = await Setting.findOne({
     where: {
