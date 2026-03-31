@@ -25,7 +25,7 @@
     "@testing-library/react": "^11.0.4",
     "@testing-library/user-event": "^12.1.7",
     "@xyflow/react": "^12.3.1",
-    "ace-builds": "^1.39.0",
+    "ace-builds": "^1.43.6",
     "axios": "^0.21.1",
     "bootstrap": "^5.2.3",
     "caniuse-lite": "^1.0.30001616",
