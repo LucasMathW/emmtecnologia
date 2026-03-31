@@ -11,6 +11,7 @@ const envTokenAuth = (
   res: Response,
   next: NextFunction
 ): void => {
+  console.log(`cheguei aqui na rota settings public`);
   try {
     const { token: bodyToken } = req.body as TokenPayload;
     const { token: queryToken } = req.query as TokenPayload;

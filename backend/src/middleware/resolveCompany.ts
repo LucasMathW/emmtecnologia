@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import ResolveCompanyByDomain from "../helpers/resolveCompanyIdNyDomain";
+import logger from "../utils/logger";
 
 const resolveCompany = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // console.log(`req =>`, req.headers);
+
   const raw =
     (req.headers["x-forwarded-host"] as string) ||
     req.headers.host ||
@@ -14,6 +17,9 @@ const resolveCompany = async (
     "";
 
   let cleanHost = raw;
+
+  console.log(`raw =>`, raw);
+
   try {
     cleanHost = raw.startsWith("http")
       ? new URL(raw).hostname
@@ -22,7 +28,11 @@ const resolveCompany = async (
     cleanHost = raw.split(":")[0].toLowerCase().trim();
   }
 
+  console.log(`cleanHost =>`, cleanHost);
+
   const companyId = await ResolveCompanyByDomain(cleanHost);
+
+  console.log(`CompanyID =>`, companyId);
 
   if (!companyId) {
     res.status(404).json({
