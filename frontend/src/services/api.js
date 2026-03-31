@@ -7,6 +7,9 @@ const api = axios.create({
 
 export const openApi = axios.create({
   baseURL: process.env.REACT_APP_BACKEND_URL,
+  headers: {
+    "x-app-domain": window.location.hostname, // <- envia app.emmtecnologia.com.br
+  },
 });
 
 api.interceptors.response.use(

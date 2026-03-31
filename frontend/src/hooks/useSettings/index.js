@@ -38,8 +38,6 @@ const useSettings = () => {
     const cacheKey = `setting_${window.location.hostname}_${key}`;
     const cached = localStorage.getItem(cacheKey);
 
-    logger.logInfo(`CACHED`, cached);
-
     if (cached !== null) {
       try {
         const parsed = JSON.parse(cached);
@@ -54,8 +52,6 @@ const useSettings = () => {
       }
     }
 
-    // console.log(`2 - useSetting > getPublicSetting > Key:${key}`);
-
     const { data } = await openApi.request({
       url: `/public-settings/${key}`,
       method: "GET",
@@ -64,8 +60,6 @@ const useSettings = () => {
         // ✅ Removido: companyId — backend resolve pelo domínio
       },
     });
-
-    // logger.logInfo("/public-Settings reutrn", JSON.stringify(data));
 
     if (data !== "" && data !== null && data !== undefined) {
       localStorage.setItem(cacheKey, JSON.stringify(data));
