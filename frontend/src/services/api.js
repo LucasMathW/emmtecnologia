@@ -3,6 +3,9 @@ import axios from "axios";
 const api = axios.create({
   baseURL: process.env.REACT_APP_BACKEND_URL,
   withCredentials: true,
+  headers: {
+    "x-app-domain": window.location.hostname, // <- envia app.emmtecnologia.com.br
+  },
 });
 
 export const openApi = axios.create({
