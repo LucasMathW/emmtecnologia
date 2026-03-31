@@ -21,7 +21,9 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     : undefined;
 
   if (!targetCompanyId) {
-    const forwardedHost = req.headers["x-forwarded-host"];
+    const forwardedHost =
+      (req.headers["x-app-domain"] as string) || // ← adiciona aqui
+      (req.headers["x-forwarded-host"] as string);
     const origin =
       forwardedHost ||
       req.headers.host ||
