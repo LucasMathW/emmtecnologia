@@ -389,12 +389,6 @@ const Login = () => {
   const [backgroundLight, setBackgroundLight] = useState("");
   const [backgroundDark, setBackgroundDark] = useState("");
 
-  const getCompanyIdFromUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const companyId = urlParams.get("companyId");
-    return companyId ? parseInt(companyId) : null;
-  };
-
   const handleChangeInput = (e) => {
     setUser({ ...user, [e.target.name]: e.target.value });
   };
@@ -406,75 +400,8 @@ const Login = () => {
   const handlSubmit = (e) => {
     e.preventDefault();
 
-    const companyId = getCompanyIdFromUrl();
-    if (companyId) {
-      localStorage.setItem("companyId", String(companyId));
-    }
-
     handleLogin(user);
   };
-
-  useEffect(() => {
-    const companyId = getCompanyIdFromUrl();
-
-    //lAST PROMPTS
-    if (companyId) {
-      localStorage.setItem("companyId", String(companyId));
-    }
-
-    getPublicSetting("userCreation", companyId)
-      .then((data) => {
-        console.log(`data: ${data}`);
-        setAllowSignup(data === "enabled");
-      })
-      .catch((error) => {
-        console.log("Error reading setting", error);
-      });
-
-    getPublicSetting("enabledLanguages", companyId)
-      .then((langs) => {
-        let arr = ["pt-BR", "en"];
-        try {
-          if (langs) arr = JSON.parse(langs);
-        } catch {}
-        setEnabledLanguages(arr);
-      })
-      .catch(() => {
-        setEnabledLanguages(["pt-BR", "en"]);
-      });
-
-    getPublicSetting("appLogoBackgroundLight", companyId)
-      .then((bgLight) => {
-        if (bgLight) {
-          const backendUrl = getBackendUrl();
-          const fullUrl = backendUrl + "/public/" + bgLight;
-          console.log("Background light URL:", fullUrl);
-          setBackgroundLight(fullUrl);
-        } else {
-          setBackgroundLight("");
-        }
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar imagem de fundo clara:", err);
-        setBackgroundLight("");
-      });
-
-    getPublicSetting("appLogoBackgroundDark", companyId)
-      .then((bgDark) => {
-        if (bgDark) {
-          const backendUrl = getBackendUrl();
-          const fullUrl = backendUrl + "/public/" + bgDark;
-          console.log("Background dark URL:", fullUrl);
-          setBackgroundDark(fullUrl);
-        } else {
-          setBackgroundDark("");
-        }
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar imagem de fundo escura:", err);
-        setBackgroundDark("");
-      });
-  }, []);
 
   const current =
     languageOptions.find((opt) => opt.value === i18n.language) ||
