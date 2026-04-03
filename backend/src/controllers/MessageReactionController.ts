@@ -5,6 +5,7 @@ import Whatsapp from "../models/Whatsapp";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import MessageReaction from "../models/MessageReaction";
 import SendWhatsappReactionService from "../services/MessageServices/SendWhatsappReactionService";
+import cacheLayer from "../libs/cache";
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const rawMessageWid = req.params.messageId;
@@ -49,6 +50,20 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       finalEmoji = ""; // remove no WhatsApp
     }
   }
+
+  await cacheLayer.set(
+    `reaction:user:${companyId}:${messageWid}`,
+    String(userId),
+    "EX",
+    60
+  );
+
+  await cacheLayer.set(
+    `reaction:user:${companyId}:${messageWid}:${finalEmoji || "__remove__"}`,
+    String(userId),
+    "EX",
+    60
+  );
 
   // 🔥 ENVIA PARA WHATSAPP
   await SendWhatsappReactionService({
