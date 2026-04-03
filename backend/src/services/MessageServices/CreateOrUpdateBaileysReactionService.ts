@@ -9,6 +9,7 @@ import Whatsapp from "../../models/Whatsapp";
 import { normalizeJid } from "../../utils/";
 import { WAMessageSafe } from "../../@types/WAMessageSafe";
 import { WbotSession } from "../../@types/WbotSession";
+import cacheLayer from "../../libs/cache";
 
 interface Request {
   message: WAMessageSafe;
@@ -104,18 +105,73 @@ const loadTicketWithRelations = async (ticketId: number) => {
   });
 };
 
+// const resolveReactionActor = async ({
+//   isFromMe,
+//   ticketId,
+//   normalizedJid,
+//   number,
+//   companyId
+// }: {
+//   isFromMe: boolean;
+//   ticketId: number;
+//   normalizedJid: string;
+//   number: string;
+//   companyId: number;
+// }): Promise<ReactionActor | null> => {
+//   if (isFromMe) {
+//     const ticket = await Ticket.findByPk(ticketId, {
+//       include: [{ model: Whatsapp, as: "whatsapp" }]
+//     });
+
+//     if (!ticket) return null;
+
+//     const agentUser = await User.findOne({
+//       where: {
+//         id: ticket.userId,
+//         companyId
+//       }
+//     });
+
+//     if (!agentUser) return null;
+
+//     const fromJid = ticket.whatsapp?.number
+//       ? `${ticket.whatsapp.number}@s.whatsapp.net`
+//       : normalizedJid;
+
+//     return {
+//       userId: agentUser.id,
+//       fromJid
+//     };
+//   }
+
+//   const contact = await Contact.findOne({
+//     where: { number, companyId }
+//   });
+
+//   if (!contact) return null;
+
+//   return {
+//     userId: contact.id,
+//     fromJid: normalizedJid
+//   };
+// };
+
 const resolveReactionActor = async ({
   isFromMe,
   ticketId,
   normalizedJid,
   number,
-  companyId
+  companyId,
+  reactedMsgWid,
+  emoji
 }: {
   isFromMe: boolean;
   ticketId: number;
   normalizedJid: string;
   number: string;
   companyId: number;
+  reactedMsgWid: string;
+  emoji: string;
 }): Promise<ReactionActor | null> => {
   if (isFromMe) {
     const ticket = await Ticket.findByPk(ticketId, {
@@ -124,9 +180,29 @@ const resolveReactionActor = async ({
 
     if (!ticket) return null;
 
+    const cacheKeyByEmoji = `reaction:user:${companyId}:${reactedMsgWid}:${
+      emoji || "__remove__"
+    }`;
+    const cacheKeyDefault = `reaction:user:${companyId}:${reactedMsgWid}`;
+
+    const cachedUserId =
+      (await cacheLayer.get(cacheKeyByEmoji)) ||
+      (await cacheLayer.get(cacheKeyDefault));
+
+    let resolvedUserId: number | null = null;
+
+    if (cachedUserId) {
+      resolvedUserId = Number(cachedUserId);
+    } else if (ticket.userId) {
+      // fallback: mantém o comportamento antigo
+      resolvedUserId = ticket.userId;
+    }
+
+    if (!resolvedUserId) return null;
+
     const agentUser = await User.findOne({
       where: {
-        id: ticket.userId,
+        id: resolvedUserId,
         companyId
       }
     });
@@ -137,7 +213,9 @@ const resolveReactionActor = async ({
       ? `${ticket.whatsapp.number}@s.whatsapp.net`
       : normalizedJid;
 
-    console.log(`[DEBUG][fromJid]:${fromJid}`);
+    console.log(
+      `[DEBUG][resolveReactionActor] userId:${agentUser.id} fromJid:${fromJid}`
+    );
 
     return {
       userId: agentUser.id,
@@ -348,7 +426,9 @@ const CreateOrUpdateBaileysReactionService = async ({
     ticketId: msg.ticketId,
     normalizedJid: parsed.normalizedJid,
     number: parsed.number,
-    companyId
+    companyId,
+    reactedMsgWid: parsed.reactedMsgWid,
+    emoji: parsed.emoji
   });
 
   if (!actor) return;
@@ -363,6 +443,8 @@ const CreateOrUpdateBaileysReactionService = async ({
     });
     return;
   }
+
+  console.log(`☢️☢️actor.userID:${actor.userId}☢️☢️`);
 
   await handleUpsertReaction({
     companyId,
