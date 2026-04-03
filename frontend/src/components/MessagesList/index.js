@@ -658,6 +658,10 @@ const MessagesList = ({
 
   const QUICK_REACTIONS = ["😂", "❤️", "😮", "😢", "🙏", "👍"];
 
+  const canSendReaction = () => {
+    return ticketStatus === "open" || ticketStatus === "group";
+  };
+
   const tryMarkAsRead = () => {
     if (!ticketId) return;
     if (document.visibilityState !== "visible") return;
@@ -953,6 +957,11 @@ const MessagesList = ({
   };
 
   const openReactionBar = (message, anchorElement) => {
+    if (!canSendReaction()) {
+      toastError("Aceite o ticket para enviar reações.");
+      return;
+    }
+
     if (!anchorElement) return;
 
     const messageContainer =
@@ -978,6 +987,10 @@ const MessagesList = ({
 
   const handleSendReaction = async (message, clickedEmoji) => {
     try {
+      if (!canSendReaction()) {
+        toastError("Aceite o ticket para enviar reações.");
+        return;
+      }
       console.log(`clickeEmoji:${clickedEmoji}`);
 
       const myReaction = Array.isArray(message?.reactions)
