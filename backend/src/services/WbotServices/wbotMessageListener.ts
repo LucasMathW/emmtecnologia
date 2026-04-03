@@ -109,6 +109,7 @@ import { Console } from "console";
 import { ms } from "date-fns/locale";
 import { WAMessageSafe } from "../../@types/WAMessageSafe";
 import ticketFinalizationReasonRoutes from "../../routes/ticketFinalizationReasonRoutes";
+import CreateOrUpdateBaileysReactionService from "../MessageServices/CreateOrUpdateBaileysReactionService";
 
 let ffmpegPath: string;
 if (os.platform() === "win32") {
@@ -5460,205 +5461,210 @@ const filterMessages = (msg: WAMessage): boolean => {
     return true;
 };
 
+// const handleBaileysReaction = async (
+//   message: WAMessageSafe,
+//   wbot: WbotSession,
+//   companyId: number
+// ) => {
+//   try {
+//     const io = getIO();
+//     const nsp = io.of(`/${companyId}`);
+
+//     const reaction = message.message?.reactionMessage;
+//     if (!reaction) return;
+
+//     const reactedMsgWid = reaction.key?.id;
+//     if (!reactedMsgWid) return;
+
+//     const emoji = reaction.text || "";
+
+//     // 🔥 Descobre quem reagiu
+//     const rawJid =
+//       message.key.remoteJidAlt ||
+//       (reaction.key as any).remoteJidAlt ||
+//       reaction.key.participant ||
+//       message.key.participant ||
+//       reaction.key.remoteJid ||
+//       message.key.remoteJid;
+
+//     if (!rawJid) return;
+
+//     const normalizedJid = normalizeJid(rawJid);
+//     const number = normalizedJid.replace(/\D/g, "");
+
+//     const msg = await Message.findOne({
+//       where: {
+//         wid: reactedMsgWid,
+//         companyId
+//       },
+//       attributes: ["id", "ticketId"]
+//     });
+
+//     const originalMessage = await Message.findByPk(msg.id, {
+//       attributes: ["body"]
+//     });
+
+//     if (!msg) return;
+
+//     let userId: number;
+//     let fromJid: string;
+
+//     const isFromMe = message.key.fromMe;
+
+//     if (isFromMe) {
+//       // 🔥 reação do agente
+//       const ticket = await Ticket.findByPk(msg.ticketId);
+//       if (!ticket) return;
+
+//       const agentUser = await User.findOne({
+//         where: {
+//           id: ticket.userId,
+//           companyId
+//         }
+//       });
+
+//       if (!agentUser) return;
+
+//       userId = agentUser.id;
+//       fromJid = ticket.whatsapp?.number
+//         ? `${ticket.whatsapp.number}@s.whatsapp.net`
+//         : normalizedJid;
+
+//       console.log(`[DEBUG][fromJid]:${fromJid}`);
+//     } else {
+//       // 🔥 reação do contato
+//       const contact = await Contact.findOne({
+//         where: { number, companyId }
+//       });
+
+//       if (!contact) return;
+
+//       userId = contact.id;
+//       fromJid = normalizedJid;
+//     }
+
+//     if (!emoji) {
+//       const currentLastReaction = await MessageReaction.findOne({
+//         include: [
+//           {
+//             model: Message,
+//             as: "message",
+//             required: true,
+//             where: { ticketId: msg.ticketId }
+//           }
+//         ],
+//         order: [["updatedAt", "DESC"]] // 🔥 Agora pega a reação mais recentemente atualizada
+//       });
+
+//       const ticket = await Ticket.findByPk(msg.ticketId, {
+//         include: [
+//           { model: Contact, as: "contact" },
+//           { model: Queue, as: "queue" },
+//           { model: User, as: "user" },
+//           { model: Whatsapp, as: "whatsapp" }
+//         ]
+//       });
+
+//       const isRemovingLatest = currentLastReaction?.messageId === msg.id;
+
+//       console.log(`isRemovindLatest:${isRemovingLatest}`);
+
+//       await MessageReaction.destroy({
+//         where: { messageId: msg.id, userId }
+//       });
+
+//       nsp.emit(`company-${companyId}-appMessage`, {
+//         action: "reaction:update",
+//         messageId: msg.id,
+//         contactId: ticket.contactId,
+//         reaction: {
+//           userId,
+//           emoji: null,
+//           fromJid,
+//           messagePreview: originalMessage.body || ""
+//         },
+//         skipSidebar: !isRemovingLatest,
+//         ticketId: msg.ticketId
+//       });
+
+//       if (!isRemovingLatest) {
+//         console.log(`🎃🎃🎃ITS NOT THE LAST MESSAGE REACTION FINISH`);
+//         return;
+//       }
+
+//       if (ticket) {
+//         console.log(`ticket OK`);
+//         await ticket.update({
+//           lastMessageType: "message"
+//         });
+
+//         await ticket.reload(); // 🔥 importante para garantir dados atualizados
+
+//         nsp.emit(`company-${companyId}-ticket`, {
+//           action: "update",
+//           ticket
+//         });
+//       }
+
+//       return;
+//     }
+
+//     const [reactionRow] = await MessageReaction.findOrCreate({
+//       where: { messageId: msg.id, userId },
+//       defaults: { emoji, fromJid }
+//     });
+
+//     if (reactionRow.emoji !== emoji || reactionRow.fromJid !== fromJid) {
+//       await reactionRow.update({ emoji, fromJid });
+//     }
+
+//     const ticket = await Ticket.findByPk(msg.ticketId, {
+//       include: [
+//         { model: Contact, as: "contact" },
+//         { model: Queue, as: "queue" },
+//         { model: User, as: "user" },
+//         { model: Whatsapp, as: "whatsapp" }
+//       ]
+//     });
+
+//     if (ticket) {
+//       await ticket.update({
+//         lastMessageType: "reaction"
+//       });
+
+//       nsp.emit(`company-${companyId}-ticket`, {
+//         action: "update",
+//         ticket
+//       });
+//     }
+
+//     nsp.emit(`company-${companyId}-appMessage`, {
+//       action: "reaction:update",
+//       messageId: msg.id,
+//       contactId: ticket.contactId,
+//       reaction: {
+//         userId,
+//         emoji,
+//         fromJid,
+//         messagePreview: originalMessage?.body || ""
+//       },
+//       ticketId: msg.ticketId
+//     });
+//   } catch (err) {
+//     console.error("Erro ao processar reaction Baileys:", err);
+//   }
+// };
+
 const handleBaileysReaction = async (
   message: WAMessageSafe,
   wbot: WbotSession,
   companyId: number
-) => {
+): Promise<void> => {
   try {
-    const io = getIO();
-    const nsp = io.of(`/${companyId}`);
-
-    const reaction = message.message?.reactionMessage;
-    if (!reaction) return;
-
-    const reactedMsgWid = reaction.key?.id;
-    if (!reactedMsgWid) return;
-
-    const emoji = reaction.text || "";
-
-    // 🔥 Descobre quem reagiu
-    const rawJid =
-      message.key.remoteJidAlt ||
-      (reaction.key as any).remoteJidAlt ||
-      reaction.key.participant ||
-      message.key.participant ||
-      reaction.key.remoteJid ||
-      message.key.remoteJid;
-
-    if (!rawJid) return;
-
-    const normalizedJid = normalizeJid(rawJid);
-    const number = normalizedJid.replace(/\D/g, "");
-
-    const msg = await Message.findOne({
-      where: {
-        wid: reactedMsgWid,
-        companyId
-      },
-      attributes: ["id", "ticketId"]
-    });
-
-    const originalMessage = await Message.findByPk(msg.id, {
-      attributes: ["body"]
-    });
-
-    if (!msg) return;
-
-    let userId: number;
-    let fromJid: string;
-
-    const isFromMe = message.key.fromMe;
-
-    if (isFromMe) {
-      // 🔥 reação do agente
-      const ticket = await Ticket.findByPk(msg.ticketId);
-      if (!ticket) return;
-
-      const agentUser = await User.findOne({
-        where: {
-          id: ticket.userId,
-          companyId
-        }
-      });
-
-      if (!agentUser) return;
-
-      userId = agentUser.id;
-      fromJid = ticket.whatsapp?.number
-        ? `${ticket.whatsapp.number}@s.whatsapp.net`
-        : normalizedJid;
-
-      console.log(`[DEBUG][fromJid]:${fromJid}`);
-    } else {
-      // 🔥 reação do contato
-      const contact = await Contact.findOne({
-        where: { number, companyId }
-      });
-
-      if (!contact) return;
-
-      userId = contact.id;
-      fromJid = normalizedJid;
-    }
-
-    if (!emoji) {
-      const currentLastReaction = await MessageReaction.findOne({
-        include: [
-          {
-            model: Message,
-            as: "message",
-            required: true,
-            where: { ticketId: msg.ticketId }
-          }
-        ],
-        order: [["updatedAt", "DESC"]] // 🔥 Agora pega a reação mais recentemente atualizada
-      });
-
-      const ticket = await Ticket.findByPk(msg.ticketId, {
-        include: [
-          { model: Contact, as: "contact" },
-          { model: Queue, as: "queue" },
-          { model: User, as: "user" },
-          { model: Whatsapp, as: "whatsapp" }
-        ]
-      });
-
-      // const lastMessage = await Message.findOne({
-      //   where: { ticketId: msg.ticketId },
-      //   order: [["createdAt", "DESC"]],
-      //   attributes: ["id"]
-      // });
-
-      // console.log(`lastMessage id: ${JSON.stringify(lastMessage?.id)}`);
-      // console.log("lastReaction messageId:", currentLastReaction.messageId);
-      // console.log(`currentLastReaction:${currentLastReaction.emoji}`);
-      // console.log(`msg.id[message da reacao removida agora.]:${msg.id}`);
-
-      const isRemovingLatest = currentLastReaction?.messageId === msg.id;
-
-      console.log(`isRemovindLatest:${isRemovingLatest}`);
-
-      await MessageReaction.destroy({
-        where: { messageId: msg.id, userId }
-      });
-
-      nsp.emit(`company-${companyId}-appMessage`, {
-        action: "reaction:update",
-        messageId: msg.id,
-        contactId: ticket.contactId,
-        reaction: {
-          userId,
-          emoji: null,
-          fromJid,
-          messagePreview: originalMessage.body || ""
-        },
-        skipSidebar: !isRemovingLatest,
-        ticketId: msg.ticketId
-      });
-
-      if (!isRemovingLatest) {
-        console.log(`🎃🎃🎃ITS NOT THE LAST MESSAGE REACTION FINISH`);
-        return;
-      }
-
-      if (ticket) {
-        console.log(`ticket OK`);
-        await ticket.update({
-          lastMessageType: "message"
-        });
-
-        await ticket.reload(); // 🔥 importante para garantir dados atualizados
-
-        nsp.emit(`company-${companyId}-ticket`, {
-          action: "update",
-          ticket
-        });
-      }
-
-      return;
-    }
-
-    const [reactionRow] = await MessageReaction.findOrCreate({
-      where: { messageId: msg.id, userId },
-      defaults: { emoji, fromJid }
-    });
-
-    if (reactionRow.emoji !== emoji || reactionRow.fromJid !== fromJid) {
-      await reactionRow.update({ emoji, fromJid });
-    }
-
-    const ticket = await Ticket.findByPk(msg.ticketId, {
-      include: [
-        { model: Contact, as: "contact" },
-        { model: Queue, as: "queue" },
-        { model: User, as: "user" },
-        { model: Whatsapp, as: "whatsapp" }
-      ]
-    });
-
-    if (ticket) {
-      await ticket.update({
-        lastMessageType: "reaction"
-      });
-
-      nsp.emit(`company-${companyId}-ticket`, {
-        action: "update",
-        ticket
-      });
-    }
-
-    nsp.emit(`company-${companyId}-appMessage`, {
-      action: "reaction:update",
-      messageId: msg.id,
-      contactId: ticket.contactId,
-      reaction: {
-        userId,
-        emoji,
-        fromJid,
-        messagePreview: originalMessage?.body || ""
-      },
-      ticketId: msg.ticketId
+    await CreateOrUpdateBaileysReactionService({
+      message,
+      wbot,
+      companyId
     });
   } catch (err) {
     console.error("Erro ao processar reaction Baileys:", err);
@@ -5666,9 +5672,6 @@ const handleBaileysReaction = async (
 };
 
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
-  console.log("WBOT INSTANCE ID:", wbot.user?.id);
-  console.log("WBOT OBJECT REF:", wbot);
-
   wbot.ev.removeAllListeners("messages.upsert");
 
   const listeners = wbot.ev["_events"]?.["messages.upsert"];
