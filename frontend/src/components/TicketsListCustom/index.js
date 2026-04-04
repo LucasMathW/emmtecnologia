@@ -104,13 +104,18 @@ const reducer = (state, action) => {
   const sortDir = action.sortDir;
 
   if (action.type === "UPDATE_TICKET_REACTION_PREVIEW") {
-    // console.log(`payload: ${JSON.stringify(action.payload)}`);
     const { contactId, emoji, messagePreview, reactionUserId, skipSidebar } =
       action.payload;
+
+    const fromMe = action.payload.fromMe ?? false;
 
     if (skipSidebar) {
       return state;
     }
+
+    console.log(`fromME:${fromMe}`);
+
+    if (!fromMe) return state;
 
     return state.map((t) => {
       if (t.contactId !== contactId) return t;
@@ -414,6 +419,7 @@ const TicketsListCustom = (props) => {
             messagePreview: data.reaction.messagePreview ?? null,
             reactionUserId: data.reaction.userId ?? null,
             skipSidebar: data.skipSidebar,
+            fromMe: data.reaction.fromMe ?? false,
           },
         });
         return;
