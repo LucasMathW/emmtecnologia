@@ -79,13 +79,13 @@ const findTargetMessage = async (
       wid: reactedMsgWid,
       companyId
     },
-    attributes: ["id", "ticketId"]
+    attributes: ["id", "ticketId", "fromMe"]
   });
 
   if (!msg) return null;
 
   const originalMessage = await Message.findByPk(msg.id, {
-    attributes: ["body"]
+    attributes: ["body", "fromMe"]
   });
 
   return {
@@ -241,6 +241,7 @@ const emitAppMessageReactionUpdate = ({
   contactId,
   userId,
   emoji,
+  fromMe,
   fromJid,
   messagePreview,
   ticketId,
@@ -254,6 +255,7 @@ const emitAppMessageReactionUpdate = ({
   fromJid: string;
   messagePreview: string;
   ticketId: number;
+  fromMe: boolean;
   skipSidebar?: boolean;
 }) => {
   const io = getIO();
@@ -267,6 +269,7 @@ const emitAppMessageReactionUpdate = ({
       userId,
       emoji,
       fromJid,
+      fromMe,
       messagePreview
     },
     skipSidebar,
@@ -295,11 +298,13 @@ const handleRemoveReaction = async ({
   msg,
   userId,
   fromJid,
+  fromMe,
   originalMessage
 }: {
   companyId: number;
   msg: any;
   userId: number;
+  fromMe: boolean;
   fromJid: string;
   originalMessage: any;
 }): Promise<void> => {
@@ -335,7 +340,8 @@ const handleRemoveReaction = async ({
     fromJid,
     messagePreview: originalMessage?.body || "",
     skipSidebar: !isRemovingLatest,
-    ticketId: msg.ticketId
+    ticketId: msg.ticketId,
+    fromMe
   });
 
   if (!isRemovingLatest) {
@@ -363,7 +369,8 @@ const handleUpsertReaction = async ({
   userId,
   emoji,
   fromJid,
-  originalMessage
+  originalMessage,
+  fromMe
 }: {
   companyId: number;
   msg: any;
@@ -371,6 +378,7 @@ const handleUpsertReaction = async ({
   emoji: string;
   fromJid: string;
   originalMessage: any;
+  fromMe: boolean;
 }): Promise<void> => {
   const [reactionRow] = await MessageReaction.findOrCreate({
     where: { messageId: msg.id, userId },
@@ -401,6 +409,7 @@ const handleUpsertReaction = async ({
     emoji,
     fromJid,
     messagePreview: originalMessage?.body || "",
+    fromMe,
     ticketId: msg.ticketId
   });
 };
@@ -439,12 +448,19 @@ const CreateOrUpdateBaileysReactionService = async ({
       msg,
       userId: actor.userId,
       fromJid: actor.fromJid,
-      originalMessage
+      originalMessage,
+      fromMe: parsed.isFromMe
     });
     return;
   }
 
-  console.log(`☢️☢️actor.userID:${actor.userId}☢️☢️`);
+  const shouldShowPreview =
+    parsed.isFromMe || Boolean(originalMessage.getDataValue("fromMe"));
+
+  // console.log(`☢️☢️actor.userID:${actor.userId}☢️☢️`);
+  console.log(
+    `[DEBUG] originalMessage fromMe: ${originalMessage.getDataValue("fromMe")}`
+  );
 
   await handleUpsertReaction({
     companyId,
@@ -452,7 +468,8 @@ const CreateOrUpdateBaileysReactionService = async ({
     userId: actor.userId,
     emoji: parsed.emoji,
     fromJid: actor.fromJid,
-    originalMessage
+    originalMessage,
+    fromMe: shouldShowPreview
   });
 };
 
