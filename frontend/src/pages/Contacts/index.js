@@ -87,6 +87,7 @@ const reducer = (state, action) => {
     const contactIndex = state.findIndex((c) => c.id === contact.id);
 
     if (contactIndex !== -1) {
+      contact._picCachedBust = Date.now();
       state[contactIndex] = contact;
       return [...state];
     } else {
@@ -900,8 +901,8 @@ const Contacts = () => {
                     </TableCell>
                     <TableCell className={classes.idCell}>{contact.id}</TableCell>
                     <TableCell className={classes.avatarCell} align="center">
-                      <Avatar 
-                        src={`${contact?.urlPicture}`}
+                      <Avatar
+                        src={contact?.urlPicture ? `${contact.urlPicture}?t=${contact._picCachedBust || ''}` : ''}
                         className={classes.clickableAvatar}
                         onClick={() => handleOpenImageModal(contact?.urlPicture, contact.name)}
                       />

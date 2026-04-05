@@ -5,6 +5,7 @@ import React, {
   useContext,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -145,32 +146,21 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "LOAD_TICKETS") {
-    // console.log("LOAD_TICKETS");
-
     const newTickets = action.payload;
 
-    newTickets.forEach((ticket) => {
-      const ticketIndex = state.findIndex((t) => t.id === ticket.id);
+    return newTickets.reduce((nextState, ticket) => {
+      const ticketIndex = nextState.findIndex((t) => t.id === ticket.id);
       if (ticketIndex !== -1) {
-        state[ticketIndex] = {
-          ...state[ticketIndex],
-          ...ticket,
-        };
-
+        nextState[ticketIndex] = { ...nextState[ticketIndex], ...ticket };
         if (ticket.unreadMessages > 0) {
-          state.unshift(state.splice(ticketIndex, 1)[0]);
+          const moved = nextState.splice(ticketIndex, 1)[0];
+          nextState.unshift(moved);
         }
       } else {
-        state.push(ticket);
+        nextState.push(ticket);
       }
-    });
-    if (sortDir && ["ASC", "DESC"].includes(sortDir)) {
-      sortDir === "ASC"
-        ? state.sort(ticketSortAsc)
-        : state.sort(ticketSortDesc);
-    }
-
-    return [...state];
+      return nextState;
+    }, [...state]);
   }
 
   if (action.type === "RESET_UNREAD") {
@@ -193,22 +183,16 @@ const reducer = (state, action) => {
   if (action.type === "UPDATE_TICKET") {
     const ticket = action.payload;
 
-    const ticketIndex = state.findIndex((t) => t.id === ticket.id);
-    if (ticketIndex !== -1) {
-      state[ticketIndex] = {
-        ...state[ticketIndex],
-        ...ticket,
-      };
-    } else {
-      state.unshift(ticket);
-    }
-    if (sortDir && ["ASC", "DESC"].includes(sortDir)) {
-      sortDir === "ASC"
-        ? state.sort(ticketSortAsc)
-        : state.sort(ticketSortDesc);
-    }
-
-    return [...state];
+    return state.map((t) => {
+      if (t.id === ticket.id) {
+        const currentContact = t.contact;
+        const incomingContact = ticket.contact || {};
+        // Preservar contact mais recente do estado local
+        const mergedContact = { ...incomingContact, ...currentContact };
+        return { ...t, ...ticket, contact: mergedContact };
+      }
+      return t;
+    });
   }
 
   if (action.type === "UPDATE_TICKET_UNREAD_MESSAGES") {
@@ -239,11 +223,30 @@ const reducer = (state, action) => {
 
   if (action.type === "UPDATE_TICKET_CONTACT") {
     const contact = action.payload;
-    const ticketIndex = state.findIndex((t) => t.contactId === contact.id);
-    if (ticketIndex !== -1) {
-      state[ticketIndex].contact = contact;
-    }
-    return [...state];
+
+    const normalize = (n) => n?.replace(/\D/g, "");
+
+    return state.map((t) => {
+      const matchById = t.contactId === contact.id;
+      const matchByNumber = t.contact?.number && normalize(t.contact.number) === normalize(contact.number);
+      const matchByName = t.contact?.name && contact.name && t.contact.name === contact.name;
+
+      if (matchById || matchByNumber || matchByName) {
+        const mergedContact = {
+          ...t.contact,
+          id: contact.id,
+          number: contact.number,
+          name: contact.name,
+          urlPicture: contact.urlPicture,
+          profilePicUrl: contact.profilePicUrl,
+          pictureUpdated: contact.pictureUpdated,
+        };
+        // Mesma fórmula da página de Contatos
+        mergedContact._picCachedBust = Date.now();
+        return { ...t, contact: mergedContact };
+      }
+      return t;
+    });
   }
 
   if (action.type === "DELETE_TICKET") {
@@ -263,6 +266,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
+    console.log("[REDUCER ACTION RESET] Limpando todo o state!");
     return [];
   }
 
@@ -292,6 +296,18 @@ const TicketsListCustom = (props) => {
   const [pageNumber, setPageNumber] = useState(1);
   let [ticketsList, dispatch] = useReducer(reducer, []);
   const { user, socket } = useContext(AuthContext);
+
+  // Preservar fotos mais recentes dos contatos entre RESET/load
+  const preservedPicsRef = useRef({});
+
+  // Salvar fotos atualizadas na ref quando chegam
+  useEffect(() => {
+    ticketsList.forEach((t) => {
+      if (t.contact?.urlPicture && t.contact.urlPicture.includes("?t=")) {
+        preservedPicsRef.current[t.contact.number] = t.contact.urlPicture;
+      }
+    });
+  }, [ticketsList]);
 
   const { profile, queues } = user;
   const showTicketWithoutQueue = user.allTicket === "enable";
@@ -547,6 +563,23 @@ const TicketsListCustom = (props) => {
       loadMore();
     }
   };
+
+  // Re-aplicar fotos preservadas que foram perdidas no RESET/LOAD
+  if (Object.keys(preservedPicsRef.current).length > 0) {
+    const normalize = (n) => n?.replace(/\D/g, "");
+    ticketsList = ticketsList.map((t) => {
+      for (const number in preservedPicsRef.current) {
+        if (t.contact?.number && normalize(t.contact.number) === normalize(number)) {
+          const newPic = preservedPicsRef.current[number];
+          if (t.contact.urlPicture !== newPic) {
+            t = { ...t, contact: { ...t.contact, urlPicture: newPic } };
+          }
+          break;
+        }
+      }
+      return t;
+    });
+  }
 
   if (status && status !== "search") {
     ticketsList = ticketsList.filter((ticket) => ticket.status === status);
