@@ -23,7 +23,7 @@ interface Request {
   number: string;
   isGroup: boolean;
   email?: string;
-  birthDate?: Date | string; // 🎂 NOVO CAMPO ADICIONADO
+  birthDate?: Date | string;
   profilePicUrl?: string;
   companyId: number;
   channel?: string;
@@ -69,11 +69,10 @@ export const updateContact = async (
 const CreateOrUpdateContactService = async ({
   name,
   number,
-  // number: rawNumber,
   profilePicUrl,
   isGroup,
   email = "",
-  birthDate = null, // 🎂 INCLUIR NO DESTRUCTURING
+  birthDate = null,
   channel = "whatsapp",
   companyId,
   extraInfo = [],
@@ -83,23 +82,18 @@ const CreateOrUpdateContactService = async ({
   wbot,
   fromMe = false
 }: Request): Promise<Contact> => {
-
-  // console.log('number', number)
-  // console.log('remoteJid', remoteJid)
-  // console.log('isGroup', isGroup)
-  // console.log('number', number)
-
   try {
-    // Garantir que o número esteja no formato correto (sem @lid)
     let cleanNumber = number;
-    if (!isGroup && cleanNumber.includes('@')) {
-      cleanNumber = cleanNumber.substring(0, cleanNumber.indexOf('@'));
-      logger.info(`[RDS-LID] Número com formato incorreto corrigido: ${number} -> ${cleanNumber}`);
+    if (!isGroup && cleanNumber.includes("@")) {
+      cleanNumber = cleanNumber.substring(0, cleanNumber.indexOf("@"));
+      logger.info(
+        `[RDS-LID] Número com formato incorreto corrigido: ${number} -> ${cleanNumber}`
+      );
     }
 
-    // Monta um remoteJid padrão quando não for informado
     const fallbackRemoteJid = normalizeJid(
-      remoteJid || (isGroup ? `${cleanNumber}@g.us` : `${cleanNumber}@s.whatsapp.net`)
+      remoteJid ||
+        (isGroup ? `${cleanNumber}@g.us` : `${cleanNumber}@s.whatsapp.net`)
     );
 
     let createContact = false;
@@ -113,11 +107,14 @@ const CreateOrUpdateContactService = async ({
         `[RDS-LID] Buscando contato: number=${cleanNumber}, companyId=${companyId}, lid=${lid}`
       );
     }
+
     if (lid) {
       contact = await Contact.findOne({ where: { lid, companyId } });
     }
     if (!contact) {
-      contact = await Contact.findOne({ where: { number: cleanNumber, companyId } });
+      contact = await Contact.findOne({
+        where: { number: cleanNumber, companyId }
+      });
     }
 
     let updateImage =
@@ -127,11 +124,6 @@ const CreateOrUpdateContactService = async ({
       false;
 
     if (contact) {
-      // if (ENABLE_LID_DEBUG) {
-      //   logger.info(
-      //     `[RDS-LID] Contato encontrado: id=${contact.id}, number=${contact.number}, jid=${contact.remoteJid}, lid=${contact.lid}`
-      //   );
-      // }
       contact.remoteJid = fallbackRemoteJid;
       if (!contact.lid) {
         contact.lid = lid;
@@ -140,7 +132,6 @@ const CreateOrUpdateContactService = async ({
         logger.info(`[RDS-LID] fromMe recebido: ${fromMe}`);
       }
 
-      // Atualizar LID quando disponível
       if (lid && lid !== "") {
         if (contact.lid !== lid) {
           if (ENABLE_LID_DEBUG) {
@@ -151,7 +142,6 @@ const CreateOrUpdateContactService = async ({
           contact.lid = lid;
         }
       } else if (fromMe === false && contact.lid && fallbackRemoteJid) {
-        // Se não temos lid mas temos um remoteJid, tenta obter o lid do whatsapp
         if (wbot) {
           try {
             const ow = await wbot.onWhatsApp(fallbackRemoteJid);
@@ -173,7 +163,15 @@ const CreateOrUpdateContactService = async ({
           }
         }
       }
-      contact.profilePicUrl = profilePicUrl || null;
+
+      // Só atualiza profilePicUrl no contato se vier um valor válido (não nopicture)
+      // Se vier nopicture ou vazio, mantém o que estava antes para não sobrescrever
+      if (profilePicUrl && !profilePicUrl.includes("nopicture")) {
+        contact.profilePicUrl = profilePicUrl;
+      } else if (!contact.profilePicUrl) {
+        contact.profilePicUrl = profilePicUrl || null;
+      }
+
       contact.isGroup = isGroup;
 
       // 🎂 ATUALIZAR DATA DE NASCIMENTO SE FORNECIDA
@@ -181,7 +179,6 @@ const CreateOrUpdateContactService = async ({
         let processedBirthDate: Date | null = null;
         if (typeof birthDate === "string") {
           processedBirthDate = new Date(birthDate);
-          // Validar se a data é válida
           if (!isNaN(processedBirthDate.getTime())) {
             contact.birthDate = processedBirthDate;
           }
@@ -194,7 +191,6 @@ const CreateOrUpdateContactService = async ({
         const whatsapp = await Whatsapp.findOne({
           where: { id: whatsappId, companyId }
         });
-
         if (whatsapp) {
           contact.whatsappId = whatsappId;
         }
@@ -206,37 +202,81 @@ const CreateOrUpdateContactService = async ({
         "contacts"
       );
 
-      let fileName,
-        oldPath = "";
-      if (contact.urlPicture) {
-        oldPath = path.resolve(contact.urlPicture.replace(/\\/g, "/"));
-        fileName = path.join(folder, oldPath.split("\\").pop());
+      // Verifica se já existe arquivo de foto salvo em disco
+      let fileName: string | undefined;
+      if (contact.urlPicture && !contact.urlPicture.includes("nopicture")) {
+        const resolvedOld = contact.urlPicture.replace(/\\/g, "/");
+        const baseName = resolvedOld.split("/").pop();
+        if (baseName) {
+          fileName = path.join(folder, baseName);
+        }
       }
-      if (
-        !fs.existsSync(fileName) ||
-        (contact.profilePicUrl === "" && channel === "whatsapp")
-      ) {
+
+      const fileExistsAndValid = !!fileName && fs.existsSync(fileName);
+
+      // Verifica se a foto atual (no banco) é inválida/nopicture
+      const currentPicIsInvalid =
+        !contact.urlPicture ||
+        contact.urlPicture.includes("nopicture") ||
+        !fileExistsAndValid;
+
+      // Só tenta rebuscar a foto se:
+      // 1. Tem wbot disponível
+      // 2. A foto atual é inválida ou o arquivo não existe em disco
+      const isGroupContact = (contact.remoteJid || fallbackRemoteJid)?.includes(
+        "@g.us"
+      );
+
+      if (wbot && currentPicIsInvalid && !isGroupContact) {
         try {
           const targetJid = contact.remoteJid || fallbackRemoteJid;
-          profilePicUrl = await wbot.profilePictureUrl(targetJid, "image");
+          logger.info(
+            `[PIC-DEBUG2] Tentando buscar foto para JID: ${targetJid}`
+          );
+          logger.info(`[PIC-DEBUG2] contact.urlPicture=${contact.urlPicture}`);
+          logger.info(`[PIC-DEBUG2] fileExistsAndValid=${fileExistsAndValid}`);
+          logger.info(
+            `[PIC-DEBUG2] currentPicIsInvalid=${currentPicIsInvalid}`
+          );
+          logger.info(`[PIC-DEBUG2] fileName=${fileName}`);
+
+          const fetched = await wbot.profilePictureUrl(targetJid, "image");
+
+          logger.info(`[PIC-DEBUG2] fetched=${fetched}`);
+
+          if (fetched && !fetched.includes("nopicture")) {
+            profilePicUrl = fetched;
+            contact.profilePicUrl = profilePicUrl;
+            updateImage = true;
+            logger.info(
+              `[PIC] Foto obtida via wbot para contato ${contact.number}: ${profilePicUrl}`
+            );
+          } else {
+            logger.info(
+              `[PIC] wbot não retornou foto válida para ${contact.number}, mantendo estado atual`
+            );
+            // Não altera updateImage nem profilePicUrl — mantém o que tinha
+          }
         } catch (e) {
-          profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+          logger.info(
+            `[PIC] Sem foto de perfil disponível para ${contact.number}: ${e.message}`
+          );
+          // Não altera updateImage — não força nopicture
         }
-        contact.profilePicUrl = profilePicUrl;
-        updateImage = true;
+      } else if (!wbot && currentPicIsInvalid) {
+        // Sem wbot e sem foto válida: mantém o estado, não força nopicture
+        logger.info(
+          `[PIC] Sem wbot para buscar foto de ${contact.number}, mantendo estado atual`
+        );
       }
+      // Se fileExistsAndValid === true: arquivo já existe em disco, não precisa rebaixar
 
       if (contact.name === number) {
         contact.name = name;
       }
 
-      await contact.save(); // Ensure save() is called to trigger updatedAt
+      await contact.save();
       await contact.reload();
-      // if (ENABLE_LID_DEBUG) {
-      //   logger.info(
-      //     `[RDS-LID] Contato atualizado: id=${contact.id}, number=${contact.number}, jid=${contact.remoteJid}, lid=${contact.lid}`
-      //   );
-      // }
     } else if (["whatsapp"].includes(channel)) {
       const settings = await CompaniesSettings.findOne({
         where: { companyId }
@@ -244,20 +284,20 @@ const CreateOrUpdateContactService = async ({
       const acceptAudioMessageContact = settings?.acceptAudioMessageContact;
       const newRemoteJid = fallbackRemoteJid;
 
-      // if (!remoteJid && remoteJid !== "") {
-      //   newRemoteJid = isGroup
-      //     ? `${rawNumber}@g.us`
-      //     : `${rawNumber}@s.whatsapp.net`;
-      // }
-
       if (ENABLE_LID_DEBUG) {
         logger.info(
           `[RDS-LID] Criando novo contato: number=${number}, jid=${newRemoteJid}, lid=${lid}`
         );
       }
+
       if (wbot) {
         try {
-          profilePicUrl = await wbot.profilePictureUrl(newRemoteJid, "image");
+          const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
+          if (fetched && !fetched.includes("nopicture")) {
+            profilePicUrl = fetched;
+          } else {
+            profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+          }
         } catch (e) {
           profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
         }
@@ -270,7 +310,6 @@ const CreateOrUpdateContactService = async ({
       if (birthDate) {
         if (typeof birthDate === "string") {
           processedBirthDate = new Date(birthDate);
-          // Validar se a data é válida
           if (isNaN(processedBirthDate.getTime())) {
             processedBirthDate = null;
           }
@@ -280,10 +319,8 @@ const CreateOrUpdateContactService = async ({
       }
 
       try {
-        // Verificar se conseguimos obter o LID via API do WhatsApp
         let lidToUse = lid || null;
 
-        // Se não temos LID mas temos wbot, tenta consultar o LID via API
         if (!lidToUse && wbot && newRemoteJid) {
           try {
             const ow = await wbot.onWhatsApp(newRemoteJid);
@@ -297,24 +334,25 @@ const CreateOrUpdateContactService = async ({
             }
           } catch (error) {
             if (ENABLE_LID_DEBUG) {
-              logger.error(`[RDS-LID] Erro ao consultar LID para novo contato: ${error.message}`);
+              logger.error(
+                `[RDS-LID] Erro ao consultar LID para novo contato: ${error.message}`
+              );
             }
           }
         }
 
-        // Criando contato com LID quando disponível
         contact = await Contact.create({
           name,
-          number: cleanNumber, // Usar o número limpo aqui
+          number: cleanNumber,
           email,
-          birthDate: processedBirthDate, // 🎂 INCLUIR NO CREATE
+          birthDate: processedBirthDate,
           isGroup,
           companyId,
           channel,
           acceptAudioMessage:
             acceptAudioMessageContact === "enabled" ? true : false,
           remoteJid: normalizeJid(newRemoteJid),
-          lid: lidToUse, // Usa o LID obtido da API ou o passado no parâmetro
+          lid: lidToUse,
           profilePicUrl,
           urlPicture: "",
           whatsappId
@@ -326,20 +364,16 @@ const CreateOrUpdateContactService = async ({
         }
         createContact = true;
       } catch (err) {
-        // Verificar se é erro de unicidade (contato já existe)
-        if (err.name === 'SequelizeUniqueConstraintError') {
-          logger.info(`[RDS-CONTACT] Contato já existe, buscando e reativando: number=${number}, companyId=${companyId}`);
+        if (err.name === "SequelizeUniqueConstraintError") {
+          logger.info(
+            `[RDS-CONTACT] Contato já existe, buscando e reativando: number=${number}, companyId=${companyId}`
+          );
 
-          // Buscar o contato existente que pode estar inativo
           contact = await Contact.findOne({
-            where: {
-              number,
-              companyId
-            }
+            where: { number, companyId }
           });
 
           if (contact) {
-            // Reativar o contato se estiver inativo
             if (!contact.active) {
               await contact.update({
                 active: true,
@@ -347,32 +381,30 @@ const CreateOrUpdateContactService = async ({
                 remoteJid: normalizeJid(newRemoteJid),
                 lid: lid || null
               });
-
-              logger.info(`[RDS-CONTACT] Contato reativado: id=${contact.id}, number=${contact.number}`);
+              logger.info(
+                `[RDS-CONTACT] Contato reativado: id=${contact.id}, number=${contact.number}`
+              );
             }
           } else {
-            // Caso muito improvável - erro de unicidade, mas contato não encontrado
-            logger.error(`[RDS-CONTACT] Erro de unicidade, mas contato não encontrado: ${err.message}`);
+            logger.error(
+              `[RDS-CONTACT] Erro de unicidade, mas contato não encontrado: ${err.message}`
+            );
             throw err;
           }
         } else {
-          // Outros erros são repassados
           logger.error(`[RDS-CONTACT] Erro ao criar contato: ${err.message}`);
           throw err;
         }
       }
     } else if (["facebook", "instagram"].includes(channel)) {
-      // 🎂 PROCESSAR DATA DE NASCIMENTO PARA REDES SOCIAIS - CORREÇÃO DE TIMEZONE
+      // 🎂 PROCESSAR DATA DE NASCIMENTO PARA REDES SOCIAIS
       let processedBirthDate: Date | null = null;
       if (birthDate) {
         if (typeof birthDate === "string") {
-          // Se vier no formato ISO, extrair apenas a parte da data
-          const dateOnly = birthDate.split('T')[0];
-          // Criar data local com meio-dia para evitar problemas de timezone
-          const [year, month, day] = dateOnly.split('-').map(Number);
+          const dateOnly = birthDate.split("T")[0];
+          const [year, month, day] = dateOnly.split("-").map(Number);
           processedBirthDate = new Date(year, month - 1, day, 12, 0, 0);
         } else if (birthDate instanceof Date) {
-          // Se for objeto Date, criar nova data local com meio-dia
           const year = birthDate.getFullYear();
           const month = birthDate.getMonth();
           const day = birthDate.getDate();
@@ -383,9 +415,9 @@ const CreateOrUpdateContactService = async ({
       try {
         contact = await Contact.create({
           name,
-          number: cleanNumber, // Usar o número limpo aqui
+          number: cleanNumber,
           email,
-          birthDate: processedBirthDate, // 🎂 INCLUIR NO CREATE
+          birthDate: processedBirthDate,
           isGroup,
           companyId,
           channel,
@@ -395,48 +427,47 @@ const CreateOrUpdateContactService = async ({
         });
         createContact = true;
       } catch (err) {
-        // Verificar se é erro de unicidade (contato já existe)
-        if (err.name === 'SequelizeUniqueConstraintError') {
-          logger.info(`[RDS-CONTACT] Contato social já existe, buscando e reativando: number=${number}, companyId=${companyId}, canal=${channel}`);
+        if (err.name === "SequelizeUniqueConstraintError") {
+          logger.info(
+            `[RDS-CONTACT] Contato social já existe, buscando e reativando: number=${number}, companyId=${companyId}, canal=${channel}`
+          );
 
-          // Buscar o contato existente que pode estar inativo
           contact = await Contact.findOne({
-            where: {
-              number: cleanNumber, // Usar o número limpo aqui
-              companyId,
-              channel
-            }
+            where: { number: cleanNumber, companyId, channel }
           });
 
           if (contact) {
-            // Reativar o contato se estiver inativo
             if (!contact.active) {
-              await contact.update({
-                active: true,
-                profilePicUrl
-              });
-
-              logger.info(`[RDS-CONTACT] Contato social reativado: id=${contact.id}, number=${contact.number}, canal=${channel}`);
+              await contact.update({ active: true, profilePicUrl });
+              logger.info(
+                `[RDS-CONTACT] Contato social reativado: id=${contact.id}, number=${contact.number}, canal=${channel}`
+              );
             }
           } else {
-            // Caso muito improvável - erro de unicidade, mas contato não encontrado
-            logger.error(`[RDS-CONTACT] Erro de unicidade no contato social, mas contato não encontrado: ${err.message}`);
+            logger.error(
+              `[RDS-CONTACT] Erro de unicidade no contato social, mas contato não encontrado: ${err.message}`
+            );
             throw err;
           }
         } else {
-          // Outros erros são repassados
-          logger.error(`[RDS-CONTACT] Erro ao criar contato social: ${err.message}`);
+          logger.error(
+            `[RDS-CONTACT] Erro ao criar contato social: ${err.message}`
+          );
           throw err;
         }
       }
     }
 
-    // Se ainda não temos contato aqui, não prossiga para evitar null reference
     if (!contact) {
       throw new Error(
         "Não foi possível criar ou localizar o contato. Informe o número/canal corretamente."
       );
     }
+
+    logger.info(`[PIC-NEW] PRE-SAVE updateImage=${updateImage}`);
+    logger.info(`[PIC-NEW] PRE-SAVE profilePicUrl=${profilePicUrl}`);
+    logger.info(`[PIC-NEW] PRE-SAVE contact.id=${contact?.id}`);
+    logger.info(`[PIC-NEW] PRE-SAVE createContact=${createContact}`);
 
     if (updateImage) {
       const folder = path.resolve(
@@ -450,46 +481,79 @@ const CreateOrUpdateContactService = async ({
         fs.chmodSync(folder, 0o777);
       }
 
-      let filename;
+      // ✅ Última chance: se ainda for nopicture mas tem wbot, tenta buscar a foto real
+      const isGroupPic = (contact.remoteJid || fallbackRemoteJid)?.includes(
+        "@g.us"
+      );
+      if (
+        wbot &&
+        (!profilePicUrl || profilePicUrl.includes("nopicture")) &&
+        !isGroupPic
+      ) {
+        try {
+          const targetJid = contact.remoteJid || fallbackRemoteJid;
+          const fetched = await wbot.profilePictureUrl(targetJid, "image");
+          if (fetched && !fetched.includes("nopicture")) {
+            profilePicUrl = fetched;
+            contact.profilePicUrl = profilePicUrl;
+            logger.info(
+              `[PIC] Foto obtida na última tentativa para contato ${contact.number}`
+            );
+          }
+        } catch (e) {
+          logger.info(
+            `[PIC] Última tentativa falhou para ${contact.number}: ${e.message}`
+          );
+        }
+      }
+
+      let filename: string;
       if (isNil(profilePicUrl) || profilePicUrl.includes("nopicture")) {
         filename = "nopicture.png";
       } else {
         filename = `${contact.id}.jpeg`;
         const filePath = join(folder, filename);
 
-        // Verifica se o arquivo já existe e se o profilePicUrl não mudou
         if (fs.existsSync(filePath) && contact.urlPicture === filename) {
           // Arquivo já existe e é o mesmo, não precisa baixar novamente
           updateImage = false;
         } else {
-          // Remove arquivo antigo se existir
-          if (!isNil(contact.urlPicture) && contact.urlPicture !== filename) {
-            const oldPath = path.resolve(
-              contact.urlPicture.replace(/\\/g, "/")
-            );
-            const oldFileName = path.join(folder, oldPath.split("\\").pop());
-
-            if (fs.existsSync(oldFileName)) {
-              fs.unlinkSync(oldFileName);
+          // Remove arquivo antigo se existir e for diferente
+          if (
+            !isNil(contact.urlPicture) &&
+            contact.urlPicture !== filename &&
+            !contact.urlPicture.includes("nopicture")
+          ) {
+            const oldBaseName = contact.urlPicture
+              .replace(/\\/g, "/")
+              .split("/")
+              .pop();
+            if (oldBaseName) {
+              const oldFileName = path.join(folder, oldBaseName);
+              if (fs.existsSync(oldFileName)) {
+                fs.unlinkSync(oldFileName);
+              }
             }
           }
 
-          const response = await axios.get(profilePicUrl, {
-            responseType: "arraybuffer"
-          });
-
-          // Save the image to the directory
-          fs.writeFileSync(filePath, response.data);
+          try {
+            const response = await axios.get(profilePicUrl, {
+              responseType: "arraybuffer"
+            });
+            fs.writeFileSync(filePath, response.data);
+            logger.info(`[PIC] Foto salva em disco: ${filePath}`);
+          } catch (e) {
+            logger.error(`[PIC] Erro ao baixar/salvar foto: ${e.message}`);
+            filename = "nopicture.png";
+          }
         }
       }
 
-      // Atualiza o contato apenas se a imagem mudou ou se não tinha urlPicture
       if (updateImage || isNil(contact.urlPicture)) {
         await contact.update({
           urlPicture: filename,
           pictureUpdated: true
         });
-
         await contact.reload();
       }
     }

@@ -7,7 +7,6 @@ import CreateOrUpdateContactService, {
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
 import WhatsappLidMap from "../../models/WhatsapplidMap";
-// Importar o módulo inteiro para acessar a fila
 import * as queues from "../../queues";
 import logger from "../../utils/logger";
 import { IMe } from "./wbotMessageListener";
@@ -49,7 +48,6 @@ export async function checkAndDedup(
     }
   });
 
-  // Transfer all tickets to main contact instead of closing them
   await Ticket.update(
     { contactId: contact.id },
     {
@@ -66,7 +64,6 @@ export async function checkAndDedup(
     );
   }
 
-  // Delete the duplicate contact after transferring all data
   await lidContact.destroy();
 }
 
@@ -75,40 +72,23 @@ export async function verifyContact(
   wbot: Session,
   companyId: number
 ): Promise<Contact> {
-  let profilePicUrl: string;
-
-  // try {
-  //   profilePicUrl = await wbot.profilePictureUrl(msgContact.id);
-  // } catch (e) {
-  //   profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-  // }
-
   const isLid = msgContact.id.includes("@lid") || false;
-  // console.log("[DEBUG RODRIGO] isLid", isLid)
   const isGroup = msgContact.id.includes("@g.us");
   const isWhatsappNet = msgContact.id.includes("@s.whatsapp.net");
 
-  // Extrair o número do ID
   const idParts = msgContact.id.split("@");
   const extractedId = idParts[0];
+  const extractedPhone = extractedId.split(":")[0];
 
-  // Extrair qualquer número de telefone adicional que possa estar presente
-  const extractedPhone = extractedId.split(":")[0]; // Remove parte após ":" se existir
-
-  // Determinar número e LID adequadamente
   let number = extractedPhone;
-  // console.log("[DEBUG RODRIGO] number", number);
   let originalLid = msgContact.lid || null;
-  // console.log("[DEBUG RODRIGO] originalLid", originalLid);
 
-  // Se o ID estiver no formato telefone:XX@s.whatsapp.net, extraia apenas o telefone
   if (isWhatsappNet && extractedId.includes(":")) {
     logger.info(
       `[RDS-LID-FIX] ID contém separador ':' - extraindo apenas o telefone: ${extractedPhone}`
     );
   }
 
-  // Verificar se o "número" parece ser um LID (muito longo para ser telefone)
   const isNumberLikelyLid = !isLid && number && number.length > 15 && !isGroup;
   if (isNumberLikelyLid) {
     logger.info(
@@ -122,13 +102,36 @@ export async function verifyContact(
     }, número extraído: ${number}, LID detectado: ${originalLid || "não"}`
   );
 
+  // ✅ CORREÇÃO PRINCIPAL: buscar profilePicUrl AQUI, antes de montar contactData
+  // Só busca para contatos individuais (não grupos, não @lid)
+  let profilePicUrl: string | undefined;
+  if (!isGroup && !isLid && wbot) {
+    try {
+      const fetched = await wbot.profilePictureUrl(msgContact.id, "image");
+      if (fetched && !fetched.includes("nopicture")) {
+        profilePicUrl = fetched;
+        logger.info(
+          `[PIC-VERIFY] Foto obtida para ${msgContact.id}: ${profilePicUrl}`
+        );
+      } else {
+        logger.info(`[PIC-VERIFY] Sem foto válida para ${msgContact.id}`);
+      }
+    } catch (e) {
+      logger.info(
+        `[PIC-VERIFY] Erro ao buscar foto para ${msgContact.id}: ${e.message}`
+      );
+    }
+  }
+
   const contactData = {
     name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
     number,
     profilePicUrl,
     isGroup,
     companyId,
-    lid: originalLid // Adicionar o LID aos dados do contato quando disponível
+    lid: originalLid,
+    wbot,
+    remoteJid: msgContact.id
   };
 
   if (isGroup) {
@@ -138,7 +141,6 @@ export async function verifyContact(
   return lidUpdateMutex.runExclusive(async () => {
     let foundContact: Contact | null = null;
     if (isLid) {
-      // console.log("[DEBUG RODRIGO] isLid", JSON.stringify(msgContact, null, 2));
       foundContact = await Contact.findOne({
         where: {
           companyId,
@@ -151,10 +153,6 @@ export async function verifyContact(
         include: ["tags", "extraInfo", "whatsappLidMap"]
       });
     } else {
-      // console.log(
-      //   "[DEBUG RODRIGO] No isLid",
-      //   JSON.stringify(msgContact, null, 2)
-      // );
       foundContact = await Contact.findOne({
         where: {
           companyId,
@@ -162,7 +160,7 @@ export async function verifyContact(
         }
       });
     }
-    // console.log("[DEBUG RODRIGO] foundContact", foundContact?.id);
+
     if (isLid) {
       if (foundContact) {
         return updateContact(foundContact, {
@@ -256,7 +254,7 @@ export async function verifyContact(
                 maxRetries: 5
               },
               {
-                delay: 60 * 1000, // 1 minuto
+                delay: 60 * 1000,
                 attempts: 1,
                 removeOnComplete: true
               }
@@ -271,6 +269,7 @@ export async function verifyContact(
           }
         }
       }
+      // ✅ Passa profilePicUrl atualizado para contato existente
       return updateContact(foundContact, {
         profilePicUrl: contactData.profilePicUrl
       });
@@ -326,7 +325,6 @@ export async function verifyContact(
           });
 
           if (lidContact) {
-            // Atualiza o campo lid no contato além de criar o mapeamento
             await lidContact.update({
               lid: lid
             });
@@ -384,7 +382,7 @@ export async function verifyContact(
               maxRetries: 5
             },
             {
-              delay: 60 * 1000, // 1 minuto
+              delay: 60 * 1000,
               attempts: 1,
               removeOnComplete: true
             }
