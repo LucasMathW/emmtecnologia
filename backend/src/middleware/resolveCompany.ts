@@ -19,7 +19,6 @@ const resolveCompany = async (
 
   let cleanHost = raw;
 
-  console.log(`raw =>`, raw);
 
   try {
     cleanHost = raw.startsWith("http")
@@ -29,11 +28,9 @@ const resolveCompany = async (
     cleanHost = raw.split(":")[0].toLowerCase().trim();
   }
 
-  console.log(`cleanHost =>`, cleanHost);
 
   const companyId = await ResolveCompanyByDomain(cleanHost);
 
-  console.log(`CompanyID =>`, companyId);
 
   if (!companyId) {
     res.status(404).json({

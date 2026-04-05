@@ -77,7 +77,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
 
     // Se é campanha por TAG, incluir contatos pendentes
     if (campaign.tagListId && !campaign.contactListId) {
-      console.log(`[SHIPPING-SERVICE] Campanha ${campaignId} é por TAG (tagListId: ${campaign.tagListId})`);
       
       // 1. Buscar registros CampaignShipping existentes
       const { rows: existingShipping, count: existingCount } = await CampaignShipping.findAndCountAll({
@@ -92,7 +91,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
         order: [["createdAt", "DESC"]]
       });
 
-      console.log(`[SHIPPING-SERVICE] Registros CampaignShipping existentes: ${existingCount}`);
 
       // 2. Buscar todos os contatos da tag
       const contactTags = await ContactTag.findAll({
@@ -112,7 +110,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
         group: ["ContactTag.contactId", "contact.id", "contact.name", "contact.number", "contact.email"]
       });
 
-      console.log(`[SHIPPING-SERVICE] Total de contatos na tag: ${contactTags.length}`);
 
       // 3. Criar registros virtuais para contatos pendentes
       const existingNumbers = new Set(existingShipping.map(s => s.number));
@@ -171,10 +168,8 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
       const endIndex = offset + pageSize;
       shipping = filteredShipping.slice(startIndex, endIndex);
 
-      console.log(`[SHIPPING-SERVICE] Total filtrado: ${count}, Página ${page}: ${shipping.length} registros`);
     } else {
       // Para campanhas por lista, incluir contatos pendentes também
-      console.log(`[SHIPPING-SERVICE] Campanha ${campaignId} é por lista de contatos (contactListId: ${campaign.contactListId})`);
       
       // 1. Buscar registros CampaignShipping existentes
       const { rows: existingShipping, count: existingCount } = await CampaignShipping.findAndCountAll({
@@ -189,7 +184,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
         order: [["createdAt", "DESC"]]
       });
 
-      console.log(`[SHIPPING-SERVICE] Registros CampaignShipping existentes: ${existingCount}`);
 
       // 2. Buscar todos os contatos da lista
       const allContacts = await ContactListItem.findAll({
@@ -197,7 +191,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
         attributes: ["id", "name", "number", "email"]
       });
 
-      console.log(`[SHIPPING-SERVICE] Total de contatos na lista: ${allContacts.length}`);
 
       // 3. Criar registros virtuais para contatos pendentes
       const existingNumbers = new Set(existingShipping.map(s => s.number));
@@ -234,7 +227,6 @@ const ShippingService = async (params: ShippingParams): Promise<ShippingResponse
       const endIndex = startIndex + pageSize;
       shipping = filteredShipping.slice(startIndex, endIndex);
 
-      console.log(`[SHIPPING-SERVICE] Total filtrado: ${count}, Página ${page}: ${shipping.length} registros`);
     }
 
     const totalPages = Math.ceil(count / pageSize);

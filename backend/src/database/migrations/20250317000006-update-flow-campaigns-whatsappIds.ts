@@ -25,13 +25,11 @@ export default {
       defaultValue: '[]'
     });
 
-    console.log('✅ Migração concluída: whatsappIds adicionado e dados migrados');
   },
 
   down: async (queryInterface: QueryInterface) => {
     // Remover coluna whatsappIds
     await queryInterface.removeColumn('FlowCampaigns', 'whatsappIds');
     
-    console.log('✅ Rollback concluído: whatsappIds removido');
   }
 };

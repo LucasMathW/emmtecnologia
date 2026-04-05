@@ -43,7 +43,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
   let finalEmoji = emoji;
 
-  console.log(`passei aqui:${finalEmoji}`);
 
   if (existingReaction) {
     if (!emoji || existingReaction.emoji === emoji) {

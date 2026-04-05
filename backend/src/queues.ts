@@ -398,7 +398,6 @@ async function apiMessageQueue() {
                   }
                 }
               } catch (whatsappError) {
-                console.log("error =>", whatsappError);
                 logger.error(`Erro ao processar whatsapp ${whatsapp?.id}:`, {
                   error: whatsappError,
                   message: whatsappError.message,
@@ -449,7 +448,6 @@ async function handleSendMessage(job) {
 
     const messageData: MessageData = data.data;
 
-    console.log("messageData", messageData);
     await SendMessage(whatsapp, messageData);
   } catch (e: any) {
     Sentry.captureException(e);
@@ -1361,7 +1359,6 @@ async function getSettings(campaign): Promise<CampaignSettings> {
       variables
     };
   } catch (error) {
-    console.log(error);
     throw error; // rejeita a Promise com o erro original
   }
 }
@@ -1957,8 +1954,6 @@ async function handlePrepareContact(job) {
       await record.update({ jobId: String(nextJob.id) });
     }
   } catch (err: any) {
-    console.log(`[PREPARE-CONTACT] ERRO no job ${job.id}:`, err.message);
-    console.log(`[PREPARE-CONTACT] Stack trace:`, err.stack);
     Sentry.captureException(err);
     logger.error(`campaignQueue -> PrepareContact -> error: ${err.message}`);
   }
@@ -2255,7 +2250,6 @@ async function handleDispatchCampaign(job) {
   } catch (err: any) {
     Sentry.captureException(err);
     logger.error(err.message);
-    console.log(err.stack);
   }
 }
 

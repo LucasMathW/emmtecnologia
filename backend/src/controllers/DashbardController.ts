@@ -24,8 +24,6 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     const params: Params = req.query;
     const { companyId } = req.user;
 
-    console.log('Dashboard params recebidos:', params);
-    console.log('Company ID:', companyId);
 
     // Validar se a empresa existe
     if (!companyId) {
@@ -51,14 +49,12 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
       }
     }
 
-    console.log('Parâmetros processados:', processedParams);
 
     const dashboardData: DashboardData = await DashboardDataService(
       companyId,
       processedParams
     );
 
-    console.log('Dashboard data retornado:', dashboardData);
 
     // Garantir que os dados tenham a estrutura esperada
     const responseData = {

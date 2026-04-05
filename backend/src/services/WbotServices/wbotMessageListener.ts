@@ -388,7 +388,6 @@ export const getBodyMessage = (msg: WAMessageSafe): string | null => {
   } catch (error) {
     Sentry.setExtra("Error getTypeMessage", { msg, BodyMsg: msg?.message });
     Sentry.captureException(error);
-    console.log(error);
   }
 };
 
@@ -959,7 +958,6 @@ export const verifyMediaMessage = async (
         .then(() => {
           // console.log("Arquivo salvo com sucesso!");
           if (media.mimetype.includes("audio")) {
-            console.log(media.mimetype);
             const inputFile = path.join(folder, media.filename);
             let outputFile: string;
 
@@ -1000,7 +998,6 @@ export const verifyMediaMessage = async (
       });
       Sentry.captureException(err);
       logger.error(err);
-      console.log(msg);
     }
 
     const body = getBodyMessage(msg);
@@ -1095,7 +1092,6 @@ export const verifyMediaMessage = async (
 
     return newMessage;
   } catch (error) {
-    console.log(error);
     logger.warn("Erro ao baixar media: ", JSON.stringify(msg));
   }
 };
@@ -1161,7 +1157,6 @@ export const verifyMessage = async (
     // })
 
     if (!ticket.imported) {
-      console.log("🧨🧨🧨🧨🧨🧨");
       io.of(String(companyId))
         // .to(ticket.status)
         // .to(ticket.id.toString())
@@ -2561,7 +2556,6 @@ export const flowbuilderIntegration = async (
 
   // Verificar se ticket foi fechado e reabrir se necessário
   if (msg && !msg.key.fromMe && ticket.status === "closed") {
-    console.log(`[FLOW INTEGRATION] Reabrindo ticket fechado ${ticket.id}`);
 
     await ticket.update({ status: "pending" });
     await ticket.reload({
@@ -3354,7 +3348,6 @@ export const handleMessageIntegration = async (
             if (error) {
               throw new Error(error);
             } else {
-              console.log(response.body);
             }
           });
         } catch (error) {
@@ -3405,7 +3398,6 @@ export const handleMessageIntegration = async (
       );
       debouncedSentMessage();
     } else if (queueIntegration.type === "typebot") {
-      console.log("[TYPEBOT 3010] Enviando mensagem para Typebot");
       // await typebots(ticket, msg, wbot, queueIntegration);
       await typebotListener({ ticket, msg, wbot, typebot: queueIntegration });
     } else if (queueIntegration.type === "flowbuilder") {
@@ -3678,7 +3670,6 @@ const handleOpenAi = async (
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.mp3`);
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.wav`);
         } catch (error) {
-          console.log(`Erro para responder com audio: ${error}`);
         }
       });
     }
@@ -3754,7 +3745,6 @@ const handleOpenAi = async (
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.mp3`);
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.wav`);
         } catch (error) {
-          console.log(`Erro para responder com audio: ${error}`);
         }
       });
     }
@@ -3798,7 +3788,6 @@ const handleMessage = async (
     });
     if (existMessage) {
       await new Promise(r => setTimeout(r, 150));
-      console.log("Esta mensagem já existe");
       return;
     } else {
       await new Promise(r =>
@@ -3980,7 +3969,6 @@ const handleMessage = async (
     let unreadMessages = 0;
 
     // 🔥 DEBUG AQUI
-    console.log("🔥 FROM ME:", msg.key.fromMe, "WID:", msg.key.id);
 
     if (msg.key.fromMe) {
       await cacheLayer.set(`contacts:${contact.id}:unreads`, "0");
@@ -3993,7 +3981,6 @@ const handleMessage = async (
       );
     }
 
-    console.log("🔥 UNREAD CALCULADO:", unreadMessages);
 
     const settings = await CompaniesSettings.findOne({
       where: { companyId }
@@ -4470,7 +4457,6 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
     }
     const isMsgForwarded =
       msg.message?.extendedTextMessage?.contextInfo?.isForwarded ||
@@ -4526,7 +4512,6 @@ const handleMessage = async (
       });
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
     }
 
     let currentSchedule;
@@ -4632,7 +4617,6 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
     }
 
     if (
@@ -4647,7 +4631,6 @@ const handleMessage = async (
           "[HANDLE MESSAGE] Ticket sem integração, pulando verificação de campanhas"
         );
       } else {
-        console.log("[HANDLE MESSAGE] Verificando campanhas de fluxo...");
 
         const contactForCampaign = await ShowContactService(
           ticket.contactId,
@@ -4769,7 +4752,6 @@ const handleMessage = async (
         `[INPUT NODE] Processando resposta para nó de input - ticket ${ticket.id}`
       );
       try {
-        console.log("[inputNode] Processando resposta para nó de input");
         const body = getBodyMessage(msg);
         // @ts-ignore
         const inputVariableName = (ticket.dataWebhook as any).inputVariableName;
@@ -5139,7 +5121,6 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
     }
 
     if (
@@ -5265,7 +5246,6 @@ const handleMessage = async (
     await ticket.reload();
   } catch (err) {
     Sentry.captureException(err);
-    console.log(err);
     logger.error(`Error handling whatsapp message: Err: ${err}`);
   }
 };

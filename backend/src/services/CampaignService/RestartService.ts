@@ -38,7 +38,6 @@ export async function RestartService(id: number) {
     }
   });
 
-  console.log(`[RESTART] Campanha ${campaign.id} reiniciada - ${processedCount} já processados`);
 
   // Usar delay mínimo de 5 segundos para evitar envio imediato
   const initialDelay = Math.max(messageInterval * 1000, 5000);

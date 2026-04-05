@@ -160,7 +160,6 @@ export const convertAudioToOgg = async (
         .audioBitrate("64k")
         .addOutputOptions("-avoid_negative_ts make_zero")
         .on("end", () => {
-          console.log("✅ Conversão de áudio concluída:", outputFile);
           resolve(outputFile);
         })
         .on("error", (err: Error) => {
@@ -181,7 +180,6 @@ export const convertPngToJpg = async (
   companyId: number
 ): Promise<Buffer> => {
   try {
-    console.log("🔄 Convertendo imagem para JPG:", inputPath);
 
     const outputPath = path.join(
       publicFolder,
@@ -195,7 +193,6 @@ export const convertPngToJpg = async (
         .outputFormat("mjpeg")
         .outputOptions("-q:v", "2") // Qualidade alta
         .on("end", () => {
-          console.log("✅ Conversão para JPG concluída");
           resolve();
         })
         .on("error", err => {
@@ -213,7 +210,6 @@ export const convertPngToJpg = async (
       fs.unlinkSync(outputPath);
     }
 
-    console.log("✅ Conversão concluída e buffer retornado");
     return imageBuffer;
   } catch (error) {
     console.error("❌ Erro na conversão para JPG:", error);
@@ -256,10 +252,8 @@ export const getMessageOptions = async (
       let audioPath = pathMedia;
 
       if (!isAlreadyOgg) {
-        console.log("🔄 Arquivo não é OGG, convertendo...");
         audioPath = await convertAudioToOgg(pathMedia, +companyId);
       } else {
-        console.log("✅ Arquivo já é OGG, usando diretamente");
       }
 
       options = {
@@ -399,7 +393,6 @@ const SendWhatsAppMedia = async ({
       // ✅ CORREÇÃO: Tratamento específico para arquivos de áudio
       let audioPath = pathMedia;
 
-      console.log("🔄 Convertendo áudio para OGG...");
       audioPath = await convertToOggOpus(pathMedia);
 
       options = {
@@ -457,7 +450,6 @@ const SendWhatsAppMedia = async ({
       } else {
         if (media.mimetype.includes("png") || media.mimetype.includes("webp")) {
           // ✅ Converter PNG/WebP para JPG antes de enviar
-          console.log("🔄 Detectado arquivo PNG/WebP, convertendo para JPG...");
           const imageBuffer = await convertPngToJpg(
             pathMedia,
             ticket.companyId

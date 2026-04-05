@@ -65,7 +65,6 @@ export const convertToMobileAudio = async (
     const outputFileName = `mobile_audio_${timestamp}.ogg`;
     const outputPath = path.join(outputDir, outputFileName);
     
-    console.log(`🔄 Convertendo áudio: ${inputPath} -> ${outputPath}`);
     
     ffmpeg(inputPath)
       .outputFormat(MOBILE_AUDIO_CONFIG.format)
@@ -82,19 +81,15 @@ export const convertToMobileAudio = async (
         "-vbr", "off" // Desabilitar VBR para compatibilidade
       ])
       .on("start", (commandLine) => {
-        console.log(`🎵 Iniciando conversão: ${commandLine}`);
       })
       .on("progress", (progress) => {
         if (progress.percent) {
-          console.log(`📊 Progresso: ${Math.round(progress.percent)}%`);
         }
       })
       .on("end", () => {
-        console.log(`✅ Conversão concluída: ${outputPath}`);
         resolve(outputPath);
       })
       .on("error", (err) => {
-        console.log(`❌ Erro na conversão: ${err.message}`);
         // Tentar limpar arquivo de saída em caso de erro
         try {
           if (fs.existsSync(outputPath)) {
@@ -115,10 +110,8 @@ export const cleanupTempAudio = (filePath: string, delayMs: number = 5000): void
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`🧹 Arquivo temporário removido: ${filePath}`);
       }
     } catch (error) {
-      console.log(`⚠️ Erro ao remover arquivo temporário: ${error}`);
     }
   }, delayMs);
 };
@@ -141,7 +134,6 @@ export const validateAudioFile = (filePath: string): Promise<boolean> => {
   return new Promise((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
-        console.log(`❌ Arquivo de áudio inválido: ${err.message}`);
         resolve(false);
         return;
       }
@@ -150,12 +142,10 @@ export const validateAudioFile = (filePath: string): Promise<boolean> => {
       const hasAudioStream = metadata.streams.some(stream => stream.codec_type === 'audio');
       
       if (!hasAudioStream) {
-        console.log(`❌ Arquivo não contém stream de áudio`);
         resolve(false);
         return;
       }
       
-      console.log(`✅ Arquivo de áudio válido`);
       resolve(true);
     });
   });

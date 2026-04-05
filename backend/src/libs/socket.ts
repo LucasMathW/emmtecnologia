@@ -33,9 +33,7 @@ export const initIO = (httpServer: Server): SocketIO => {
 
   const workspaces = io.of(/^\/\w+$/);
   workspaces.on("connection", socket => {
-    console.log("🏢 NAMESPACE CONNECTION:", socket.id);
     // console.log("🟢 NOVA CONEXÃO SOCKET:", socket.id);
-    console.log("📦 QUERY:", socket.handshake.query);
     const token_api_oficial = process.env.TOKEN_API_OFICIAL || "";
     const token = Array.isArray(socket?.handshake?.query?.token)
       ? socket.handshake.query.token[1]

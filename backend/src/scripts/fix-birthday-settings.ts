@@ -4,7 +4,6 @@ import db from '../database';
 
 const fixBirthdaySettings = async () => {
   try {
-    console.log('🔧 Verificando e corrigindo tabela BirthdaySettings...');
     
     const queryInterface = db.getQueryInterface();
     
@@ -12,7 +11,6 @@ const fixBirthdaySettings = async () => {
     const tableExists = await queryInterface.describeTable('BirthdaySettings');
     
     if (!tableExists) {
-      console.log('❌ Tabela BirthdaySettings não existe. Criando...');
       
       await queryInterface.createTable('BirthdaySettings', {
         id: {
@@ -87,15 +85,12 @@ const fixBirthdaySettings = async () => {
         name: 'idx_birthday_settings_company_id'
       });
 
-      console.log('✅ Tabela BirthdaySettings criada com sucesso!');
       
     } else {
-      console.log('✅ Tabela BirthdaySettings existe.');
       
       // Verificar se a coluna whatsappId existe
       const hasWhatsappId = 'whatsappId' in tableExists;
       if (!hasWhatsappId) {
-        console.log('❌ Coluna whatsappId não existe. Adicionando...');
         
         await queryInterface.addColumn('BirthdaySettings', 'whatsappId', {
           type: DataTypes.INTEGER,
@@ -108,9 +103,7 @@ const fixBirthdaySettings = async () => {
           onDelete: 'SET NULL'
         });
         
-        console.log('✅ Coluna whatsappId adicionada com sucesso!');
       } else {
-        console.log('✅ Coluna whatsappId já existe.');
       }
     }
 
@@ -134,8 +127,6 @@ const fixBirthdaySettings = async () => {
       )
     `);
 
-    console.log('✅ Configurações padrão inseridas para empresas existentes.');
-    console.log('🎉 Correção da tabela BirthdaySettings concluída com sucesso!');
     
   } catch (error) {
     console.error('❌ Erro ao corrigir tabela BirthdaySettings:', error);
@@ -147,7 +138,6 @@ const fixBirthdaySettings = async () => {
 if (require.main === module) {
   fixBirthdaySettings()
     .then(() => {
-      console.log('✅ Script executado com sucesso!');
       process.exit(0);
     })
     .catch((error) => {

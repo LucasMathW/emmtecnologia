@@ -10,7 +10,6 @@ export default {
       allowNull: false
     });
 
-    console.log('Migração executada: Campo phrase atualizado para TEXT');
   },
 
   down: async (queryInterface: QueryInterface) => {
@@ -20,6 +19,5 @@ export default {
       allowNull: false
     });
 
-    console.log('Migração revertida: Campo phrase voltou para STRING');
   }
 };

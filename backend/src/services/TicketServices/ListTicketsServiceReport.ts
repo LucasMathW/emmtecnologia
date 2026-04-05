@@ -33,7 +33,6 @@ export default async function ListTicketsServiceReport(
 
   const onlyRated = params.onlyRated === "true" ? true : false;
   let query = "";
-  console.log(params);
   if (onlyRated) {
     query = `
 

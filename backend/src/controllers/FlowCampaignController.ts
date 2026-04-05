@@ -59,7 +59,6 @@ export const createFlowCampaign = async (
       });
     }
 
-    console.log(`[CREATE CAMPAIGN] Criando campanha: ${name.trim()} para ${normalizedWhatsappIds.length} conexão(ões): ${normalizedWhatsappIds.join(', ')}`);
 
     const flow = await CreateFlowCampaignService({
       userId,
@@ -100,7 +99,6 @@ export const flowCampaigns = async (
     const { companyId } = req.user;
     const { page, limit, searchTerm } = req.query;
 
-    console.log(`[LIST CAMPAIGNS] Listando campanhas para empresa ${companyId}`);
 
     const result = await FlowsCampaignGetDataService({
       companyId,
@@ -113,7 +111,6 @@ export const flowCampaigns = async (
     const flow = Array.isArray(result?.flow) ? result.flow : 
                  Array.isArray(result) ? result : [];
 
-    console.log(`[LIST CAMPAIGNS] Encontradas ${flow.length} campanhas`);
 
     return res.status(200).json({
       success: true,
@@ -161,14 +158,12 @@ export const flowCampaign = async (
       });
     }
 
-    console.log(`[GET CAMPAIGN] Buscando campanha ID: ${id} para empresa ${companyId}`);
 
     const result = await GetFlowsCampaignDataService({
       companyId,
       idFlow: id
     });
 
-    console.log(`[GET CAMPAIGN] Campanha encontrada: ${result.details.name}`);
 
     // Retornar diretamente os dados da campanha
     // O frontend espera os dados no primeiro nível da resposta
@@ -251,7 +246,6 @@ export const updateFlowCampaign = async (
       });
     }
 
-    console.log(`[UPDATE CAMPAIGN] Atualizando campanha ID: ${id} - ${name.trim()} para ${normalizedWhatsappIds.length} conexão(ões): ${normalizedWhatsappIds.join(', ')}`);
 
     const flow = await UpdateFlowCampaignService({
       companyId,
@@ -305,11 +299,9 @@ export const deleteFlowCampaign = async (
       });
     }
 
-    console.log(`[DELETE CAMPAIGN] Deletando campanha ID: ${flowIdInt}`);
 
     const flow = await DeleteFlowCampaignService(flowIdInt);
 
-    console.log(`[DELETE CAMPAIGN] Campanha deletada: ${flow.name}`);
 
     return res.status(200).json({
       success: true,

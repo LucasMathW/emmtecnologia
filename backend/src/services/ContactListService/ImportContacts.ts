@@ -74,7 +74,6 @@ export async function ImportContacts(
 
         await newContact.save();
       } catch (e) {
-        console.log(e)
         logger.error(`Número de contato inválido1: ${newContact.number}`);
       }
       const io = getIO();

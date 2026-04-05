@@ -8,7 +8,6 @@ export const InitializeSystemPresetsService = async (): Promise<void> => {
     });
 
     if (existingPresets.length > 0) {
-      console.log('Presets do sistema já inicializados');
       return;
     }
 
@@ -47,7 +46,6 @@ export const InitializeSystemPresetsService = async (): Promise<void> => {
 
     await PresetWebhookModel.create(kiwifyPreset);
     
-    console.log('Presets do sistema inicializados com sucesso');
   } catch (error) {
     console.error('Erro ao inicializar presets do sistema:', error);
     throw error;

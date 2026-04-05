@@ -60,13 +60,10 @@ export default {
         folder = path.resolve(publicFolder, `company${companyId}`);
       }
 
-      console.log("📂 Pasta de destino final:", folder);
 
       if (!fs.existsSync(folder)) {
-        console.log("📁 Criando pasta:", folder);
         fs.mkdirSync(folder, { recursive: true });
         fs.chmodSync(folder, 0o777);
-        console.log("✅ Pasta criada com sucesso");
       }
 
       return cb(null, folder);
@@ -87,7 +84,6 @@ export default {
         const timestamp = new Date().getTime();
         const extension = path.extname(file.originalname) || '.jpg';
         const fileName = `profile_${timestamp}${extension}`;
-        console.log("🖼️ Nome gerado para imagem de perfil:", fileName);
         return cb(null, fileName);
       }
       
@@ -95,7 +91,6 @@ export default {
       if (file.fieldname === 'audio') {
         const timestamp = new Date().getTime();
         const fileName = `audio_${timestamp}.ogg`;
-        console.log("🎵 Nome gerado para áudio gravado:", fileName);
         return cb(null, fileName);
       }
 
@@ -115,7 +110,6 @@ export default {
           ? `${path.parse(file.originalname).name}_${timestamp}${extension}`
           : `audio_${timestamp}${extension}`;
         
-        console.log("🎵 Nome gerado para arquivo de áudio:", fileName);
         return cb(null, fileName);
       }
 
@@ -124,7 +118,6 @@ export default {
         ? file.originalname.replace('/', '-').replace(/ /g, "_") 
         : new Date().getTime() + '_' + file.originalname.replace('/', '-').replace(/ /g, "_");
       
-      console.log("📄 Nome gerado para arquivo:", fileName);
       return cb(null, fileName);
     }
   }),

@@ -21,7 +21,6 @@ export default {
     }
     
     if (!tableExists) {
-      console.log('Tabela BirthdaySettings não existe. Criando...');
       
       // Criar a tabela completa se não existir
       await queryInterface.createTable('BirthdaySettings', {
@@ -104,10 +103,8 @@ export default {
           unique: true,
           name: 'idx_birthday_settings_company_id'
         });
-        console.log('✅ Índice idx_birthday_settings_company_id criado com sucesso!');
       } catch (error) {
         if (error.message && error.message.includes('already exists')) {
-          console.log('✅ Índice idx_birthday_settings_company_id já existe.');
         } else {
           throw error;
         }
@@ -137,7 +134,6 @@ export default {
       // Tabela existe, verificar se a coluna whatsappId existe
       const hasWhatsappId = 'whatsappId' in tableExists;
       if (!hasWhatsappId) {
-        console.log('Coluna whatsappId não existe. Adicionando...');
         
         // Determinar o nome correto da tabela
         let tableName = 'BirthdaySettings';
@@ -198,7 +194,6 @@ export default {
       await queryInterface.removeIndex(tableName, 'idx_birthday_settings_company_id');
     } catch (error) {
       // Índice pode não existir, ignorar erro
-      console.log('Índice idx_birthday_settings_company_id não encontrado para remoção.');
     }
   }
 };

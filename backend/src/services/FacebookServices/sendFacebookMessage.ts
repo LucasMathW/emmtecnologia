@@ -44,7 +44,6 @@ const sendFacebookMessage = async ({ body, ticket, quotedMsg }: Request): Promis
       }
     }
 
-    console.log("tag", tag)
     const send = await sendText(
       number,
       formatBody(body, ticket),
@@ -57,7 +56,6 @@ const sendFacebookMessage = async ({ body, ticket, quotedMsg }: Request): Promis
     return send;
 
   } catch (err) {
-    console.log(err)
     throw new AppError("ERR_SENDING_FACEBOOK_MSG");
   }
 };
@@ -76,7 +74,6 @@ const sendFacebookMessageWithoutTicket = async ({ body, number, whatsapp }: Requ
     return send;
 
   } catch (err) {
-    console.log(err)
     throw new AppError("ERR_SENDING_FACEBOOK_MSG");
   }
 };

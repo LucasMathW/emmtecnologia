@@ -24,7 +24,6 @@ interface Request {
 }
 
 const getTypeMessage = (type: string): 'text' | 'reaction' | 'audio' | 'document' | 'image' | 'sticker' | 'video' | 'location' | 'contacts' | 'interactive' | 'template' => {
-  console.log("type", type);
   switch (type) {
     case 'video':
       return 'video';
@@ -142,7 +141,6 @@ const SendWhatsAppOficialMessage = async ({
   let vcard;
 
   if (!isNil(vCard)) {
-    console.log(vCard)
     const numberContact = vCard.number;
     const firstName = vCard.name.split(' ')[0];
     const lastName = String(vCard.name).replace(vCard.name.split(' ')[0], '')
@@ -152,7 +150,6 @@ const SendWhatsAppOficialMessage = async ({
       + `FN:${vCard.name}\n`
       + `TEL;type=CELL;waid=${numberContact}:+${numberContact}\n`
       + `END:VCARD`;
-    console.log(vcard)
   }
 
   options.to = `+${contact.number}`;
@@ -218,9 +215,7 @@ const SendWhatsAppOficialMessage = async ({
 
     return sendMessage;
   } catch (err) {
-    console.log(`erro ao enviar mensagem na company ${ticket.companyId} - `, body)
     Sentry.captureException(err);
-    console.log(err);
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 

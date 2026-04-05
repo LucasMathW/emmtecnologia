@@ -18,7 +18,6 @@ const loginWavoip = async () => {
 
         return login?.data?.result?.token;
     } catch (error) {
-        console.log('getHistorical Login Wavoip', error);
         throw new Error(error);
     }
 }
@@ -30,7 +29,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
         let token = await cacheLayer.get(chave);
 
         if (!token) {
-            console.log('login')
             token = await loginWavoip();
             await cacheLayer.set(chave, token, "EX", 3600);
         }
@@ -65,7 +63,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
                     continue;
                 }
 
-                console.log('devices', device)
                 const regs: any = await axios.get(`${process.env.WAVOIP_URL}/calls/devices/${device.id}`, {
                     headers: {
                         'Authorization': 'Bearer ' + token
@@ -81,7 +78,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
                 }
 
             } catch (error) {
-                console.log('error devices', error)
                 continue;
             }
         }
@@ -90,7 +86,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
             return devicesAll;
         }
 
-        console.log('devicesAll', devicesAll)
 
 
         const historicalDB: any = await CallHistory.findAll({
@@ -109,7 +104,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
             }
         })
 
-        console.log('historicalDB112', body.company_id, historicalDB.length, historicalDB)
 
         const resultFinal = [];
         const cache = [];
@@ -161,7 +155,6 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
         return { resultFinal, total, totalReject, totalServed, totalFinish };
 
     } catch (error) {
-        console.log('getHistorical Wavoip', error);
         throw new Error(error);
     }
 }

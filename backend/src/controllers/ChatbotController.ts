@@ -27,7 +27,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   } = req.body;
   const { companyId } = req.user;
 
-  console.log("PASSEI AQUI =>>", optQueueId);
 
   const chatbot = await CreateChatBotServices({
     name,

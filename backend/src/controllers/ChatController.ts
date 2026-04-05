@@ -122,7 +122,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   const io = getIO();
 
   record.users.forEach(user => {
-    console.log(user.id);
     io.of(String(companyId)).emit(`company-${companyId}-chat-user-${user.id}`, {
       action: "create",
       record
@@ -306,14 +305,10 @@ export const backfillChats = async (
   res: Response
 ): Promise<Response> => {
   try {
-    console.log("Starting backfillChats process...");
     const companies = await Company.findAll();
-    console.log(`Found ${companies.length} companies.`);
 
     for (const company of companies) {
-      console.log(`Processing company: ${company.name} (ID: ${company.id})`);
       const users = await User.findAll({ where: { companyId: company.id } });
-      console.log(`Found ${users.length} users in company ${company.id}.`);
 
       if (users.length < 2) {
         console.log(
@@ -337,7 +332,6 @@ export const backfillChats = async (
             where: { userId: user1.id }
           });
           const user1ChatIds = chatUsersForUser1.map(cu => cu.chatId);
-          console.log(`User1 Chat IDs: ${user1ChatIds.join(", ")}`);
 
           // 2. Encontrar todos os IDs de chat associados ao user2
           const chatUsersForUser2 = await ChatUser.findAll({
@@ -345,13 +339,11 @@ export const backfillChats = async (
             where: { userId: user2.id }
           });
           const user2ChatIds = chatUsersForUser2.map(cu => cu.chatId);
-          console.log(`User2 Chat IDs: ${user2ChatIds.join(", ")}`);
 
           // 3. Encontrar a intersecção dos IDs de chat
           const commonChatIds = user1ChatIds.filter(id =>
             user2ChatIds.includes(id)
           );
-          console.log(`Common Chat IDs: ${commonChatIds.join(", ")}`);
 
           // 4. Encontrar um chat comum que seja privado e pertença à mesma empresa
           let commonPrivateChat = null;
@@ -391,7 +383,6 @@ export const backfillChats = async (
       }
     }
 
-    console.log("BackfillChats process finished successfully!");
     return res.status(200).json({ message: "Chats backfilled successfully!" });
   } catch (error) {
     console.error("Error backfilling chats:", error);

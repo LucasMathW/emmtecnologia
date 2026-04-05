@@ -24,10 +24,8 @@ const GetGroupParticipantsService = async ({
   contactId,
   companyId
 }: GetGroupParticipantsRequest): Promise<GroupParticipantResponse[]> => {
-  console.log(`[GetGroupParticipantsService] Starting service for contactId: ${contactId}, companyId: ${companyId}`);
 
   // Buscar o contato do grupo incluindo o whatsapp
-  console.log(`[GetGroupParticipantsService] Looking for contact with ID: ${contactId} and companyId: ${companyId}`);
   const contact = await Contact.findOne({
     where: {
       id: contactId,
@@ -53,9 +51,7 @@ const GetGroupParticipantsService = async ({
   }
  let remoteJid = contact.remoteJid;
   if (!remoteJid && contact.number) {
-    console.log(`[GetGroupParticipantsService] Generating remoteJid from contact.number: ${contact.number}`);
     remoteJid = contact.number.includes('@g.us') ? contact.number : `${contact.number}@g.us`;
-    console.log(`[GetGroupParticipantsService] Generated remoteJid: ${remoteJid}`);
   }
 
   if (!remoteJid) {
@@ -67,22 +63,17 @@ const GetGroupParticipantsService = async ({
   let wbot;
   try {
     if (contact.whatsappId) {
-      console.log(`[GetGroupParticipantsService] Getting wbot for whatsappId: ${contact.whatsappId}`);
       wbot = await getWbot(contact.whatsappId);
     } else {
-      console.log(`[GetGroupParticipantsService] No whatsappId on contact, getting default whatsapp for companyId: ${companyId}`);
       const defaultWhatsapp = await GetDefaultWhatsApp(companyId);
-      console.log(`[GetGroupParticipantsService] Got default whatsapp: ${defaultWhatsapp.id}`);
       wbot = await getWbot(defaultWhatsapp.id);
     }
-    console.log(`[GetGroupParticipantsService] Successfully obtained wbot instance`);
   } catch (error) {
     console.error(`[GetGroupParticipantsService] ERROR getting wbot: ${error.message}`, error.stack);
     throw new AppError("WhatsApp não encontrado ou desconectado", 500);
   }
 
   try {
-    console.log(`[GetGroupParticipantsService] Fetching group metadata for remoteJid: ${contact.remoteJid}`);
 
     // Buscar metadados do grupo
     const groupMetadata: GroupMetadata = await wbot.groupMetadata(remoteJid);
@@ -93,15 +84,12 @@ const GetGroupParticipantsService = async ({
     }
 
     if (!groupMetadata.participants || groupMetadata.participants.length === 0) {
-      console.log(`[GetGroupParticipantsService] No participants found in group metadata for remoteJid: ${contact.remoteJid}`);
       return [];
     }
 
-    console.log(`[GetGroupParticipantsService] Found ${groupMetadata.participants.length} participants in group`);
 
     // Processar cada participante
     const participantsPromises = groupMetadata.participants.map(async (participant: GroupParticipant) => {
-      console.log(`[GetGroupParticipantsService] Processing participant: ${participant.id}`);
       
       // Declarar variáveis
       let participantName = participant.id;
@@ -110,13 +98,10 @@ const GetGroupParticipantsService = async ({
       let actualNumber = "";
       
       try {
-        console.log(`[GetGroupParticipantsService] Trying to get profile picture for participant: ${participant.id}`);
         // Buscar foto de perfil do participante (comentado para debug)
         // profilePicUrl = await wbot.profilePictureUrl(participant.id, "image");
-        console.log(`[GetGroupParticipantsService] Got profile picture URL: ${profilePicUrl}`);
       } catch (error) {
         // Usar imagem padrão se não conseguir obter a foto
-        console.log(`[GetGroupParticipantsService] Error getting profile picture for ${participant.id}: ${error.message}`);
         profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
       }
 
@@ -131,7 +116,6 @@ const GetGroupParticipantsService = async ({
         // Se é um LID, extrair apenas o número do LID (sem @lid)
         rawNumber = participant.id.replace('@lid', '');
         number = rawNumber.replace(/\D/g, "");
-        console.log(`[GetGroupParticipantsService] Participant is LID: ${number}`);
         
         try {
           // Buscar mapeamento LID na tabela WhatsappLidMap
@@ -142,7 +126,6 @@ const GetGroupParticipantsService = async ({
             }
           });
 
-          console.log(`[GetGroupParticipantsService] LID Map search result: ${lidMap ? `Found contactId: ${lidMap.contactId}` : 'Not found'}`);
 
           if (lidMap && lidMap.contactId) {
             // Buscar o contato associado ao LID
@@ -157,14 +140,11 @@ const GetGroupParticipantsService = async ({
               // Usar o número real do contato associado ao LID
               actualNumber = contact.number;
               participantName = contact.name;
-              console.log(`[GetGroupParticipantsService] ✅ Found LID mapping: ${number} -> ${actualNumber} (${participantName})`);
             } else {
-              console.log(`[GetGroupParticipantsService] ❌ Contact with ID ${lidMap.contactId} not found`);
               actualNumber = number;
               participantName = number;
             }
           } else {
-            console.log(`[GetGroupParticipantsService] ⚠️ LID ${number} not found in mapping table, trying to find contact by number`);
             
             // Tentar buscar contato pelo campo LID na tabela Contacts
             const contactByLid = await Contact.findOne({
@@ -196,11 +176,9 @@ const GetGroupParticipantsService = async ({
             if (matchingContact) {
               actualNumber = matchingContact.number;
               participantName = matchingContact.name;
-              console.log(`[GetGroupParticipantsService] ✅ Found contact by alternative search: ${actualNumber} (${participantName})`);
             } else {
               actualNumber = number;
               participantName = number;
-              console.log(`[GetGroupParticipantsService] ❌ No contact found, using LID as number`);
             }
           }
         } catch (error) {
@@ -221,10 +199,8 @@ const GetGroupParticipantsService = async ({
         // Extrair apenas os dígitos do número
         number = rawNumber.replace(/\D/g, "");
         actualNumber = number;
-        console.log(`[GetGroupParticipantsService] Extracted number: ${number} from participant ID: ${participant.id}`);
 
         try {
-          console.log(`[GetGroupParticipantsService] Checking if participant ${number} exists as contact in company ${companyId}`);
           
           // Primeiro, buscar contato com número exato
           let existingContact = await Contact.findOne({
@@ -240,7 +216,6 @@ const GetGroupParticipantsService = async ({
             const last10Digits = number.slice(-10);
             const last11Digits = number.slice(-11);
             
-            console.log(`[GetGroupParticipantsService] Trying to find contact with last 10 digits: ${last10Digits}`);
             
             // Buscar contatos que terminem com os últimos 10 ou 11 dígitos
             const contacts = await Contact.findAll({
@@ -257,7 +232,6 @@ const GetGroupParticipantsService = async ({
             }) || null;
 
             if (existingContact) {
-              console.log(`[GetGroupParticipantsService] Found contact with partial match: ${existingContact.name}`);
             }
           }
 
@@ -265,7 +239,6 @@ const GetGroupParticipantsService = async ({
           if (existingContact && existingContact.name && existingContact.name !== number) {
             participantName = existingContact.name;
             actualNumber = existingContact.number;
-            console.log(`[GetGroupParticipantsService] Using existing contact: ${participantName} - ${actualNumber}`);
           } else {
             // Tentar buscar perfil do WhatsApp para obter o nome
             try {
@@ -274,14 +247,12 @@ const GetGroupParticipantsService = async ({
                 participantName = profileName.business.description || participantName;
               }
             } catch (profileError) {
-              console.log(`[GetGroupParticipantsService] Could not get profile name: ${profileError.message}`);
             }
             
             if (participantName === participant.id || !participantName) {
               participantName = number;
             }
             
-            console.log(`[GetGroupParticipantsService] Using participant name: ${participantName} for number: ${number}`);
           }
         } catch (error) {
           console.error(`[GetGroupParticipantsService] Error checking existing contact for ${number}: ${error.message}`);
@@ -301,15 +272,12 @@ const GetGroupParticipantsService = async ({
         isSuperAdmin: participant.admin === "superadmin"
       };
 
-      console.log(`[GetGroupParticipantsService] Processed participant data: ${JSON.stringify(participantData)}`);
       return participantData;
     });
 
-    console.log(`[GetGroupParticipantsService] Awaiting all participant promises`);
     const participants = await Promise.all(participantsPromises);
 
     // Ordenar participantes: super admins primeiro, depois admins, depois membros normais
-    console.log(`[GetGroupParticipantsService] Sorting participants`);
     participants.sort((a, b) => {
       if (a.isSuperAdmin && !b.isSuperAdmin) return -1;
       if (!a.isSuperAdmin && b.isSuperAdmin) return 1;
@@ -318,7 +286,6 @@ const GetGroupParticipantsService = async ({
       return a.name.localeCompare(b.name);
     });
 
-    console.log(`[GetGroupParticipantsService] Successfully processed ${participants.length} participants`);
     return participants;
 
   } catch (error) {

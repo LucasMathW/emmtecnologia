@@ -7,7 +7,6 @@ export async function CancelService(id: number) {
   const campaign = await Campaign.findByPk(id);
   await campaign.update({ status: "CANCELADA" });
 
-  console.log(`[CANCEL] Cancelando campanha ${id} (Tipo: ${campaign.tagListId && !campaign.contactListId ? 'TAG' : 'LISTA'})`);
 
   // 1. Cancelar jobs DispatchCampaign (jobs de envio efetivo)
   const recordsToCancel = await CampaignShipping.findAll({
@@ -18,7 +17,6 @@ export async function CancelService(id: number) {
     }
   });
 
-  console.log(`[CANCEL] Encontrados ${recordsToCancel.length} registros CampaignShipping com jobs para cancelar`);
 
   const promises = [];
 
@@ -30,12 +28,9 @@ export async function CancelService(id: number) {
         const jobState = await job.getState();
         if (jobState === 'waiting' || jobState === 'delayed') {
           promises.push(job.remove());
-          console.log(`[CANCEL] Job DispatchCampaign ${record.jobId} removido com sucesso`);
         } else {
-          console.log(`[CANCEL] Job DispatchCampaign ${record.jobId} já processado (estado: ${jobState})`);
         }
       } else {
-        console.log(`[CANCEL] Job DispatchCampaign ${record.jobId} não encontrado`);
       }
     } catch (error) {
       console.error(`[CANCEL] Erro ao remover job DispatchCampaign ${record.jobId}:`, error.message);
@@ -45,7 +40,6 @@ export async function CancelService(id: number) {
 
   // 2. Para campanhas por TAG, também cancelar jobs PrepareContact que podem estar na fila
   if (campaign.tagListId && !campaign.contactListId) {
-    console.log(`[CANCEL] Campanha por TAG - buscando jobs PrepareContact na fila...`);
     
     try {
       // Buscar todos os jobs na fila que são da campanha atual
@@ -55,7 +49,6 @@ export async function CancelService(id: number) {
       
       const allJobs = [...waitingJobs, ...delayedJobs, ...activeJobs];
       
-      console.log(`[CANCEL] Total de jobs na fila: ${allJobs.length} (waiting: ${waitingJobs.length}, delayed: ${delayedJobs.length}, active: ${activeJobs.length})`);
       
       for (const job of allJobs) {
         try {
@@ -66,9 +59,7 @@ export async function CancelService(id: number) {
             const jobState = await job.getState();
             if (jobState === 'waiting' || jobState === 'delayed') {
               promises.push(job.remove());
-              console.log(`[CANCEL] Job PrepareContact ${job.id} removido com sucesso (contato: ${jobData.contactId})`);
             } else {
-              console.log(`[CANCEL] Job PrepareContact ${job.id} já processado (estado: ${jobState})`);
             }
           }
         } catch (error) {
@@ -83,11 +74,9 @@ export async function CancelService(id: number) {
   // 3. Executar todas as remoções
   try {
     await Promise.all(promises);
-    console.log(`[CANCEL] ${promises.length} jobs removidos com sucesso`);
   } catch (error) {
     console.error(`[CANCEL] Erro ao remover jobs:`, error.message);
     // Não falhar a operação por causa de jobs que não podem ser removidos
   }
 
-  console.log(`[CANCEL] Campanha ${id} cancelada com sucesso`);
 }

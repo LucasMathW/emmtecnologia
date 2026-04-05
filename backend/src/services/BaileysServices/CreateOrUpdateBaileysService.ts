@@ -31,7 +31,6 @@ const createOrUpdateBaileysService = async ({
           getChats = baileysExists.chats;
         }
       } catch (parseError) {
-        console.log('[RDS-BAILEYS] Erro ao fazer parse dos chats:', parseError);
         // Continua com array vazio em caso de erro
       }
       
@@ -43,7 +42,6 @@ const createOrUpdateBaileysService = async ({
           getContacts = baileysExists.contacts;
         }
       } catch (parseError) {
-        console.log('[RDS-BAILEYS] Erro ao fazer parse dos contatos:', parseError);
         // Continua com array vazio em caso de erro
       }
 
@@ -84,7 +82,6 @@ const createOrUpdateBaileysService = async ({
         chatsToSave = Array.isArray(chats) ? chats : [];
       }
     } catch (prepError) {
-      console.log('[RDS-BAILEYS] Erro ao preparar dados para criar registro:', prepError);
     }
     
     const baileys = await Baileys.create({
@@ -95,7 +92,6 @@ const createOrUpdateBaileysService = async ({
     await new Promise(resolve => setTimeout(resolve, 1000));
     return baileys;
   } catch (error) {
-    console.log(error, whatsappId, contacts);
     throw new Error(error);
   }
 };

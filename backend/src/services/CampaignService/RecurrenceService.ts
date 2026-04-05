@@ -117,19 +117,15 @@ class RecurrenceService {
   }
 
   static async scheduleNextExecution(campaignId: number): Promise<void> {
-    console.log(`[RDS-RECURRENCE] Iniciando agendamento para campanha ${campaignId}`);
 
     const campaign = await Campaign.findByPk(campaignId);
 
     if (!campaign || !campaign.isRecurring) {
-      console.log(`[RDS-RECURRENCE] Campanha ${campaignId} não encontrada ou não é recorrente`);
       return;
     }
 
-    console.log(`[RECURRENCE] Campanha ${campaignId}: executionCount=${campaign.executionCount}, maxExecutions=${campaign.maxExecutions}`);
 
     if (!this.shouldContinueRecurrence(campaign)) {
-      console.log(`[RDS-RECURRENCE] Campanha ${campaignId} deve ser finalizada`);
       await campaign.update({
         status: 'FINALIZADA',
         nextScheduledAt: null
@@ -148,14 +144,12 @@ class RecurrenceService {
     const lastExecution = campaign.lastExecutedAt || campaign.scheduledAt;
     const nextExecution = this.calculateNextExecution(lastExecution, config);
 
-    console.log(`[RDS-RECURRENCE] Campanha ${campaignId}: próxima execução agendada para ${nextExecution}`);
 
     await campaign.update({
       nextScheduledAt: nextExecution,
       status: 'PROGRAMADA'
     });
 
-    console.log(`[RDS-RECURRENCE] Campanha ${campaignId}: status atualizado para PROGRAMADA`);
   }
 }
 

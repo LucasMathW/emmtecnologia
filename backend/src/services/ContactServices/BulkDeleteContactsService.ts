@@ -42,7 +42,6 @@ const BulkDeleteContactsService = async ({
     // Verificar se algum ID não foi encontrado
     const notFoundIds = contactIds.filter(id => !existingContactIds.includes(id));
     if (notFoundIds.length > 0) {
-      console.warn(`Contacts not found or not belonging to company: ${notFoundIds.join(', ')}`);
     }
 
     // Excluir relacionamentos em ordem (FK constraints)

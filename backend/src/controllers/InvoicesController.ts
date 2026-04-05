@@ -74,8 +74,6 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
   const { searchParam, pageNumber } = req.query as IndexQuery;
   const { companyId } = req.user || {};
 
-  console.log("List invoices - req.user:", req.user);
-  console.log("List invoices - companyId:", companyId, "searchParam:", searchParam, "pageNumber:", pageNumber);
 
   const { invoices, count, hasMore } = await ListInvoicesServices({
     searchParam,
@@ -83,7 +81,6 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
     companyId
   });
 
-  console.log("Invoices found:", invoices.length, "count:", count, "hasMore:", hasMore);
 
   return res.json({ invoices, count, hasMore });
 };

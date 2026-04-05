@@ -43,7 +43,6 @@ const update = async (req: Request, res: Response): Promise<Response> => {
 const remove = async (req: Request, res: Response): Promise<Response> => {
   const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
-  console.log("DISCONNECTING SESSION", whatsappId)
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
 
 

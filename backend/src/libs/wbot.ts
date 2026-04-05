@@ -57,7 +57,6 @@ const retriesQrCodeMap = new Map<number, number>();
 async function deleteFolder(folder) {
   try {
     await fs.rm(folder, { recursive: true });
-    console.log('Pasta deletada com sucesso!', folder);
   } catch (err) {
     console.error('Erro ao deletar pasta:', err);
   }
@@ -162,7 +161,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         async function getMessage(
           key: WAMessageKey
         ): Promise<WAMessageContent> {
-          console.log("key", key);
           if (!key.id) return null;
 
           const message = store.get(key.id);
@@ -207,7 +205,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         }
 
         const versionWA = await getVersionByIndexFromUrl(2);
-        console.info("[WBOT.ts] Versao sendo puxada de url:", versionWA);
 
         const publicFolder = path.join(__dirname, '..', '..', '..', 'backend', 'sessions');
         const folderSessions = path.join(publicFolder, `company${whatsapp.companyId}`, whatsapp.id.toString());
@@ -398,7 +395,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             );
 
             if (connection === "close") {
-              console.log("DESCONECTOU", JSON.stringify(lastDisconnect, null, 2))
               logger.info(
                 `Socket  ${name} Connection Update ${connection || ""} ${lastDisconnect ? lastDisconnect.error.message : ""
                 }`
@@ -541,7 +537,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
       })();
     } catch (error) {
       Sentry.captureException(error);
-      console.log(error);
       reject(error);
     }
   });

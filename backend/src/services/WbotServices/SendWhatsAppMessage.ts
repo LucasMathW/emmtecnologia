@@ -150,7 +150,6 @@ const SendWhatsAppMessage = async ({
       );
 
       Sentry.captureException(err);
-      console.log(err);
       throw new AppError("ERR_SENDING_WAPP_MSG");
     }
   }
@@ -280,7 +279,6 @@ const SendWhatsAppMessage = async ({
     }
 
     Sentry.captureException(err);
-    console.log(err);
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };

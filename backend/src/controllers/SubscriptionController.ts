@@ -79,7 +79,6 @@ export const createSubscription = async (
   });
 
   if (!(await schema.isValid(req.body))) {
-    console.log("Erro linha 32")
     throw new AppError("Dados Incorretos - Contate o Suporte!", 400);
   }
 
@@ -125,7 +124,6 @@ export const createSubscription = async (
         let mercadopagoURLb = response.body.init_point;
         return mercadopagoURLb; // Retorna o valor para uso externo
       } catch (error) {
-        console.log(error);
         return null; // Em caso de erro, retorna null ou um valor padrão adequado
       }
     }
@@ -163,7 +161,6 @@ export const createSubscription = async (
         const response = await axios.request(optionsGetAsaas);
         asaasURL = response.data.url;
 
-        console.log('asaasURL:', asaasURL);
 
         // Handle the response here
         // You can proceed with the rest of your code that depends on asaasURL
@@ -242,7 +239,6 @@ export const createSubscription = async (
 
 
     } catch (error) {
-      console.log(error);
       //throw new AppError("Validation fails", 400);
     }
 
@@ -275,7 +271,6 @@ export const createWebhook = async (
     url: Yup.string().required()
   });
 
-  console.log(req.body);
 
   try {
     await schema.validate(req.body, { abortEarly: false });
@@ -303,7 +298,6 @@ export const createWebhook = async (
     const create = await gerencianet.pixConfigWebhook(params, body);
     return res.json(create);
   } catch (error) {
-    console.log(error);
   }
 };
 
@@ -457,8 +451,6 @@ export const mercadopagowebhook = async (
   res: Response
 ): Promise<Response> => {
 
-  console.log(req.body);
-  console.log(req.params);
 
   let key_MP_ACCESS_TOKEN = null;
 
@@ -489,11 +481,8 @@ export const mercadopagowebhook = async (
     try {
       const payment = await mercadopago.payment.get(req.body.data.id);
 
-      console.log('DETALHES DO PAGAMENTO:', payment.body);
-      console.log('ID DA FATURA:', payment.body.external_reference);
 
       if (!payment.body.transaction_details.transaction_id) {
-        console.log('SEM PAGAMENTO:', payment.body.external_reference);
         return;
       }
 
@@ -501,7 +490,6 @@ export const mercadopagowebhook = async (
       const invoiceID = invoices.id;
 
       if (invoices && invoices.status === "paid") {
-        console.log('FATURA JÁ PAGA');
         return;
       }
 
@@ -563,21 +551,17 @@ export const asaaswebhook = async (
 ): Promise<Response> => {
 
   const { event } = req.body;
-  console.log('asaaswebhook', req.body);
 
   if (event === "PAYMENT_RECEIVED") {
 
     const paymentId = req.body.payment.description.replace("#Fatura:", "");
 
-    console.log('paymentId', paymentId);
 
     const invoices = await Invoices.findOne({ where: { id: paymentId } });
 
-    console.log('invoices', invoices);
 
     const invoiceID = invoices.id;
 
-    console.log('invoiceID', invoiceID);
 
     const companyId = invoices.companyId;
     const company = await Company.findByPk(companyId);

@@ -90,9 +90,6 @@ const FindOrCreateTicketService = async (
         queueId: queueId !== ticket.queueId ? ticket.queueId : queueId
       });
     } else {
-      console.log("🧮 [UNREAD DEBUG]");
-      console.log("Ticket atual no banco:", ticket.unreadMessages);
-      console.log("Unread vindo do handleMessage:", unreadMessages);
       console.log(
         "SOMA que será aplicada:",
         ticket.unreadMessages + unreadMessages
@@ -308,7 +305,6 @@ const FindOrCreateTicketService = async (
           }
         }
       } catch (error) {
-        console.log("error wallet", error);
       }
     }
 

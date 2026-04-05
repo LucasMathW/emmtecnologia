@@ -114,7 +114,6 @@ export const publicShow = async (
   // ✅ companyId já vem resolvido pelo middleware resolveCompany
   const companyId = req.companyId;
 
-  console.log(`[SettingsController] PublicShow:${companyId}`);
 
   if (!companyId) {
     return res.status(404).json({ error: "Empresa não encontrada" });
@@ -124,7 +123,6 @@ export const publicShow = async (
   // console.log(`key:${key}`);
 
   const settingValue = await GetPublicSettingService({ key, companyId });
-  console.log(`seetingValue:${settingValue}`);
   return res.status(200).json(settingValue);
 };
 

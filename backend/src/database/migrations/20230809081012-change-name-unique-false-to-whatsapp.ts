@@ -18,9 +18,7 @@ module.exports = {
     `)
     if(results){
         await queryInterface.removeConstraint("Whatsapps", "Whatsapps_name_key");
-        console.log(`A constraint Whatsapps_name_key foi removida da tabela Whatsapps.`);
       } else {
-        console.log(`A constraint Whatsapps_name_key NÃO existe na tabela Whatsapps.`);
     }
 
   },

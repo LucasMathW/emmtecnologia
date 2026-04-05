@@ -9,22 +9,18 @@ export default {
             const { message, wbot, companyId } = data;
 
             if (message === undefined || wbot === undefined || companyId === undefined) {
-                console.log("message, wbot, companyId", message, wbot, companyId)
             }
 
             const w = await getWbot(wbot);
 
             if (!w) {
-                console.log("wbot not found", wbot)
             }
 
             try {
                 await handleMessage(message, w, companyId);
             } catch (error) {
-                console.log(error)
             }
         } catch (error) {
-            console.log("error", error)
         }
     },
 };

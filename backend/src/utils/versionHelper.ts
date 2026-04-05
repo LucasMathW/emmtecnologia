@@ -47,7 +47,6 @@ export async function getVersionByIndexFromUrl(index: number = 2): Promise<[numb
     
     // Tentativa alternativa: buscar direto do WhatsApp Web
     try {
-      console.log('Tentando buscar versão diretamente do WhatsApp Web...');
       const whatsappResponse = await axios.get('https://web.whatsapp.com/sw.js', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -68,7 +67,6 @@ export async function getVersionByIndexFromUrl(index: number = 2): Promise<[numb
         const clientRevision = swData?.dynamic_data?.SiteData?.client_revision;
         
         if (clientRevision) {
-          console.log('client_revision encontrado:', clientRevision);
           
           // Converte o client_revision para o formato [major, minor, patch]
           // Usa os 3 primeiros dígitos como major, os próximos 3 como minor, e o resto como patch
@@ -85,7 +83,6 @@ export async function getVersionByIndexFromUrl(index: number = 2): Promise<[numb
     }
     
     // Fallback: retorna versão fixa conhecida
-    console.log('Usando versão fixa como fallback');
     return [2, 3000, 1029037448];
   }
 }

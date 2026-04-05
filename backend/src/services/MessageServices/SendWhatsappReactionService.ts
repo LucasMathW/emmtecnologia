@@ -87,7 +87,6 @@ const SendWhatsAppReactionService = async ({
       fromMe: originalMessage.fromMe
     };
 
-    console.log(`reactionKey:${JSON.stringify(reactionKey)}`);
 
     if (originalMessage.participant) {
       reactionKey.participant = originalMessage.participant;

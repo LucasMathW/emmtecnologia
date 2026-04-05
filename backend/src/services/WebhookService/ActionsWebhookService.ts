@@ -137,7 +137,6 @@ const compareValues = (value1: string, value2: string, operator: string): boolea
   const numValue1 = parseFloat(value1);
   const numValue2 = parseFloat(value2);
 
-  console.log(`Comparing values: "${value1}" ${operator} "${value2}" (lowercase: "${strValue1}" ${operator} "${strValue2}")`);
 
   switch (operator) {
     case "contains":
@@ -177,7 +176,6 @@ const finalizeTriggeredFlow = async (
   try {
     // Verificar se o ticket está com status "open" (fluxo disparado manualmente)
     if (ticket.status === "open") {
-      console.log(`[TICKET UPDATE] Finalizando fluxo disparado manualmente para ticket ${ticket.id}`);
 
       // Determinar status final baseado no nó ou usar "pending" como padrão
       let targetStatus = finalStatus;
@@ -185,10 +183,8 @@ const finalizeTriggeredFlow = async (
       // Se o nó tem configuração de status final, usar essa configuração
       if (nodeSelected?.data?.finalStatus) {
         targetStatus = nodeSelected.data.finalStatus;
-        console.log(`[TICKET UPDATE] Status final definido pelo nó: ${targetStatus}`);
       }
 
-      console.log(`[TICKET UPDATE] Ticket ${ticket.id} será alterado para status: ${targetStatus}`);
 
       // Atualizar ticket para o status final
       await UpdateTicketService({
@@ -207,7 +203,6 @@ const finalizeTriggeredFlow = async (
         companyId
       });
 
-      console.log(`[TICKET UPDATE] Ticket ${ticket.id} atualizado com sucesso - Status: ${targetStatus}, FlowWebhook: false, LastFlowId: null`);
 
       // Criar log da finalização
       await CreateLogTicketService({
@@ -217,9 +212,7 @@ const finalizeTriggeredFlow = async (
         queueId: ticket.queueId
       });
 
-      console.log(`[TICKET UPDATE] Log criado para finalização do fluxo - Ticket ${ticket.id}`);
     }
-    console.log(`[TICKET UPDATE] Log criado para finalização do fluxo - Ticket ${ticket.id}`);
 
   } catch (error) {
     logger.error(`[TICKET UPDATE ERROR] Erro ao finalizar fluxo disparado manualmente para ticket ${ticket.id}:`, error);
@@ -244,18 +237,6 @@ export const ActionsWebhookService = async (
 ): Promise<string> => {
 
 
-  console.log("details", details);
-  console.log("numberPhrase", numberPhrase);
-  console.log("inputResponded", inputResponded);
-  console.log("msg", JSON.stringify(msg, null, 2));
-  console.log("idTicket", idTicket);
-  console.log("pressKey", pressKey);
-  console.log("nextStage", nextStage);
-  console.log("dataWebhook", dataWebhook);
-  console.log("hashWebhookId", hashWebhookId);
-  console.log("whatsappId", whatsappId);
-  console.log("idFlowDb", idFlowDb);
-  console.log("companyId", companyId);
   try {
     const io = getIO()
     let next = nextStage;
@@ -283,24 +264,18 @@ export const ActionsWebhookService = async (
     if (idTicket) {
       const currentTicket = await Ticket.findByPk(idTicket);
 
-      console.log(`[RDS-FLOW-DEBUG] Estado do ticket ${idTicket}: flowWebhook=${currentTicket?.flowWebhook}, lastFlowId=${currentTicket?.lastFlowId}, inputResponded=${inputResponded}, pressKey=${pressKey || 'undefined'}`);
 
       const isInitialStage = nextStage === "start" || nextStage === "1"; // normalmente o nó inicial é "start" ou "1"
 
-      console.log(`[RDS-FLOW-DEBUG] Verificando início de fluxo: isInitialStage=${isInitialStage}, nextStage=${nextStage}`);
 
       if (!currentTicket?.flowWebhook || !currentTicket?.lastFlowId || isInitialStage || inputResponded || pressKey) {
-        console.log(`[RDS-FLOW-DEBUG] Permitindo execução de fluxo para ticket ${idTicket}`);
       }
       else {
-        console.log(`[FLOW SERVICE] Ticket ${idTicket} já em execução de fluxo, ignorando nova execução`);
         return "already_running";
       }
 
       if (pressKey) {
-        console.log(`[FLOW SERVICE] Ticket ${idTicket} recebeu resposta do usuário: "${pressKey}", continuando fluxo`);
       } else if (isInitialStage) {
-        console.log(`[FLOW SERVICE] Iniciando novo fluxo para o ticket ${idTicket} no estágio ${nextStage}`);
       }
     }
 
@@ -391,7 +366,6 @@ export const ActionsWebhookService = async (
     let noAlterNext = false;
 
     for (var i = 0; i < lengthLoop; i++) {
-      console.log(`[FLOW LOOP] ========== Iteração ${i + 1}/${lengthLoop} - Next: ${next}, ExecCount: ${execCount} ==========`);
 
       let nodeSelected: any;
       let ticketInit: Ticket;
@@ -402,7 +376,6 @@ export const ActionsWebhookService = async (
 
         if (ticketInit.status === "closed") {
           if (numberPhrase === "") {
-            console.log(`[FLOW LOOP] Ticket ${idTicket} está fechado - encerrando fluxo`);
             break;
           }
         }
@@ -410,10 +383,6 @@ export const ActionsWebhookService = async (
       }
 
       if (pressKey) {
-        console.log(`[FLOW] ========== PROCESSANDO COM PRESSKEY ==========`);
-        console.log(`[FLOW] PressKey: ${pressKey}`);
-        console.log(`[FLOW] ExecFn: ${execFn || 'undefined'}`);
-        console.log(`[FLOW] Next: ${next}`);
 
         if (pressKey === "parar") {
           if (idTicket) {
@@ -421,13 +390,11 @@ export const ActionsWebhookService = async (
               where: { id: idTicket, whatsappId }
             });
 
-            console.log(`[TICKET UPDATE] Parando fluxo para ticket ${ticketInit.id} - Status alterado para closed`);
 
             await ticket.update({
               status: "closed"
             });
 
-            console.log(`[TICKET UPDATE] Ticket ${ticketInit.id} fechado com sucesso`);
           }
           break;
         }
@@ -436,31 +403,24 @@ export const ActionsWebhookService = async (
         if (execFn === "" || !execFn) {
           // Se execFn está vazio, significa que estamos no mesmo nó (menu aguardando resposta)
           // Buscar o nó usando 'next' que contém o ID do nó menu
-          console.log(`[FLOW] ExecFn vazio - buscando nó usando next: ${next}`);
           nodeSelected = nodes.filter(node => node.id === next)[0];
 
           if (nodeSelected) {
-            console.log(`[FLOW] ✅ Nó encontrado via next: ${nodeSelected.id} (tipo: ${nodeSelected.type})`);
           } else {
             logger.error(`[FLOW] ❌ Nó ${next} NÃO ENCONTRADO! Criando nó temporário`);
             nodeSelected = { type: "menu" };
           }
         } else {
-          console.log(`[FLOW] Buscando nó com ID: ${execFn}`);
           nodeSelected = nodes.filter(node => node.id === execFn)[0];
           if (nodeSelected) {
-            console.log(`[FLOW] ✅ Nó encontrado: ${nodeSelected.id} (tipo: ${nodeSelected.type})`);
           } else {
             logger.error(`[FLOW] ❌ Nó ${execFn} NÃO ENCONTRADO!`);
           }
         }
       } else {
-        console.log(`[FLOW] ========== PROCESSANDO SEM PRESSKEY ==========`);
-        console.log(`[FLOW] Buscando nó com ID: ${next}`);
         const otherNode = nodes.filter((node) => node.id === next)[0]
         if (otherNode) {
           nodeSelected = otherNode;
-          console.log(`[FLOW] ✅ Nó encontrado: ${nodeSelected.id} (tipo: ${nodeSelected.type})`);
         } else {
           logger.error(`[FLOW] ❌ Nó ${next} NÃO ENCONTRADO!`);
         }
@@ -473,14 +433,12 @@ export const ActionsWebhookService = async (
         break;
       }
 
-      console.log(`[FLOW LOOP] Nó selecionado: ${nodeSelected?.id} (${nodeSelected?.type})`);
 
       let msg;
 
       // Função auxiliar para garantir que o ticket esteja disponível
       const ensureTicket = async () => {
         if (!ticket && idTicket) {
-          console.log(`Recuperando ticket ${idTicket} para o nó tipo ${nodeSelected.type}`);
           ticket = await Ticket.findOne({
             where: { id: idTicket, whatsappId }
           });
@@ -493,7 +451,6 @@ export const ActionsWebhookService = async (
         return true;
       };
 
-      console.log("nodeSelected.type", nodeSelected.type);
 
       if (nodeSelected.type === "tag") {
         const tagFind = await Tag.findByPk(nodeSelected.data.tag.id);
@@ -502,7 +459,6 @@ export const ActionsWebhookService = async (
 
         const tags = await SyncTags(teste);
 
-        console.log(`[TICKET TAG] Tag ${tagFind.name} adicionada ao contato ${ticket.contactId} do ticket ${ticket.id}`);
       }
 
       if (nodeSelected.type === "removeTag") {
@@ -531,7 +487,6 @@ export const ActionsWebhookService = async (
             companyId: companyId
           });
 
-          console.log(`[REMOVE TAG NODE] Tag ${tagFind.name} removida do contato ${ticket.contactId} do ticket ${ticket.id}`);
 
         } catch (error) {
           logger.error(`[REMOVE TAG NODE] Erro ao remover tag do contato:`, error);
@@ -564,7 +519,6 @@ export const ActionsWebhookService = async (
           };
         }
 
-        console.log("msg", msg);
 
         if (whatsapp.channel === "whatsapp") {
           await SendWhatsAppMessage({
@@ -592,7 +546,6 @@ export const ActionsWebhookService = async (
         try {
           // ✅ CORRIGIDO: Verificar se o ticket foi aceito antes de ativar IA
           if (ticket.status === "open" && ticket.userId) {
-            console.log(`[${nodeSelected.type.toUpperCase()} NODE] Ticket ${ticket.id} já foi aceito por usuário ${ticket.userId} - pulando ativação de IA`);
             continue;
           }
 
@@ -645,7 +598,6 @@ export const ActionsWebhookService = async (
             autoCompleteOnObjective
           };
 
-          console.log(`[${provider.toUpperCase()} NODE] Ativando modo ${provider.toUpperCase()} para ticket ${ticket.id} (${flowMode})`);
 
           if (flowMode === "permanent") {
             // MODO PERMANENTE: Para o fluxo e fica em IA
@@ -665,7 +617,6 @@ export const ActionsWebhookService = async (
               }
             });
 
-            console.log(`[${provider.toUpperCase()} NODE] Modo permanente ativado`);
 
           } else {
             // MODO TEMPORÁRIO: Mantém informações do fluxo
@@ -694,7 +645,6 @@ export const ActionsWebhookService = async (
               }
             });
 
-            console.log(`[${provider.toUpperCase()} NODE] Modo temporário ativado`);
           }
 
           // ✅ ENVIAR MENSAGEM DE BOAS-VINDAS IMEDIATAMENTE
@@ -705,7 +655,6 @@ export const ActionsWebhookService = async (
                 ? `Olá! Sou ${name}. Como posso ajudá-lo? (Digite "${continueKeywords[0]}" quando quiser prosseguir)`
                 : `Olá! Sou ${name}. Como posso ajudá-lo?`;
 
-            console.log(`[${provider.toUpperCase()} NODE] Enviando boas-vindas para ticket ${ticket.id}`);
 
             if (whatsapp.channel === "whatsapp") {
               await SendWhatsAppMessage({ body: welcomeMessage, ticket, quotedMsg: null });
@@ -772,23 +721,18 @@ export const ActionsWebhookService = async (
           const inputIdentifier = `${ticket.id}_${variableName}`;
           const thisInputResponded = global.flowVariables[inputIdentifier];
 
-          console.log(`[INPUT NODE] Debug - Ticket ${ticket.id}, Variable: ${variableName}, InputIdentifier: ${inputIdentifier}`);
-          console.log(`[INPUT NODE] Debug - inputResponded: ${inputResponded}, thisInputResponded: ${thisInputResponded}`);
 
           // Se inputResponded é true, significa que estamos retomando o fluxo após uma resposta
           // Neste caso, devemos continuar para o próximo nó sem processar este input novamente
           if (inputResponded) {
-            console.log(`[INPUT NODE] Retomando fluxo após resposta - Ticket ${ticket.id}`);
 
             // Recuperar o valor do próximo nó salvo anteriormente
             const savedNext = global.flowVariables[`${inputIdentifier}_next`];
-            console.log(`[INPUT NODE] Próximo nó salvo: ${savedNext}`);
 
             if (savedNext) {
               next = savedNext;
               // Limpar a variável após uso
               delete global.flowVariables[`${inputIdentifier}_next`];
-              console.log(`[INPUT NODE] Continuando para próximo nó: ${next}`);
             } else {
               logger.warn(`[INPUT NODE] Nenhum próximo nó encontrado para ${inputIdentifier}`);
             }
@@ -804,10 +748,8 @@ export const ActionsWebhookService = async (
             continue;
           } else if (!inputResponded && thisInputResponded) {
             // Se não estamos retomando o fluxo mas o input já foi respondido, pular
-            console.log(`[INPUT NODE] Input já respondido anteriormente - pulando - Ticket ${ticket.id}`);
             continue;
           } else {
-            console.log(`[INPUT NODE] Processando novo input - Ticket ${ticket.id}`);
 
             // Enviar a pergunta e aguardar resposta
             await intervalWhats("1");
@@ -849,7 +791,6 @@ export const ActionsWebhookService = async (
 
               const nextNodeId = outputConnection ? outputConnection.target : next;
 
-              console.log(`[TICKET UPDATE] Preparando ticket ${ticket.id} para aguardar input - Status: pending, LastFlowId: ${nodeSelected.id}, WaitingInput: true`);
 
               await ticket.update({
                 status: "pending",
@@ -867,7 +808,6 @@ export const ActionsWebhookService = async (
                 }
               });
 
-              console.log(`[TICKET UPDATE] Ticket ${ticket.id} configurado para aguardar input - Variable: ${variableName}, NextNodeId: ${nextNodeId}`);
 
               global.flowVariables = global.flowVariables || {};
               global.flowVariables[`${inputIdentifier}_next`] = nextNodeId;
@@ -911,7 +851,6 @@ export const ActionsWebhookService = async (
           if (connectionSelect && connectionSelect.length > 0) {
             next = connectionSelect[0].target;
             noAlterNext = true;
-            console.log(`[FLOW DEBUG] Condição ${condition} - próximo nó: ${next}`);
             continue;
           } else {
             logger.warn(`[FlowBuilder] No connection found for condition ${condition} on node ${nodeSelected.id}`);
@@ -938,7 +877,6 @@ export const ActionsWebhookService = async (
           if (connectionFalse && connectionFalse.length > 0) {
             next = connectionFalse[0].target;
             noAlterNext = true;
-            console.log(`[FLOW DEBUG] Erro na condição - usando saída false: ${next}`);
             continue;
           }
         }
@@ -1124,17 +1062,9 @@ export const ActionsWebhookService = async (
       if (nodeSelected.type === "ticket") {
         if (!(await ensureTicket())) continue;
 
-        console.log('ticket.id', ticket?.id)
-        console.log('queue.id', nodeSelected?.data?.queue?.id)
-        console.log('companyId', companyId)
-        console.log('nodeSelected.id', nodeSelected.id)
-        console.log('hashWebhookId', hashWebhookId)
-        console.log('idFlowDb', idFlowDb)
-        console.log('ticket.userId', ticket?.userId)
 
         const queue = await ShowQueueService(nodeSelected?.data?.queue?.id, companyId)
 
-        console.log(`[TICKET UPDATE] Atualizando ticket ${ticket.id} para fila ${queue.id} (${queue.name}) - Status: pending, FlowWebhook: true`);
 
         await ticket.update({
           status: 'pending',
@@ -1155,7 +1085,6 @@ export const ActionsWebhookService = async (
           });
         }
 
-        console.log(`[TICKET UPDATE] Ticket ${ticket.id} atualizado para fila ${queue.name} - LastFlowId: ${nodeSelected.id}, HashFlowId: ${hashWebhookId}`);
 
         await FindOrCreateATicketTrakingService({
           ticketId: ticket.id,
@@ -1185,7 +1114,6 @@ export const ActionsWebhookService = async (
           });
         }
 
-        console.log(`[TICKET UPDATE] UpdateTicketService chamado para ticket ${ticket.id} - QueueId: ${queue.id}`);
 
         await CreateLogTicketService({
           ticketId: ticket.id,
@@ -1193,7 +1121,6 @@ export const ActionsWebhookService = async (
           queueId: queue.id
         });
 
-        console.log(`[TICKET LOG] Log de fila criado para ticket ${ticket.id} - QueueId: ${queue.id}`);
 
         // Enviar saudação da fila e preparar integração, se houver
         try {
@@ -1239,7 +1166,6 @@ export const ActionsWebhookService = async (
 
         const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
 
-        console.log("nodeSelected.data.seq", nodeSelected.data.seq);
 
         for (var iLoc = 0; iLoc < nodeSelected.data.seq.length; iLoc++) {
           const elementNowSelected = nodeSelected.data.seq[iLoc];
@@ -1249,7 +1175,6 @@ export const ActionsWebhookService = async (
               item => item.number === elementNowSelected
             )[0].value;
 
-            console.log('bodyFor', bodyFor)
 
             const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
@@ -1272,10 +1197,8 @@ export const ActionsWebhookService = async (
               });
             }
 
-            console.log('if da api oficial', whatsapp.channel)
 
             if (whatsapp.channel === "whatsapp_oficial") {
-              console.log('chamando api oficial')
               await SendWhatsAppOficialMessage({
                 body: msg,
                 ticket: ticketDetails,
@@ -1288,13 +1211,11 @@ export const ActionsWebhookService = async (
 
             SetTicketMessagesAsRead(ticketDetails);
 
-            console.log(`[TICKET UPDATE] Atualizando lastMessage do ticket ${ticket.id} no singleBlock - Message enviada`);
 
             await ticketDetails.update({
               lastMessage: formatBody(bodyFor, ticket.contact)
             });
 
-            console.log(`[TICKET UPDATE] LastMessage atualizada para ticket ${ticket.id} no singleBlock`);
 
             await intervalWhats("1");
           }
@@ -1348,7 +1269,6 @@ export const ActionsWebhookService = async (
                     path: filePath
                   } as Express.Multer.File
 
-                  console.log("mediaSrc", mediaSrc);
 
                   await SendWhatsAppOficialMessage({
                     body: "",
@@ -1395,7 +1315,6 @@ export const ActionsWebhookService = async (
                 path: filePath
               } as Express.Multer.File
 
-              console.log("mediaSrc", mediaSrc);
 
               await SendWhatsAppOficialMessage({
                 body: "",
@@ -1551,19 +1470,10 @@ export const ActionsWebhookService = async (
 
       let isMenu: boolean;
       if (nodeSelected.type === "menu") {
-        console.log(`[MENU NODE] ========== PROCESSANDO NÓ MENU ==========`);
-        console.log(`[MENU NODE] ID do nó: ${nodeSelected.id}`);
-        console.log(`[MENU NODE] PressKey recebido: ${pressKey || 'undefined'}`);
-        console.log(`[MENU NODE] Next atual: ${next}`);
-        console.log(`[MENU NODE] Ticket ID: ${ticket?.id || idTicket}`);
 
         if (pressKey) {
-          console.log(`[MENU NODE] ========== USUÁRIO RESPONDEU MENU ==========`);
-          console.log(`[MENU NODE] Resposta do usuário: "${pressKey}"`);
-          console.log(`[MENU NODE] Opções disponíveis: ${JSON.stringify(nodeSelected.data.arrayOption?.map(o => ({ number: o.number, value: o.value })))}`);
 
           if (pressKey.toLowerCase() === "sair") {
-            console.log(`[MENU NODE] Usuário solicitou sair do fluxo com a palavra-chave: "${pressKey}"`);
 
             const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
@@ -1608,19 +1518,13 @@ export const ActionsWebhookService = async (
             return "flow_exited";
           }
 
-          console.log(`[MENU NODE] Buscando conexão - Source: ${next}, SourceHandle: a${pressKey}`);
-          console.log(`[MENU NODE] Total de conexões disponíveis: ${connectStatic.length}`);
-          console.log(`[MENU NODE] Conexões do nó atual (${next}): ${JSON.stringify(connectStatic.filter(c => c.source === next).map(c => ({ source: c.source, target: c.target, handle: c.sourceHandle })))}`);
 
           const filterOne = connectStatic.filter(confil => confil.source === next)
-          console.log(`[MENU NODE] FilterOne (conexões do source ${next}): ${filterOne.length} encontradas`);
 
           const filterTwo = filterOne.filter(filt2 => filt2.sourceHandle === "a" + pressKey)
-          console.log(`[MENU NODE] FilterTwo (handle a${pressKey}): ${filterTwo.length} encontradas`);
 
           if (filterTwo.length > 0) {
             execFn = filterTwo[0].target
-            console.log(`[MENU NODE] ✅ Conexão encontrada! Próximo nó (execFn): ${execFn}`);
           } else {
             execFn = undefined
             logger.warn(`[MENU NODE] ❌ NENHUMA CONEXÃO encontrada para handle a${pressKey}`);
@@ -1670,32 +1574,25 @@ export const ActionsWebhookService = async (
             return "fallback_sent";
           }
 
-          console.log(`[MENU NODE] Definindo pressKey como "999" para continuar processamento`);
           pressKey = "999";
 
           const isNodeExist = nodes.filter(item => item.id === execFn);
-          console.log(`[MENU NODE] Verificando se nó ${execFn} existe: ${isNodeExist.length > 0 ? 'SIM' : 'NÃO'}`);
 
           if (isNodeExist.length > 0) {
             isMenu = isNodeExist[0].type === "menu" ? true : false;
-            console.log(`[MENU NODE] Próximo nó é do tipo: ${isNodeExist[0].type}, isMenu: ${isMenu}`);
           } else {
             isMenu = false;
             logger.warn(`[MENU NODE] ⚠️ Nó ${execFn} NÃO ENCONTRADO na lista de nós!`);
           }
 
-          console.log(`[MENU NODE] ========== FIM PROCESSAMENTO RESPOSTA ==========`);
         } else {
-          console.log(`[MENU NODE] ========== CRIANDO E ENVIANDO MENU ==========`);
 
           let optionsMenu = "";
           nodeSelected.data.arrayOption.map(item => {
             optionsMenu += `[${item.number}] ${item.value}\n`;
           });
-          console.log(`[MENU NODE] Opções do menu: ${optionsMenu.trim()}`);
 
           const menuCreate = `${nodeSelected.data.message}\n\n${optionsMenu}`;
-          console.log(`[MENU NODE] Menu completo criado com ${nodeSelected.data.arrayOption.length} opções`);
 
           let msg;
           if (dataWebhook === "") {
@@ -1717,7 +1614,6 @@ export const ActionsWebhookService = async (
             };
           }
 
-          console.log(`[MENU NODE] Mensagem pronta para envio (${msg.body.length} caracteres)`);
 
           const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
@@ -1729,7 +1625,6 @@ export const ActionsWebhookService = async (
             read: true
           };
 
-          console.log(`[MENU NODE] Enviando menu via ${whatsapp.channel}...`);
 
           if (whatsapp.channel === "whatsapp") {
             await SendWhatsAppMessage({
@@ -1750,17 +1645,14 @@ export const ActionsWebhookService = async (
             });
           }
 
-          console.log(`[MENU NODE] ✅ Menu enviado com sucesso!`);
 
           SetTicketMessagesAsRead(ticketDetails);
 
-          console.log(`[TICKET UPDATE] Atualizando lastMessage do ticket ${ticket.id} no menu`);
 
           await ticketDetails.update({
             lastMessage: formatBody(msg.body, ticket.contact)
           });
 
-          console.log(`[TICKET UPDATE] LastMessage atualizada para ticket ${ticket.id} no menu`);
 
           await intervalWhats("1");
 
@@ -1775,12 +1667,6 @@ export const ActionsWebhookService = async (
           }
 
           if (ticket) {
-            console.log(`[MENU NODE] ========== CONFIGURANDO TICKET PARA AGUARDAR RESPOSTA ==========`);
-            console.log(`[MENU NODE] Ticket ID: ${ticket.id}`);
-            console.log(`[MENU NODE] Status atual: ${ticket.status}`);
-            console.log(`[MENU NODE] LastFlowId será: ${nodeSelected.id}`);
-            console.log(`[MENU NODE] HashFlowId: ${hashWebhookId}`);
-            console.log(`[MENU NODE] FlowStopped: ${idFlowDb}`);
 
             const updateData = {
               status: "pending",
@@ -1794,25 +1680,13 @@ export const ActionsWebhookService = async (
               flowStopped: idFlowDb.toString()
             };
 
-            console.log(`[MENU NODE] Dados que serão salvos: ${JSON.stringify(updateData)}`);
 
             try {
               const updateResult = await ticket.update(updateData);
 
-              console.log(`[MENU NODE] ✅ UPDATE EXECUTADO COM SUCESSO!`);
-              console.log(`[MENU NODE] Ticket após update - ID: ${updateResult.id}`);
-              console.log(`[MENU NODE] flowWebhook: ${updateResult.flowWebhook}`);
-              console.log(`[MENU NODE] lastFlowId: ${updateResult.lastFlowId}`);
-              console.log(`[MENU NODE] hashFlowId: ${updateResult.hashFlowId}`);
-              console.log(`[MENU NODE] flowStopped: ${updateResult.flowStopped}`);
 
               // Recarregar do banco para confirmar que foi salvo
               await ticket.reload();
-              console.log(`[MENU NODE] ========== VERIFICAÇÃO APÓS RELOAD ==========`);
-              console.log(`[MENU NODE] flowWebhook após reload: ${ticket.flowWebhook}`);
-              console.log(`[MENU NODE] lastFlowId após reload: ${ticket.lastFlowId}`);
-              console.log(`[MENU NODE] hashFlowId após reload: ${ticket.hashFlowId}`);
-              console.log(`[MENU NODE] flowStopped após reload: ${ticket.flowStopped}`);
 
             } catch (updateError) {
               logger.error(`[MENU NODE] ❌ ERRO AO FAZER UPDATE: ${updateError.message}`);
@@ -1820,20 +1694,15 @@ export const ActionsWebhookService = async (
             }
           }
 
-          console.log(`[MENU NODE] ========== FLUXO PAUSADO - AGUARDANDO RESPOSTA ==========`);
           break;
         }
       }
 
       let isSwitchFlow: boolean;
       if (nodeSelected.type === "switchFlow") {
-        console.log(`[SWITCH FLOW] ========== ACIONANDO OUTRO FLUXO ==========`);
-        console.log(`[SWITCH FLOW] Nó ID: ${nodeSelected.id}`);
-        console.log(`[SWITCH FLOW] Ticket ID: ${ticket?.id || idTicket}`);
 
         const data = nodeSelected.data?.flowSelected;
 
-        console.log(`[SWITCH FLOW] Dados do fluxo selecionado: ${JSON.stringify(data)}`);
 
         if (!data) {
           logger.error(`[SWITCH FLOW] ❌ Nenhum fluxo foi selecionado no nó!`);
@@ -1865,8 +1734,6 @@ export const ActionsWebhookService = async (
           break;
         }
 
-        console.log(`[SWITCH FLOW] Fluxo de destino: ${data?.name || 'N/A'} (ID: ${data?.id || 'N/A'})`);
-        console.log(`[SWITCH FLOW] Resetando estado do ticket antes de mudar de fluxo`);
 
         // ✅ IMPORTANTE: Resetar o fluxo atual antes de iniciar o novo
         await ticket.update({
@@ -1877,13 +1744,11 @@ export const ActionsWebhookService = async (
           dataWebhook: null
         });
 
-        console.log(`[SWITCH FLOW] Ticket resetado - iniciando novo fluxo`);
 
         isSwitchFlow = true;
 
         try {
           await switchFlow(data, companyId, ticket);
-          console.log(`[SWITCH FLOW] ✅ Novo fluxo iniciado com sucesso!`);
         } catch (error) {
           logger.error(`[SWITCH FLOW] ❌ Erro ao iniciar novo fluxo: ${error.message}`);
           logger.error(`[SWITCH FLOW] Stack: ${error.stack}`);
@@ -1916,7 +1781,6 @@ export const ActionsWebhookService = async (
           });
         }
 
-        console.log(`[TICKET UPDATE] Atribuindo ticket ${ticket.id} ao atendente ${data}`);
 
         // ✅ CORRIGIDO: Desabilitar integração quando ticket é atribuído a atendente
         await ticket.update({
@@ -1926,28 +1790,18 @@ export const ActionsWebhookService = async (
           dataWebhook: null
         });
 
-        console.log(`[TICKET UPDATE] Ticket ${ticket.id} atribuído ao usuário ${data} com sucesso - integração desabilitada`);
 
         break;
       };
 
       let isContinue = false;
 
-      console.log(`[FLOW] ========== DETERMINANDO PRÓXIMO NÓ ==========`);
-      console.log(`[FLOW] PressKey: ${pressKey || 'undefined'}`);
-      console.log(`[FLOW] ExecCount: ${execCount}`);
-      console.log(`[FLOW] IsMenu: ${isMenu || false}`);
-      console.log(`[FLOW] ExecFn: ${execFn || 'undefined'}`);
-      console.log(`[FLOW] NoAlterNext: ${noAlterNext}`);
 
       if (pressKey === "999" && execCount > 0) {
-        console.log(`[FLOW] ========== PROCESSANDO RESPOSTA DO MENU (pressKey=999) ==========`);
-        console.log(`[FLOW] Buscando conexão a partir de execFn: ${execFn}`);
 
         pressKey = undefined;
         let result = connects.filter(connect => connect.source === execFn)[0];
 
-        console.log(`[FLOW] Conexões disponíveis de ${execFn}: ${JSON.stringify(connects.filter(c => c.source === execFn).map(c => ({ target: c.target, handle: c.sourceHandle })))}`);
 
         if (typeof result === "undefined") {
           logger.error(`[FLOW] ❌ Nenhuma conexão encontrada para execFn: ${execFn}`);
@@ -1955,25 +1809,17 @@ export const ActionsWebhookService = async (
         } else {
           if (!noAlterNext) {
             next = result.target;
-            console.log(`[FLOW] ✅ Próximo nó definido: ${next} (de execFn: ${execFn})`);
           } else {
-            console.log(`[FLOW] NoAlterNext ativo - mantendo next: ${next}`);
           }
         }
       } else {
-        console.log(`[FLOW] Determinando próximo nó sem resposta de menu`);
         let result;
 
         if (isMenu) {
-          console.log(`[FLOW] ========== PRÓXIMO É OUTRO MENU ==========`);
           result = { target: execFn };
           isContinue = true;
           pressKey = undefined;
-          console.log(`[FLOW] Continuando para menu: ${execFn}`);
         } else if (isSwitchFlow) {
-          console.log(`[SWITCH FLOW] ========== CÓDIGO LEGADO DE SWITCHFLOW DETECTADO ==========`);
-          console.log(`[SWITCH FLOW] Este código NÃO deveria ser executado - o switchFlow já foi processado acima`);
-          console.log(`[SWITCH FLOW] Pulando esta execução para evitar duplicação`);
 
           // ✅ CORRIGIDO: O switchFlow já foi executado acima, não precisa executar novamente
           // Este código legado será mantido comentado para referência
@@ -1991,15 +1837,12 @@ export const ActionsWebhookService = async (
         } else if (isRandomizer) {
           isRandomizer = false;
           result = { target: next }; // ✅ CORRIGIDO: Criar objeto com target
-          console.log(`[FLOW DEBUG] Randomizer - próximo nó: ${next}`);
         } else {
           // ✅ CORRIGIDO: Verificar se noAlterNext está ativo antes de buscar nova conexão
           if (noAlterNext) {
-            console.log(`[FLOW DEBUG] noAlterNext ativo - mantendo next: ${next}`);
             result = { target: next };
           } else {
             result = connects.filter(connect => connect.source === nodeSelected.id)[0];
-            console.log(`[FLOW DEBUG] Buscando conexão para nó: ${nodeSelected.id}, resultado: ${result ? result.target : 'undefined'}`);
           }
         }
 
@@ -2010,13 +1853,11 @@ export const ActionsWebhookService = async (
           if (!noAlterNext) {
             next = result.target;
           }
-          console.log(`[FLOW DEBUG] Próximo nó definido: ${next}`);
         }
       }
 
       let finalStatus;
       if (nodeSelected?.data?.finalStatus) {
-        console.log("[FINAL STATUS] O status final será:", nodeSelected.data.finalStatus);
         finalStatus = nodeSelected.data.finalStatus;
       }
 
@@ -2024,7 +1865,6 @@ export const ActionsWebhookService = async (
       if (!pressKey && !isContinue) {
         const nextNode = connects.filter(connect => connect.source === nodeSelected.id).length;
 
-        console.log(`[FLOW DEBUG] Verificando fim de fluxo - Nó: ${nodeSelected.id}, Conexões: ${nextNode}, Next: ${next}`);
 
         // ✅ Só finalizar se não há conexões E não há próximo nó definido
         if (nextNode === 0 && (!next || next === "")) {
@@ -2033,7 +1873,6 @@ export const ActionsWebhookService = async (
               where: { id: ticket.id, whatsappId, companyId: companyId }
             });
 
-            console.log(`[TICKET UPDATE] Finalizando fluxo - Ticket ${ticket.id} será resetado (LastFlowId: null, FlowWebhook: false)`);
 
             await ticket.update({
               lastFlowId: null,
@@ -2043,7 +1882,6 @@ export const ActionsWebhookService = async (
               flowStopped: idFlowDb.toString()
             });
 
-            console.log(`[TICKET UPDATE] NO IF - Fluxo finalizado - Ticket ${ticket.id} resetado com sucesso`);
 
           } else {
             ticket = await Ticket.findOne({
@@ -2058,7 +1896,6 @@ export const ActionsWebhookService = async (
               flowStopped: idFlowDb.toString()
             });
 
-            console.log(`[TICKET UPDATE] NO ELSE - Fluxo finalizado - Ticket ${idTicket} resetado com sucesso`);
           }
           break;
         } else if (nextNode > 0 && (!next || next === "")) {
@@ -2066,7 +1903,6 @@ export const ActionsWebhookService = async (
           const nextConnection = connects.filter(connect => connect.source === nodeSelected.id)[0];
           if (nextConnection) {
             next = nextConnection.target;
-            console.log(`[FLOW DEBUG] Next não definido mas há conexões - usando: ${next}`);
           }
         }
       }
@@ -2075,17 +1911,14 @@ export const ActionsWebhookService = async (
 
       // ✅ CORRIGIDO: Verificar se realmente não há próximo nó antes de finalizar
       if (next === "" || !next) {
-        console.log(`[FLOW DEBUG] Next está vazio - verificando se deve finalizar fluxo`);
 
         // Tentar buscar conexão a partir do nó atual
         const possibleConnection = connects.filter(connect => connect.source === nodeSelected.id)[0];
 
         if (possibleConnection) {
           next = possibleConnection.target;
-          console.log(`[FLOW DEBUG] Conexão encontrada - continuando para: ${next}`);
         } else {
           // Realmente não há próximo nó - finalizar fluxo
-          console.log(`[FLOW DEBUG] Nenhuma conexão encontrada - finalizando fluxo`);
 
           if (ticket) {
             ticket = await Ticket.findOne({
@@ -2098,7 +1931,6 @@ export const ActionsWebhookService = async (
           }
 
           if (ticket) {
-            console.log(`[TICKET UPDATE] Finalizando fluxo disparado - Ticket ${ticket.id} com status final: ${finalStatus}`);
             await finalizeTriggeredFlow(ticket, nodeSelected, companyId, finalStatus);
           }
 
@@ -2106,18 +1938,13 @@ export const ActionsWebhookService = async (
         }
       }
 
-      console.log("UPDATE9...");
       if (idTicket) {
-        console.log("UPDATE10...");
         ticket = await Ticket.findOne({
           where: { id: idTicket, whatsappId, companyId: companyId }
         });
       }
 
-      console.log("UPDATE12...");
 
-      console.log(`[FLOW LOOP] Finalizando iteração - Próximo nó: ${next}, NoAlterNext: ${noAlterNext}`);
-      console.log(`[TICKET UPDATE] Continuando fluxo - Ticket ${ticket.id} - LastFlowId: ${nodeSelected.id}, HashFlowId: ${hashWebhookId}`);
 
       await ticket.update({
         whatsappId: whatsappId,
@@ -2131,7 +1958,6 @@ export const ActionsWebhookService = async (
         flowStopped: idFlowDb.toString()
       });
 
-      console.log(`[TICKET UPDATE] Ticket ${ticket.id} atualizado para continuar fluxo - FlowStopped: ${idFlowDb}`);
 
       noAlterNext = false;
       execCount++;
@@ -2188,7 +2014,6 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
 
     // Se 'data' for um número ou string, buscar o fluxo
     if (typeof data === 'number' || typeof data === 'string') {
-      console.log(`[SWITCH FLOW FUNC] Buscando fluxo com ID: ${data}`);
       const flow = await FlowBuilderModel.findOne({
         where: {
           id: data,
@@ -2210,10 +2035,8 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
     console.error(`CHEGOU GETWBOT`);
     const wbot = await getWbot(ticket?.whatsappId);
     console.error(`FIM GETWBOT`);
-    console.log(`[SWITCH FLOW FUNC] ✅ WBot obtido com sucesso`);
 
     const whatsapp = await ShowWhatsAppService(wbot.id!, companyId);
-    console.log(`[SWITCH FLOW FUNC] ✅ WhatsApp service obtido - Nome: ${whatsapp.name}`);
 
     const contact = await Contact.findOne({
       where: {
@@ -2227,7 +2050,6 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
       return;
     }
 
-    console.log(`[SWITCH FLOW FUNC] ✅ Contato obtido - Nome: ${contact.name}, Número: ${contact.number}`);
 
     const nodes: INodes[] = flowData.flow["nodes"];
     const connections: IConnections[] = flowData.flow["connections"];
@@ -2243,8 +2065,6 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
       email: contact.email
     };
 
-    console.log(`[SWITCH FLOW FUNC] Chamando ActionsWebhookService para iniciar o novo fluxo...`);
-    console.log(`[SWITCH FLOW FUNC] Total de nós: ${nodes.length}, Primeiro nó: ${nodes[0].id}`);
 
     // ✅ CORRIGIDO: Chamar diretamente ActionsWebhookService para iniciar um NOVO fluxo
     // (flowBuilderQueue é apenas para CONTINUAR fluxos interrompidos)
@@ -2264,7 +2084,6 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
       false // inputResponded = false
     );
 
-    console.log(`[SWITCH FLOW FUNC] ✅ Novo fluxo iniciado com sucesso!`);
   } catch (error) {
     logger.error(`[SWITCH FLOW FUNC] ❌ Erro na função switchFlow: ${error.message}`);
     logger.error(`[SWITCH FLOW FUNC] Stack: ${error.stack}`);
@@ -2326,7 +2145,6 @@ const makeHttpRequest = async (
     }
 
     // Log de diagnóstico do httpRequest
-    console.log(`[httpRequestNode] Preparando requisição: method=${(method || '').toUpperCase()} url=${processedUrl}`);
 
     if (queryParams) {
       try {

@@ -43,8 +43,6 @@ const CreateContactService = async ({
   wallets
 }: Request): Promise<Contact> => {
 
-  console.log('number', number)
-  console.log('remoteJid', remoteJid)
 
 
   const numberExists = await Contact.findOne({

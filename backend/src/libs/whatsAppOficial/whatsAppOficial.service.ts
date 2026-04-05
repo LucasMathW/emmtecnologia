@@ -39,9 +39,7 @@ export const sendMessageWhatsAppOficial = async (
                 hasMedia: !!filePath,
                 quotedId: data?.quotedId
             };
-            console.log(`[WABA] Envio -> ${JSON.stringify(payloadPreview)}`);
         } catch (logErr) {
-            console.log(`[WABA] Falha ao serializar payload para log: ${String(logErr)}`);
         }
 
         formData.append('data', JSON.stringify(data));
@@ -54,9 +52,7 @@ export const sendMessageWhatsAppOficial = async (
 
         if (res.status == 200 || res.status == 201) {
             try {
-                console.log(`[WABA] Sucesso <- status=${res.status} data=${JSON.stringify(res.data)}`);
             } catch (logErr) {
-                console.log(`[WABA] Sucesso <- status=${res.status} (resposta não serializável)`);
             }
             return res.data as IReturnMessageMeta;
         }
@@ -69,9 +65,7 @@ export const sendMessageWhatsAppOficial = async (
         const dataResp = err?.response?.data;
         if (status) {
             try {
-                console.log(`[WABA] Erro <- status=${status} data=${JSON.stringify(dataResp)}`);
             } catch (logErr) {
-                console.log(`[WABA] Erro <- status=${status} (resposta não serializável)`);
             }
 
             // Fallback inteligente para erro de tradução de template (#132001)
@@ -79,7 +73,6 @@ export const sendMessageWhatsAppOficial = async (
             const isTemplateTranslationError = msgText.includes("Template name does not exist in the translation");
             if (isTemplateTranslationError && data?.body_template?.name) {
                 try {
-                    console.log(`[WABA] Detectado erro de tradução do template. Vou sincronizar e ajustar language.code para tentar reenviar.`);
 
                     // Buscar templates e localizar o nome
                     const templates = await getTemplatesWhatsAppOficial(token);
@@ -103,7 +96,6 @@ export const sendMessageWhatsAppOficial = async (
                         }
                         retryForm.append('data', JSON.stringify(adjusted));
 
-                        console.log(`[WABA] Reenvio com language.code ajustado para '${match.language}'.`);
                         const retryRes = await axios.post(`${urlApi}/v1/send-message-whatsapp/${token}`, retryForm, {
                             headers: {
                                 ...retryForm.getHeaders(),
@@ -112,19 +104,15 @@ export const sendMessageWhatsAppOficial = async (
 
                         if (retryRes.status == 200 || retryRes.status == 201) {
                             try {
-                                console.log(`[WABA] Sucesso (reenvio) <- status=${retryRes.status} data=${JSON.stringify(retryRes.data)}`);
                             } catch (logErr) {
-                                console.log(`[WABA] Sucesso (reenvio) <- status=${retryRes.status} (resposta não serializável)`);
                             }
                             return retryRes.data as IReturnMessageMeta;
                         }
                     }
                 } catch (fallbackErr) {
-                    console.log(`[WABA] Fallback de reenvio falhou: ${String(fallbackErr?.message || fallbackErr)}`);
                 }
             }
         } else {
-            console.log(`[WABA] Erro <- ${String(err?.message || err)}`);
         }
         throw new Error('Mensagem não enviada para a meta');
     }
@@ -138,11 +126,9 @@ export const CreateCompanyConnectionOficial = async (data: ICreateConnectionWhat
 
         const companySaved = await CreateCompanyWhatsAppOficial(company.companyId, company.companyName);
 
-        console.log(`Empresa: ${companySaved.id}`)
 
         const connection = await CreateConnectionWhatsAppOficial(whatsApp);
 
-        console.log(`Conexão criada: ${JSON.stringify(connection)}`);
 
         const webhookLink = `${urlApi}/v1/webhook/${companySaved.id}/${connection.id}`;
 
@@ -150,7 +136,6 @@ export const CreateCompanyConnectionOficial = async (data: ICreateConnectionWhat
         return { webhookLink, connectionId: connection.id };
 
     } catch (error) {
-        console.log(`CreateCompanyConnectionOficial: ${error.message}`);
         throw new Error(error.message || `Falha ao criar a empresa `);
     }
 }
@@ -166,7 +151,6 @@ export const checkAPIOficial = async () => {
 
         if (res.status == 200 || res.status == 201) {
             if (!_apiStatusChecked) {
-                console.log('API ONLINE');
                 _apiStatusChecked = true;
             }
             return res.data as string;
@@ -175,7 +159,6 @@ export const checkAPIOficial = async () => {
         throw new Error('API Oficial não configurada ou esta offline');
 
     } catch (error) {
-        console.log(`checkAPIOficial: ${error.message}`);
         throw new Error(error.message || `API não esta disponivel`);
     }
 }
@@ -194,7 +177,6 @@ export const CreateCompanyWhatsAppOficial = async (companyId: string, companyNam
         const company = companies.find(c => String(c.idEmpresaMult100) == companyId);
 
         if (!!company) {
-            console.log(`CreateCompanyWhatsAppOficial: data ${JSON.stringify(company)}`);
             return company
         }
 
@@ -211,14 +193,12 @@ export const CreateCompanyWhatsAppOficial = async (companyId: string, companyNam
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as IReturnCreateCompanyAPIWhatsAppOficial;
-            console.log(`CreateCompanyWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error('Falha em criar a empresa na API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`CreateCompanyWhatsAppOficial: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Não foi possível criar a empresa na API Oficial do WhatsApp`);
     }
 }
@@ -236,21 +216,18 @@ export const CreateConnectionWhatsAppOficial = async (data: ICreateConnectionWha
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as IReturnConnectionCreateAPIWhatsAppOficial;
-            console.log(`CreateConnectionWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em criar a empresa na API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`CreateConnectionWhatsAppOficial: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Não foi possível criar a empresa na API Oficial do WhatsApp`);
     }
 }
 
 export const UpdateConnectionWhatsAppOficial = async (idWhatsApp: number, data: IUpdateonnectionWhatsAppOficialWhatsApp) => {
     try {
-        console.log(`UpdateConnectionWhatsAppOficial 0 ${idWhatsApp}: data ${JSON.stringify(data)}`);
         const res = await axios.put(`${urlApi}/v1/whatsapp-oficial/${idWhatsApp}`, { ...data },
             {
                 headers: {
@@ -261,14 +238,12 @@ export const UpdateConnectionWhatsAppOficial = async (idWhatsApp: number, data: 
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as IReturnConnectionCreateAPIWhatsAppOficial;
-            console.log(`UpdateConnectionWhatsAppOficial 1: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em criar a empresa na API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`UpdateConnectionWhatsAppOficial 2: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Não foi possível atualizar a empresa na API Oficial do WhatsApp`);
     }
 }
@@ -285,21 +260,18 @@ export const DeleteConnectionWhatsAppOficial = async (idWhatsapp: number) => {
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as IReturnConnectionCreateAPIWhatsAppOficial;
-            console.log(`DeleteConnectionWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em criar a empresa na API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`DeleteConnectionWhatsAppOficial: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Não foi possível deletar a empresa na API Oficial do WhatsApp`);
     }
 }
 
 export const getTemplatesWhatsAppOficial = async (multi100_token: string) => {
     try {
-        console.log(`${urlApi}/v1/templates-whatsapp/${multi100_token}`)
         const res = await axios.get(`${urlApi}/v1/templates-whatsapp/${multi100_token}`,
             {
                 headers: {
@@ -310,14 +282,12 @@ export const getTemplatesWhatsAppOficial = async (multi100_token: string) => {
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as IResultTemplates;
-            console.log(`getTemplatesWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em listar os templates da API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`getTemplatesWhatsAppOficial: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Falha em listar os templates da API Oficial do WhatsApp`);
     }
 }
@@ -331,14 +301,12 @@ export const setReadMessageWhatsAppOficial = async (token: string, messageId: st
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data as { success: string };
-            console.log(`setReadMessageWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em marcar a mensagem como lida API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`setReadMessageWhatsAppOficial: ${JSON.stringify(error.response.data)}`);
         throw new Error(error.message || `Falha em marcar a mensagem como lida API Oficial do WhatsApp`);
     }
 }
@@ -354,14 +322,12 @@ export const createFreeTextTemplateWhatsAppOficial = async (multi100_token: stri
 
         if (res.status == 200 || res.status == 201) {
             const data = res.data;
-            console.log(`createFreeTextTemplateWhatsAppOficial: data ${JSON.stringify(data)}`);
             return data;
         }
 
         throw new Error(res.data.message || 'Falha em criar o template de texto livre na API Oficial do WhatsApp');
 
     } catch (error) {
-        console.log(`createFreeTextTemplateWhatsAppOficial: ${JSON.stringify(error?.response?.data || error.message)}`);
         throw new Error(error.message || `Não foi possível criar o template de texto livre na API Oficial do WhatsApp`);
     }
 }

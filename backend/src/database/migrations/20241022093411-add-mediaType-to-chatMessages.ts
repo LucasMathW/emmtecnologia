@@ -11,7 +11,6 @@ module.exports = {
       });
 
     } else {
-      console.log("A coluna 'mediaType' já existe. Ignorando a criação.");
     }
   },
 
@@ -21,7 +20,6 @@ module.exports = {
     if (tableDescription.mediaType) {
       await queryInterface.removeColumn("ChatMessages", "mediaType");
     } else {
-      console.log("A coluna 'mediaType' não existe. Ignorando a remoção.");
     }
   }
 };

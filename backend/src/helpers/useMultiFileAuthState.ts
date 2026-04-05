@@ -19,7 +19,6 @@ export const useMultiFileAuthState = async (
         JSON.stringify(data, BufferJSON.replacer)
       );
     } catch (error) {
-      console.log("writeData error", error);
       return null;
     }
   };

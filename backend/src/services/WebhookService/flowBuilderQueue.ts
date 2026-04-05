@@ -21,7 +21,6 @@ const flowBuilderQueue = async (
 
   // Verificar se existe fluxo interrompido válido
   if (!ticket.flowStopped || !ticket.lastFlowId) {
-    console.log("Ticket sem fluxo interrompido ou ID de último fluxo");
     return;
   }
 

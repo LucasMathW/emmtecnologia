@@ -159,7 +159,6 @@ export const sayChatbot = async (
 ): Promise<any> => {
   // ✅ VERIFICAÇÃO PREVENTIVA: Não processar se ticket estiver "open" (aceito por atendente)
   if (ticket.status === "open") {
-    console.log(`[CHATBOT FACEBOOK] Ticket ${ticket.id} está "open" - ChatBot não deve processar`);
     return;
   }
 

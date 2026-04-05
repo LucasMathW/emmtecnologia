@@ -20,7 +20,6 @@ module.exports = {
         UPDATE "ChatMessages" SET "companyId" = (SELECT "companyId" FROM "Chats" WHERE "Chats"."id" = "ChatMessages"."chatId")
       `);
     } else {
-      console.log("A coluna 'companyId' já existe. Ignorando a criação.");
     }
   },
 
@@ -30,7 +29,6 @@ module.exports = {
     if (tableDescription.companyId) {
       await queryInterface.removeColumn("ChatMessages", "companyId");
     } else {
-      console.log("A coluna 'companyId' não existe. Ignorando a remoção.");
     }
   }
 };

@@ -287,7 +287,6 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
           })
         );
       } catch (error) {
-        console.log(medias);
         throw new AppError("Error sending API media: " + error.message);
       }
     } else {

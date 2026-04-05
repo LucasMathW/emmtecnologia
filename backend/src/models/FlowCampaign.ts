@@ -170,13 +170,11 @@ export class FlowCampaignModel extends Model<FlowCampaignModel> {
       if (condition.type === 'exact') {
         const match = bodyLower === phraseLower;
         if (match) {
-          console.log(`[MATCH EXATO] Campanha ${this.id} (WhatsApp ${whatsappId}): "${messageBody}" === "${condition.text}"`);
         }
         return match;
       } else if (condition.type === 'partial') {
         const match = bodyLower.includes(phraseLower);
         if (match) {
-          console.log(`[MATCH PARCIAL] Campanha ${this.id} (WhatsApp ${whatsappId}): "${messageBody}" contém "${condition.text}"`);
         }
         return match;
       }

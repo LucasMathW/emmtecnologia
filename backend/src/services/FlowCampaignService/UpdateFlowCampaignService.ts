@@ -125,7 +125,6 @@ const UpdateFlowCampaignService = async ({
       ]
     });
 
-    console.log(`✅ Campanha atualizada: ${existingCampaign.name} com ${whatsappIds.length} conexões: ${whatsappIds.join(', ')}`);
 
     return existingCampaign;
 

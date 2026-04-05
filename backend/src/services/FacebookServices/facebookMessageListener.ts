@@ -238,9 +238,6 @@ const flowBuilderQueue = async (
   };
 
 
-  console.log("======================================")
-  console.log("|         flowBuilderQueue           |")
-  console.log("======================================")
 
 
   const nodes: INodes[] = flow.flow["nodes"]
@@ -286,9 +283,6 @@ const flowbuilderIntegration = async (
   message: any,
 ) => {
 
-  console.log("======================================")
-  console.log("|      flowbuilderIntegration        |")
-  console.log("======================================")
 
 
   await ticket.update({
@@ -819,7 +813,6 @@ export const handleMessage = async (
         }
       } catch (e) {
         throw new Error(e);
-        console.log(e);
       }
 
       if (message.attachments) {

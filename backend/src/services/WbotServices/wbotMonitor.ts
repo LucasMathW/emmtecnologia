@@ -127,7 +127,6 @@ const wbotMonitor = async (
       try {
         Promise.all(
           contacts.map(async contact => {
-            console.log(`contact.id =>`, contact.id);
             const jid = contact?.id || "";
 
             if (

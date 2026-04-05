@@ -102,7 +102,6 @@ const CreateMessageService = async ({
     }
   }
 
-  console.log(`CONTACTID =>`, contactId);
 
   await Message.upsert({ ...correctedMessageData, companyId, contactId });
 
@@ -174,7 +173,6 @@ const CreateMessageService = async ({
   const io = getIO();
 
   if (!messageData?.ticketImported) {
-    console.log("EVENT ID:", message?.id || message.ticket?.id);
     io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
       action: "create",
       message,

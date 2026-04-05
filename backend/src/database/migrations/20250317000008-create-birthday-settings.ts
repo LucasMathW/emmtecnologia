@@ -20,7 +20,6 @@ export default {
     }
     
     if (!tableExists) {
-      console.log('Tabela BirthdaySettings não existe. Criando...');
       await queryInterface.createTable('BirthdaySettings', {
       id: {
         type: DataTypes.INTEGER,
@@ -101,10 +100,8 @@ export default {
           unique: true,
           name: 'idx_birthday_settings_company_id'
         });
-        console.log('✅ Índice idx_birthday_settings_company_id criado com sucesso!');
       } catch (error) {
         if (error.message && error.message.includes('already exists')) {
-          console.log('✅ Índice idx_birthday_settings_company_id já existe.');
         } else {
           throw error;
         }
@@ -130,9 +127,7 @@ export default {
         )
       `);
       
-      console.log('✅ Tabela BirthdaySettings criada com sucesso!');
     } else {
-      console.log('✅ Tabela BirthdaySettings já existe. Pulando criação...');
     }
   },
 

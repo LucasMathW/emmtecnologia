@@ -398,7 +398,6 @@ export const storeFacebook = async (
     }
     return res.status(200);
   } catch (error) {
-    console.log(error);
     return res.status(400).json({
       error: "Facebook page not found"
     });
@@ -618,7 +617,6 @@ export const removeAdmin = async (
   const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   const io = getIO();
-  console.log("REMOVING WHATSAPP ADMIN", whatsappId);
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
 
   if (whatsapp.channel === "whatsapp") {

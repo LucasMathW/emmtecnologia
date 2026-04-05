@@ -111,7 +111,6 @@ export const FlowDataUpdate = async (
 
   const keys = Object.keys(bodyData);
 
-  console.log(keys);
 
   const webhook = await FlowUpdateDataService({
     companyId,

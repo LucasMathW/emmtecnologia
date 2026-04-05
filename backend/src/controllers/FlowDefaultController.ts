@@ -45,7 +45,6 @@ export const getFlows = async (
 ): Promise<Response> => {
   const { companyId } = req.user;
 
-  console.log("getFlows")
   const flows = await FlowsDefaultGetDataService({
     companyId
   });

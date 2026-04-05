@@ -113,7 +113,6 @@ const CreateFlowCampaignService = async ({
       ]
     });
 
-    console.log(`✅ Campanha criada: ${flow.name} com ${whatsappIds.length} conexões: ${whatsappIds.join(', ')}`);
 
     return flow;
 

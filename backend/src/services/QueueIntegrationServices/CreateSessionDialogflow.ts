@@ -25,7 +25,6 @@ const createDialogflowSession = async (id:number, projectName:string, jsonConten
 }
 
 const createDialogflowSessionWithModel = async (model: QueueIntegration) : Promise<SessionsClient | undefined> => {
-    console.log("ID:" + model.id + " name:" +  model.projectName + " json:" +   model.jsonContent)
     return createDialogflowSession(model.id, model.projectName, model.jsonContent);
 }
 

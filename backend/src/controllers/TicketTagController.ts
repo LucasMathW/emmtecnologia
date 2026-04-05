@@ -49,7 +49,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
                 });
               }
             } catch (error) {
-              console.log("Error sending media files:", error);
             }
           }
         }
@@ -61,7 +60,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
               ticket: ticketUpdate
             });
           } catch (error) {
-            console.log("error", error);
           }
         }
 
@@ -96,7 +94,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
                 });
               }
             } catch (error) {
-              console.log("Error sending media files:", error);
             }
           }
         }
@@ -123,8 +120,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 export const remove = async (req: Request, res: Response): Promise<Response> => {
   const ticketId = getRequestParam(req.params.ticketId, "ticketId");
 
-  console.log("remove");
-  console.log(req.params);
 
   try {
     await TicketTag.destroy({ where: { ticketId } });

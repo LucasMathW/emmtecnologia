@@ -34,11 +34,9 @@ const TranscribeAudioMessageToText = async (
     const data = new FormData();
     let config;
 
-    console.log(`msg.mediaUrl: ${msg.mediaUrl}`);
 
     const openaikey = setting?.value || process.env.TRANSCRIBE_API_KEY;
 
-    console.log(`[DEBUG LUCAS, OPENAIKEY][${openaikey}]`);
 
     if (!openaikey) {
       throw new Error("Chave Não configurada!");
@@ -46,7 +44,6 @@ const TranscribeAudioMessageToText = async (
 
     // Verifica se a mediaUrl é uma URL válida
     if (msg.mediaUrl.startsWith("http")) {
-      console.log(`{É URl}`);
 
       // 1️⃣ baixa o áudio
       const audioResponse = await axios.get(msg.mediaUrl, {
@@ -73,7 +70,6 @@ const TranscribeAudioMessageToText = async (
         data: data
       };
     } else {
-      console.log(`{Não é url}`);
 
       const urlParts = new URL(msg.mediaUrl);
       const pathParts = urlParts.pathname.split("/");

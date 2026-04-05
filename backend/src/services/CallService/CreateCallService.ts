@@ -15,7 +15,6 @@ const createCallHistorical = async (body: CallHistorical) => {
     try {
         return await CallHistory.create(body);
     } catch (error) {
-        console.log('createCallHistorical', error);
         throw new Error(error);
     }
 }

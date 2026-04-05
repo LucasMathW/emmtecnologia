@@ -237,7 +237,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       lastExecutedAt: null
     };
 
-    console.log("[Campaign Store] Dados processados:", processedRecurrenceData);
 
     const processedData = {
       name,
@@ -270,7 +269,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
     const campaign = await Campaign.create(processedData);
 
-    console.log("[Campaign Store] Campanha criada:", campaign.id);
 
     // Log detalhado com informações da lista/tag
     let totalContacts = 0;
@@ -488,7 +486,6 @@ export const update = async (
 
     await campaign.update(processedData);
 
-    console.log("[Campaign Update] Campanha atualizada:", campaign.id);
 
     // Se for recorrente, recalcular próxima execução
     if (campaign.isRecurring) {

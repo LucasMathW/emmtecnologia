@@ -269,7 +269,6 @@ const verifyQueueOficial = async (
 
         const body = formatBody(`\u200e${greetingMessage}\n\n${options}`, ticket);
 
-        console.log('body1', body);
 
         await CreateLogTicketService({
             ticketId: ticket.id,
@@ -290,7 +289,6 @@ const verifyQueueOficial = async (
                     body
                 );
 
-                console.log('body2', body);
 
                 await SendWhatsAppOficialMessage({
                     body,
@@ -302,7 +300,6 @@ const verifyQueueOficial = async (
                     vCard: null
                 });
             } else {
-                console.log('body3', body);
 
                 await SendWhatsAppOficialMessage({
                     body,
@@ -313,7 +310,6 @@ const verifyQueueOficial = async (
                 });
             }
         } else {
-            console.log('body4', body);
 
             await SendWhatsAppOficialMessage({
                 body,
@@ -383,7 +379,6 @@ const verifyQueueOficial = async (
                     // console.log("entrei3");
                     const body = formatBody(`${outOfHoursMessage}`, ticket);
 
-                    console.log('body5', body);
 
                     await SendWhatsAppOficialMessage({
                         body, ticket, quotedMsg: null, type: 'text', media: null, vCard: null
@@ -434,7 +429,6 @@ const verifyQueueOficial = async (
 
                 // ✅ VERIFICAR SE É TYPEBOT
                 if (integrations.type === "typebot") {
-                    console.log("[TYPEBOT OFICIAL - QUEUE] Iniciando Typebot da fila");
                     await typebotListenerOficial({
                         ticket,
                         msg: simulatedMsg,
@@ -452,7 +446,6 @@ const verifyQueueOficial = async (
                     try { cfg = integrations.jsonContent ? JSON.parse(integrations.jsonContent) : {}; } catch { cfg = {}; }
 
                     if (integrations.type === "SGP" || ((cfg?.sgpUrl || cfg?.tipoIntegracao) && integrations.type !== "typebot")) {
-                        console.log("[SGP OFICIAL - QUEUE] SGP detectado: aguardando CPF do cliente");
                         // Não iniciar integração agora; apenas marcar no ticket
                         await ticket.update({ useIntegration: true, integrationId: integrations.id });
                     } else {
@@ -487,7 +480,6 @@ const verifyQueueOficial = async (
                     ticket
                 );
 
-                console.log('body6', body);
 
                 await SendWhatsAppOficialMessage({
                     body, ticket, quotedMsg: null, type: 'text', media: null, vCard: null
@@ -525,7 +517,6 @@ const verifyQueueOficial = async (
                     ticket
                 );
 
-                console.log('body9', body);
 
                 await SendWhatsAppOficialMessage({
                     body, ticket, quotedMsg: null, type: 'text', media: null, vCard: null
@@ -576,7 +567,6 @@ const verifyQueueOficial = async (
                             path: path.resolve(folder, file.path),
                         } as Express.Multer.File
 
-                        console.log('body10', file.name);
 
                         await SendWhatsAppOficialMessage({
                             media: mediaSrc, body: file.name, ticket, type: null
@@ -633,7 +623,6 @@ const verifyQueueOficial = async (
                 const msgFila = `${settings.sendQueuePositionMessage} *${qtd}*`;
                 const bodyFila = formatBody(`${msgFila}`, ticket);
 
-                console.log('body11', bodyFila);
 
                 await SendWhatsAppOficialMessage({
                     body: bodyFila, ticket, quotedMsg: null, type: 'text', media: null, vCard: null
@@ -727,13 +716,11 @@ const verifyQueueOficial = async (
                     const messagePath = ticket.whatsapp.greetingMediaAttachment
                     const mediaSrc = await getMessageOptions(messagePath, filePath, String(companyId), body);
 
-                    console.log('body12', body);
 
                     await SendWhatsAppOficialMessage({
                         media: mediaSrc, body, ticket, type: null
                     })
                 } else {
-                    console.log('body13', body);
 
                     await SendWhatsAppOficialMessage({
                         body, ticket, quotedMsg: null, type: 'text', media: null, vCard: null
@@ -748,7 +735,6 @@ const verifyQueueOficial = async (
 
                 return
             } else {
-                console.log('body14', body);
 
                 await SendWhatsAppOficialMessage({
                     body: queues.length > 3 ? body : bodyToSave, ticket, quotedMsg: null, type: queues.length <= 3 ? 'interactive' : 'text', media: null, vCard: null, interative: buttonsData

@@ -19,9 +19,7 @@ module.exports = {
       const indexExists = await indexChecks(tableName, options.name);
       if (!indexExists) {
         await queryInterface.addIndex(tableName, columns, options);
-        console.log(`✓ Índice ${options.name} criado em ${tableName}`);
       } else {
-        console.log(`- Índice ${options.name} já existe em ${tableName}`);
       }
     };
 
@@ -404,13 +402,6 @@ module.exports = {
         name: "idx_webhooks_user_id"
       });
 
-      console.log("\n🎯 Migração de índices de performance concluída com sucesso!");
-      console.log("📈 Índices criados para melhorar performance em:");
-      console.log("   - Consultas por companyId (multi-tenancy)");
-      console.log("   - Filtros por status e campos booleanos");
-      console.log("   - Consultas temporais (datas)");
-      console.log("   - Relacionamentos importantes (FKs)");
-      console.log("   - Consultas compostas comuns");
 
     } catch (error) {
       console.error("❌ Erro ao criar índices:", error);
@@ -592,13 +583,10 @@ module.exports = {
       for (const { table, index } of indexesToDrop) {
         try {
           await queryInterface.removeIndex(table, index);
-          console.log(`✓ Índice ${index} removido de ${table}`);
         } catch (error) {
-          console.log(`- Índice ${index} não encontrado em ${table}`);
         }
       }
       
-      console.log("🔄 Rollback da migração de índices concluído!");
     } catch (error) {
       console.error("❌ Erro no rollback:", error);
       throw error;

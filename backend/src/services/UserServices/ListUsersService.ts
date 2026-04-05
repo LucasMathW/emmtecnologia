@@ -89,7 +89,6 @@ const ListUsersService = async ({
   });
 
   const hasMore = count > offset + users.length;
-  console.log(hasMore, count)
   return {
     users,
     count,

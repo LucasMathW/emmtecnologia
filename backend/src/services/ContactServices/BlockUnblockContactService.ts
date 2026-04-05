@@ -64,7 +64,6 @@ const BlockUnblockContactService = async ({
             await contact.update({ active: true });
 
         } catch (error) {
-            console.log('Não consegui desbloquear o contato')
         }
     }
 
@@ -81,7 +80,6 @@ const BlockUnblockContactService = async ({
             await contact.update({ active: false });
 
         } catch (error) {
-            console.log('Não consegui bloquear o contato')
         }
     }
 

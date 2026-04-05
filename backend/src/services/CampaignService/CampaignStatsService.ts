@@ -32,7 +32,6 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
 
     // Se é campanha por TAG, contar contatos da tag
     if (campaign.tagListId && !campaign.contactListId) {
-      console.log(`[CAMPAIGN-STATS] Campanha ${campaignId} é por TAG (tagListId: ${campaign.tagListId})`);
       
       // Contar contatos únicos da tag
       const contactTags = await ContactTag.findAll({
@@ -55,10 +54,8 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
       totalContacts = contactTags.length;
       uniqueNumbers = totalContacts;
       
-      console.log(`[CAMPAIGN-STATS] Total de contatos na tag: ${totalContacts}`);
     } else if (campaign.contactListId) {
       // Para campanhas por lista, contar contatos da lista
-      console.log(`[CAMPAIGN-STATS] Campanha ${campaignId} é por lista de contatos (contactListId: ${campaign.contactListId})`);
       
       totalContacts = await ContactListItem.count({
         where: { contactListId: campaign.contactListId }
@@ -67,10 +64,8 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
       // Para campanhas por lista, uniqueNumbers deve ser o total de contatos válidos da lista
       uniqueNumbers = totalContacts;
       
-      console.log(`[CAMPAIGN-STATS] Total de contatos na lista: ${totalContacts}, Destinatários únicos (total da lista): ${uniqueNumbers}`);
     } else {
       // Fallback para campanhas sem lista/tag específica
-      console.log(`[CAMPAIGN-STATS] Campanha ${campaignId} sem lista/tag específica`);
       
       const uniqueNumbersResult = await CampaignShipping.findAll({
         where: { campaignId },
@@ -108,7 +103,6 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
       actualPendingMessages = totalPendingFromTag;
       totalMessages = totalContacts;
       
-      console.log(`[CAMPAIGN-STATS] Campanha por TAG - Total contatos: ${totalContacts}, Enviados: ${deliveredMessages}, Pendentes na fila: ${pendingMessages}, Pendentes da tag: ${totalPendingFromTag}`);
     } else if (campaign.contactListId) {
       // Para campanhas por lista, o total deve ser o número de contatos da lista
       // Calcular pendentes reais incluindo contatos que ainda não foram processados
@@ -116,7 +110,6 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
       actualPendingMessages = totalPendingFromList;
       totalMessages = totalContacts;
       
-      console.log(`[CAMPAIGN-STATS] Campanha por LISTA - Total contatos: ${totalContacts}, Enviados: ${deliveredMessages}, Pendentes na fila: ${pendingMessages}, Pendentes da lista: ${totalPendingFromList}`);
     }
 
     // Buscar confirmações
@@ -140,7 +133,6 @@ const CampaignStatsService = async (campaignId: string | number): Promise<Campai
     // Falhas são apenas mensagens que realmente falharam no envio, não pendentes
     const failedMessages = 0; // Por enquanto, não temos sistema de falhas implementado
 
-    console.log(`[CAMPAIGN-STATS] Estatísticas finais - Total: ${totalMessages}, Entregues: ${deliveredMessages}, Pendentes: ${actualPendingMessages}, Falhas: ${failedMessages}, Taxa: ${deliveryRate.toFixed(2)}%`);
 
     return {
       totalMessages,

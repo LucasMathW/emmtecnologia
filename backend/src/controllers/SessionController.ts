@@ -145,7 +145,6 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  console.log("REMOVE");
   const { id } = req.user;
   if (id) {
     const user = await User.findByPk(id);

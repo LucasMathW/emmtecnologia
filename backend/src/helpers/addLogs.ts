@@ -10,7 +10,6 @@ export async function addLogs({fileName, text, forceNewFile=false}) {
 
     try {
 
-        console.log(logs)
         if (!fs.existsSync(logs)) {
           fs.mkdirSync(logs);
         }
@@ -21,17 +20,14 @@ export async function addLogs({fileName, text, forceNewFile=false}) {
   try {
     if(forceNewFile){
       await fsp.writeFile(filePath,  `${text} \n`);
-      console.log(`Novo Arquivo de log adicionado ${filePath}\n \n ${text}`);
 
     }else
 
     await fsp.appendFile(filePath, `${text} \n` );
-    console.log(`Texto adicionado ao arquivo de log ${filePath}\n \n ${text}`);
   } catch (err) {
     if (err.code === 'ENOENT') {
       // O arquivo não existe, então cria e adiciona o texto
       await fsp.writeFile(filePath,  `${text} \n`);
-      console.log(`Novo Arquivo de log adicionado ${filePath}\n \n ${text}`);
     } else {
       console.error('Erro ao manipular o arquivo de log:', err);
     }

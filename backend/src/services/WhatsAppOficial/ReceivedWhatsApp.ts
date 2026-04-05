@@ -219,8 +219,6 @@ export class ReceibedWhatsAppService {
       logger.info(`[${this.constructor.name}] getMessage`);
       const { message, fromNumber, nameContact, token } = data;
 
-      console.log("########################## message", message);
-      console.log("########################## TOKEN", token);
 
       const conexao = await Whatsapp.findOne({ where: { token } });
 
@@ -313,13 +311,11 @@ export class ReceibedWhatsAppService {
 
         const base64Data = file.replace(/^data:image\/\w+;base64,/, "");
 
-        console.log("base64Data", base64Data);
 
         const buffer = Buffer.from(base64Data, "base64");
 
         fileName = `${idFile}.${mimeToExtension[mimeType]}`;
 
-        console.log("fileName", fileName);
 
         const folder = path.resolve(
           __dirname,
@@ -330,7 +326,6 @@ export class ReceibedWhatsAppService {
           `company${companyId}`
         );
 
-        console.log("folder", folder);
 
         // const folder = `public/company${companyId}`; // Correção adicionada por Altemir 16-08-2023
         if (!existsSync(folder)) {
@@ -610,7 +605,6 @@ export class ReceibedWhatsAppService {
         logger.error(
           `[WHATSAPP OFICIAL] Erro ao verificar horário de atendimento: ${e}`
         );
-        console.log(e);
       }
 
       if (
@@ -692,7 +686,6 @@ export class ReceibedWhatsAppService {
             "[WHATSAPP OFICIAL] Ticket sem integração, pulando verificação de campanhas"
           );
         } else {
-          console.log("[WHATSAPP OFICIAL] Verificando campanhas de fluxo...");
 
           const contactForCampaign = await ShowContactService(
             ticket.contactId,
@@ -945,7 +938,6 @@ export class ReceibedWhatsAppService {
 
         // ✅ VERIFICAR SE É TYPEBOT
         if (integrations.type === "typebot") {
-          console.log("[TYPEBOT OFICIAL] Enviando mensagem para Typebot");
           try {
             await typebotListenerOficial({
               ticket,
@@ -1052,7 +1044,6 @@ export class ReceibedWhatsAppService {
 
         // ✅ VERIFICAR SE É TYPEBOT
         if (integrations.type === "typebot") {
-          console.log("[TYPEBOT OFICIAL] Continuando conversa com Typebot");
           try {
             await typebotListenerOficial({
               ticket,
@@ -1294,7 +1285,6 @@ export class ReceibedWhatsAppService {
 
     try {
       logger.info(`[${this.constructor.name}] readMessage`);
-      console.log("data READ", data);
       const conexao = await Whatsapp.findOne({ where: { token, companyId } });
 
       if (!conexao) {

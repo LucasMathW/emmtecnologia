@@ -151,13 +151,11 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
 
   // 1. Verificar se foi enviado pelo campo de áudio (resposta rápida)
   if (media.fieldname === "audio") {
-    console.log("✅ Detectado como áudio pelo fieldname");
     return true;
   }
 
   // 2. Verificar mimetype
   if (media.mimetype && media.mimetype.startsWith("audio/")) {
-    console.log("✅ Detectado como áudio pelo mimetype:", media.mimetype);
     return true;
   }
 
@@ -175,7 +173,6 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
     const extension = path.extname(media.originalname).toLowerCase();
 
     if (audioExtensions.includes(extension)) {
-      console.log("✅ Detectado como áudio pela extensão:", extension);
       return true;
     }
   }
@@ -187,11 +184,9 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
       media.originalname.includes("áudio") ||
       media.originalname.includes("voice"))
   ) {
-    console.log("✅ Detectado como áudio pelo padrão do nome");
     return true;
   }
 
-  console.log("❌ Não detectado como áudio");
   return false;
 };
 
@@ -223,9 +218,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
         });
 
         if (isAudioFile(media)) {
-          console.log("🎵 Processando como arquivo de áudio");
         } else {
-          console.log("📎 Processando como arquivo comum");
         }
 
         if (ticket.channel === "whatsapp") {
@@ -261,7 +254,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
               await verifyMessageMedia(sentMedia, ticket, ticket.contact, true);
             }
           } catch (error) {
-            console.log(error);
           }
         }
       }
@@ -1012,7 +1004,6 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
         "Essa empresa não tem permissão para usar a API Externa. Entre em contato com o Suporte para verificar nossos planos!"
     });
   } catch (err: any) {
-    console.log(err);
     if (Object.keys(err).length === 0) {
       throw new AppError(
         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
@@ -1170,7 +1161,6 @@ export const storeTemplate = async (
       }
     }
   }
-  console.log(JSON.stringify(templateData, null, 2));
   const newBodyToSave = bodyToSave.concat(
     "||||",
     JSON.stringify(buttonsToSave)

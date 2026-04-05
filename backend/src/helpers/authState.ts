@@ -31,7 +31,6 @@ const authState = async (
         session: JSON.stringify({ creds, keys }, BufferJSON.replacer, 0)
       });
     } catch (error) {
-      console.log(error);
     }
   };
 
@@ -68,7 +67,6 @@ const authState = async (
           const key = KEY_MAP[type];
           // Handle case where key might not exist in KEY_MAP
           if (!key) {
-            console.warn(`Unknown key type: ${type}`);
             return {};
           }
 
@@ -89,7 +87,6 @@ const authState = async (
             const key = KEY_MAP[i as keyof SignalDataTypeMap];
             // Skip if key doesn't exist in mapping
             if (!key) {
-              console.warn(`Unknown data type: ${i}`);
               continue;
             }
             keys[key] = keys[key] || {};

@@ -12,8 +12,6 @@ export interface SearchContactParams {
 
 const SimpleListService = async ({ name, companyId, userId }: SearchContactParams): Promise<Contact[]> => {
 
-  console.log("userId", userId);
-  console.log("companyId", companyId);
 
   let options: FindOptions = {
     order: [

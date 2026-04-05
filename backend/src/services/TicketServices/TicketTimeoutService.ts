@@ -33,24 +33,20 @@ const TicketTimeoutService = async ({
       });
 
       if (!ticket) {
-        console.log(`[TICKET TIMEOUT] Ticket ${ticketId} não encontrado`);
         return;
       }
 
       // Verificar se o ticket ainda está pendente (não foi aceito)
       if (ticket.status !== "pending") {
-        console.log(`[TICKET TIMEOUT] Ticket ${ticketId} já foi aceito, cancelando timeout`);
         return;
       }
 
       // Verificar se a fila ainda tem randomização imediata ativada
       const queue = await Queue.findByPk(queueId);
       if (!queue || !queue.randomizeImmediate || !queue.ativarRoteador) {
-        console.log(`[TICKET TIMEOUT] Randomização imediata desativada para fila ${queueId}`);
         return;
       }
 
-      console.log(`[TICKET TIMEOUT] Timeout atingido para ticket ${ticketId}, transferindo para próximo usuário`);
 
       // Buscar próximo usuário disponível
       const nextUserResult = await ListUserQueueImmediateService(queueId, ticketId);
@@ -84,7 +80,6 @@ const TicketTimeoutService = async ({
           }
         });
 
-        console.log(`[TICKET TIMEOUT] Ticket ${ticketId} transferido para usuário ${nextUserResult.userId}`);
 
         // Agendar próximo timeout se necessário
         await TicketTimeoutService({
@@ -94,7 +89,6 @@ const TicketTimeoutService = async ({
           timeoutMinutes
         });
       } else if (nextUserResult.isImmediate && !nextUserResult.userId) {
-        console.log(`[TICKET TIMEOUT] Nenhum usuário online disponível para ticket ${ticketId}, mantendo na fila`);
         // Não agendar próximo timeout se não há usuários disponíveis
       }
     } catch (error) {

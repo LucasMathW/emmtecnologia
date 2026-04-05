@@ -82,7 +82,6 @@ const FlowsCampaignGetDataService = async ({
             campaignData.phrase = JSON.parse(campaignData.phrase);
           }
         } catch (error) {
-          console.warn(`Erro ao parsear phrases da campanha ${campaign.id}:`, error);
           // Manter como array vazio se não conseguir parsear
           campaignData.phrase = [];
         }

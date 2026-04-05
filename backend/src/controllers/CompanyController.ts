@@ -118,7 +118,6 @@ const calculateDirectoryMetrics = async (
 
   try {
     if (!fs.existsSync(folderPath)) {
-      console.warn(`Directory does not exist: ${folderPath}`);
       const result: DirectoryMetrics = {
         folderSize: 0,
         numberOfFiles: 0,
