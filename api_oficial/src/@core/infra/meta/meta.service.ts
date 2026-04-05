@@ -143,12 +143,22 @@ export class MetaService {
       const headers = { Authorization: `Bearer ${token}` };
       const formData = new FormData();
 
-      // Converter Buffer para Uint8Array para compatibilidade com Blob
-      const uint8Array = new Uint8Array(file.buffer);
-      const blob = new Blob([uint8Array], { type: file.mimetype });
+      // Multer pode usar diskStorage (file.path) ou memoryStorage (file.buffer)
+      let fileData: Buffer;
+      const originalname = file.originalname;
+
+      if (file.path) {
+        fileData = readFileSync(file.path);
+      } else if (file.buffer) {
+        fileData = file.buffer;
+      } else {
+        throw new Error('Arquivo não encontrado (sem path nem buffer)');
+      }
+
+      const blob = new Blob([fileData as BlobPart], { type: file.mimetype });
       formData.append('messaging_product', 'whatsapp');
       formData.append('type', file.mimetype);
-      formData.append('file', blob, file.originalname);
+      formData.append('file', blob, originalname);
 
       const result = await fetch(`${this.urlMeta}/${numberId}/media`, {
         method: 'POST',

@@ -80,6 +80,153 @@ export class SendMessageWhatsappService {
     }
   }
 
+  async sendMessageWithFile(
+    token: string,
+    rawData: any,
+    file?: Express.Multer.File,
+  ) {
+    this.logger.log(`Enviando mensagem com arquivo para ${rawData.to}`);
+
+    const conexao = await this.prisma.whatsappOficial.findFirst({
+      where: { token_mult100: token },
+      include: { company: true },
+    });
+
+    if (!conexao) {
+      throw new NotFoundException('Conexão não encontrada para o token informado');
+    }
+
+    try {
+      // Normalizar campos do backend (body_text -> text, body_image -> image, etc.)
+      const normalized = this.normalizeBackendPayload(rawData, file);
+
+      // Upload do arquivo para Meta se necessário
+      if (file && !normalized.image?.link && !normalized.video?.link && !normalized.audio?.id && !normalized.document?.link) {
+        const uploadResult = await this.metaService.uploadMedia(
+          conexao.phone_number_id,
+          conexao.send_token,
+          file,
+        );
+        const mediaId = uploadResult?.id;
+        if (mediaId) {
+          this.setMediaId(normalized, mediaId);
+        }
+      }
+
+      const payload = await this.buildMetaPayload(normalized, conexao);
+
+      const result = await this.metaService.sendMessage(
+        conexao.phone_number_id,
+        conexao.send_token,
+        payload,
+      );
+
+      const savedMessage = await this.prisma.sendMessageWhatsApp.create({
+        data: {
+          type: normalized.type || rawData.type,
+          to: rawData.to || normalized.to,
+          text: normalized.text ? JSON.stringify(normalized.text) : null,
+          image: normalized.image ? JSON.stringify(normalized.image) : null,
+          audio: normalized.audio ? JSON.stringify(normalized.audio) : null,
+          video: normalized.video ? JSON.stringify(normalized.video) : null,
+          document: normalized.document ? JSON.stringify(normalized.document) : null,
+          template: normalized.template ? JSON.stringify(normalized.template) : null,
+          interactive: normalized.interactive ? JSON.stringify(normalized.interactive) : null,
+          contacts: normalized.contacts ? JSON.stringify(normalized.contacts) : null,
+          whatsappOficialId: conexao.id,
+        },
+      });
+
+      if (result?.messages?.[0]?.id) {
+        await this.redis.set(
+          `msg:${result.messages[0].id}`,
+          JSON.stringify({
+            id: savedMessage.id,
+            to: normalized.to,
+            type: normalized.type,
+            status: 'sent',
+            conexaoId: conexao.id,
+          }),
+          86400,
+        );
+      }
+
+      return {
+        success: true,
+        messageId: result?.messages?.[0]?.id || null,
+        idMessageWhatsApp: [result?.messages?.[0]?.id || null],
+        internalId: savedMessage.id,
+      };
+    } catch (error) {
+      this.logger.error(`Erro ao enviar mensagem com arquivo: ${error.message}`);
+      throw new BadRequestException(`Erro ao enviar mensagem: ${error.message}`);
+    }
+  }
+
+  /**
+   * Converte o payload do formato do backend para o formato interno.
+   * Backend envia: body_text, body_image, body_document, body_video, body_audio, etc.
+   * API Oficial usa: text, image, document, video, audio, etc.
+   */
+  private normalizeBackendPayload(rawData: any, file?: Express.Multer.File): SendMessageDto {
+    const dto: any = {
+      to: rawData.to,
+      type: rawData.type,
+      context: rawData.quotedId ? { message_id: rawData.quotedId } : undefined,
+    };
+
+    if (rawData.body_text) {
+      dto.text = {
+        body: rawData.body_text.body,
+        preview_url: rawData.body_text.preview_url,
+      };
+    }
+    if (rawData.body_image) {
+      if (rawData.body_image.id || rawData.body_image.link) {
+        dto.image = rawData.body_image;
+      }
+    }
+    if (rawData.body_video) {
+      if (rawData.body_video.id || rawData.body_video.link) {
+        dto.video = rawData.body_video;
+      }
+    }
+    if (rawData.body_audio) {
+      if (rawData.body_audio.id || rawData.body_audio.link) {
+        dto.audio = rawData.body_audio;
+      }
+    }
+    if (rawData.body_document) {
+      if (rawData.body_document.id || rawData.body_document.link) {
+        dto.document = rawData.body_document;
+      }
+    }
+    if (rawData.body_location) {
+      dto.location = rawData.body_location;
+    }
+    if (rawData.body_contacts) {
+      dto.contacts = Array.isArray(rawData.body_contacts) ? rawData.body_contacts : [rawData.body_contacts];
+    }
+    if (rawData.body_interactive) {
+      dto.interactive = rawData.body_interactive;
+    }
+    if (rawData.body_template) {
+      dto.template = rawData.body_template;
+    }
+    if (rawData.body_reaction) {
+      dto.reaction = rawData.body_reaction;
+    }
+
+    return dto as SendMessageDto;
+  }
+
+  private setMediaId(dto: any, mediaId: string) {
+    if (dto.text || dto.image) dto.image = { id: mediaId };
+    if (dto.video) dto.video = { id: mediaId };
+    if (dto.audio) dto.audio = { id: mediaId };
+    if (dto.document) dto.document = { id: mediaId };
+  }
+
   private async buildMetaPayload(dto: SendMessageDto, conexao: any): Promise<any> {
     const payload: any = {
       messaging_product: 'whatsapp',
@@ -88,7 +235,6 @@ export class SendMessageWhatsappService {
       type: dto.type,
     };
 
-    // Adicionar contexto se for resposta
     if (dto.context) {
       payload.context = {
         message_id: dto.context.message_id,
@@ -150,7 +296,6 @@ export class SendMessageWhatsappService {
   private async processMedia(media: any, conexao: any): Promise<any> {
     if (!media) return null;
 
-    // Se já tem ID, usar direto
     if (media.id) {
       const result: any = { id: media.id };
       if (media.caption) result.caption = media.caption;
@@ -158,7 +303,6 @@ export class SendMessageWhatsappService {
       return result;
     }
 
-    // Se tem link, pode usar direto ou fazer upload
     if (media.link) {
       const result: any = { link: media.link };
       if (media.caption) result.caption = media.caption;
@@ -199,7 +343,7 @@ export class SendMessageWhatsappService {
 
   async getMessageStatus(token: string, messageId: string) {
     const cached = await this.redis.get(`msg:${messageId}`);
-    
+
     if (cached) {
       return JSON.parse(cached);
     }

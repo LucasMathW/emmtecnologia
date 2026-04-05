@@ -5869,46 +5869,67 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     }
   });
 
-  wbot.ev.on("contacts.update", (contacts: any) => {
-    // Logs de debug de contacts.update removidos para produção
+  wbot.ev.on("contacts.update", async (contacts: any) => {
+    for (const contact of contacts) {
+      try {
+        if (!contact?.id) continue;
 
-    contacts.forEach(async (contact: any) => {
-      if (!contact?.id) return;
+        if (
+          !contact.id.includes("@s.whatsapp.net") &&
+          !contact.id.includes("@g.us")
+        ) {
+          continue;
+        }
 
-      if (
-        !contact.id.includes("@s.whatsapp.net") &&
-        !contact.id.includes("@g.us")
-      ) {
-        return;
+        const isGroup = contact.id.includes("@g.us");
+        const number = isGroup
+          ? contact.id.replace("@g.us", "")
+          : contact.id.replace("@s.whatsapp.net", "");
+
+        if (!/^\d{10,18}$/.test(number)) {
+          continue;
+        }
+
+        // Se contact.imgUrl é vazio, o contato não tem foto de perfil
+        if (contact.imgUrl === "") {
+          logger.info(
+            `[PIC] Contato ${number} removeu ou não possui foto de perfil, ignorando update`
+          );
+          continue;
+        }
+
+        // Busca a URL mais recente da foto diretamente do WhatsApp
+        const profilePicUrl = await wbot
+          .profilePictureUrl(contact.id, "image")
+          .catch(() => null);
+
+        if (!profilePicUrl || profilePicUrl.includes("nopicture")) {
+          logger.info(
+            `[PIC] Contato ${number} não possui foto de perfil válida no WhatsApp`
+          );
+          continue;
+        }
+
+        const contactData = {
+          name: number,
+          number,
+          isGroup,
+          companyId,
+          remoteJid: contact.id,
+          profilePicUrl,
+          whatsappId: wbot.id,
+          wbot
+        };
+
+        await CreateOrUpdateContactService(contactData);
+
+        logger.info(`[PIC] Foto de perfil atualizada para o contato ${number}`);
+      } catch (error) {
+        logger.error(
+          `[PIC] Erro ao atualizar foto de perfil do contato ${contact?.id}: ${error.message}`
+        );
       }
-
-      const isGroup = contact.id.includes("@g.us");
-      const number = isGroup
-        ? contact.id.replace("@g.us", "")
-        : contact.id.replace("@s.whatsapp.net", "");
-
-      if (!/^\d{10,15}$/.test(number)) {
-        return;
-      }
-
-      const profilePicUrl =
-        contact.imgUrl === ""
-          ? ""
-          : await wbot.profilePictureUrl(contact.id).catch(() => null);
-
-      const contactData = {
-        name: number,
-        number,
-        isGroup,
-        companyId,
-        remoteJid: contact.id,
-        profilePicUrl,
-        whatsappId: wbot.id,
-        wbot
-      };
-
-      await CreateOrUpdateContactService(contactData);
-    });
+    }
   });
   // Handlers extras removidos para produção
   wbot.ev.on("group-participants.update", async event => {

@@ -17,14 +17,25 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const send_message_whatsapp_service_1 = require("./send-message-whatsapp.service");
-const send_message_dto_1 = require("./dto/send-message.dto");
 const auth_decorator_1 = require("../../../@core/guard/auth.decorator");
 let SendMessageWhatsappController = class SendMessageWhatsappController {
     constructor(sendMessageService) {
         this.sendMessageService = sendMessageService;
     }
-    async sendMessage(token, sendMessageDto) {
-        return this.sendMessageService.sendMessage(token, sendMessageDto);
+    async sendMessage(token, body, file) {
+        if (file || body.data) {
+            const rawData = typeof body.data === 'string' ? JSON.parse(body.data) : body.data || body;
+            if (!file && file === undefined) {
+                try {
+                    return this.sendMessageService.sendMessage(token, rawData);
+                }
+                catch {
+                    return this.sendMessageService.sendMessageWithFile(token, rawData);
+                }
+            }
+            return this.sendMessageService.sendMessageWithFile(token, rawData, file);
+        }
+        return this.sendMessageService.sendMessage(token, body);
     }
     async uploadMedia(token, file) {
         return this.sendMessageService.uploadMedia(token, file);
@@ -37,14 +48,16 @@ exports.SendMessageWhatsappController = SendMessageWhatsappController;
 __decorate([
     (0, auth_decorator_1.Public)(),
     (0, common_1.Post)(':token'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     (0, swagger_1.ApiOperation)({ summary: 'Enviar mensagem via WhatsApp Oficial' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Mensagem enviada com sucesso' }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Erro ao enviar mensagem' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Conexão não encontrada' }),
     __param(0, (0, common_1.Param)('token')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, send_message_dto_1.SendMessageDto]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SendMessageWhatsappController.prototype, "sendMessage", null);
 __decorate([

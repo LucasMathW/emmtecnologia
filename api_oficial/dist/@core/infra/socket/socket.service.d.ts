@@ -7,8 +7,15 @@ export declare class SocketService implements OnModuleDestroy {
     constructor();
     onModuleDestroy(): void;
     private getSocket;
+    private isHttpConnection;
+    private getBaseUrl;
     sendMessage(data: IReceivedWhatsppOficial): Promise<void>;
     readMessage(data: IReceivedWhatsppOficialRead): Promise<void>;
+    sendStatusUpdate(params: {
+        messageId: string;
+        status: string;
+        companyId: number;
+    }): Promise<void>;
     private setupSocketEvents;
     emit(event: string, data: any): Promise<void>;
 }

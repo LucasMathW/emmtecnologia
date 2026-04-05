@@ -125,11 +125,21 @@ let MetaService = MetaService_1 = class MetaService {
         try {
             const headers = { Authorization: `Bearer ${token}` };
             const formData = new FormData();
-            const uint8Array = new Uint8Array(file.buffer);
-            const blob = new Blob([uint8Array], { type: file.mimetype });
+            let fileData;
+            const originalname = file.originalname;
+            if (file.path) {
+                fileData = (0, fs_1.readFileSync)(file.path);
+            }
+            else if (file.buffer) {
+                fileData = file.buffer;
+            }
+            else {
+                throw new Error('Arquivo não encontrado (sem path nem buffer)');
+            }
+            const blob = new Blob([fileData], { type: file.mimetype });
             formData.append('messaging_product', 'whatsapp');
             formData.append('type', file.mimetype);
-            formData.append('file', blob, file.originalname);
+            formData.append('file', blob, originalname);
             const result = await fetch(`${this.urlMeta}/${numberId}/media`, {
                 method: 'POST',
                 headers,

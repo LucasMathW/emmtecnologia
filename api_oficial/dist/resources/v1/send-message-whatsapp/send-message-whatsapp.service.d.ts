@@ -13,6 +13,14 @@ export declare class SendMessageWhatsappService {
         messageId: string;
         internalId: number;
     }>;
+    sendMessageWithFile(token: string, rawData: any, file?: Express.Multer.File): Promise<{
+        success: boolean;
+        messageId: string;
+        idMessageWhatsApp: string[];
+        internalId: number;
+    }>;
+    private normalizeBackendPayload;
+    private setMediaId;
     private buildMetaPayload;
     private processMedia;
     uploadMedia(token: string, file: Express.Multer.File): Promise<{

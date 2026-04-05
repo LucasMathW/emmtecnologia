@@ -21,15 +21,31 @@ export class SendMessageWhatsappController {
 
   @Public()
   @Post(':token')
+  @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Enviar mensagem via WhatsApp Oficial' })
   @ApiResponse({ status: 200, description: 'Mensagem enviada com sucesso' })
   @ApiResponse({ status: 400, description: 'Erro ao enviar mensagem' })
   @ApiResponse({ status: 404, description: 'Conexão não encontrada' })
   async sendMessage(
     @Param('token') token: string,
-    @Body() sendMessageDto: SendMessageDto,
+    @Body() body: any,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.sendMessageService.sendMessage(token, sendMessageDto);
+    // Se há arquivo, usa o método com arquivo (multipart)
+    if (file || body.data) {
+      const rawData = typeof body.data === 'string' ? JSON.parse(body.data) : body.data || body;
+      // Se não há arquivo mas veio no formato JSON simples, tenta sendMessage normal
+      if (!file && file === undefined) {
+        try {
+          return this.sendMessageService.sendMessage(token, rawData);
+        } catch {
+          return this.sendMessageService.sendMessageWithFile(token, rawData);
+        }
+      }
+      return this.sendMessageService.sendMessageWithFile(token, rawData, file);
+    }
+    // Envio JSON puro
+    return this.sendMessageService.sendMessage(token, body);
   }
 
   @Public()

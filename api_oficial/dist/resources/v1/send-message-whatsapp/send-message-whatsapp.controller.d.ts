@@ -1,9 +1,8 @@
 import { SendMessageWhatsappService } from './send-message-whatsapp.service';
-import { SendMessageDto } from './dto/send-message.dto';
 export declare class SendMessageWhatsappController {
     private readonly sendMessageService;
     constructor(sendMessageService: SendMessageWhatsappService);
-    sendMessage(token: string, sendMessageDto: SendMessageDto): Promise<{
+    sendMessage(token: string, body: any, file?: Express.Multer.File): Promise<{
         success: boolean;
         messageId: string;
         internalId: number;

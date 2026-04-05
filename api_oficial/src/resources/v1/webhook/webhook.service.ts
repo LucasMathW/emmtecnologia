@@ -292,11 +292,18 @@ export class WebhookService {
       },
     };
 
-    // Enviar via WebSocket
+    // Enviar read message via WebSocket/HTTP
     await this.socket.readMessage({
       messageId: status.id,
       companyId: conexao.companyId,
       token: conexao.token_mult100,
+    });
+
+    // Enviar status update completo para o backend
+    await this.socket.sendStatusUpdate({
+      messageId: status.id,
+      status: status.status,
+      companyId: conexao.companyId,
     });
 
     // Atualizar cache de status

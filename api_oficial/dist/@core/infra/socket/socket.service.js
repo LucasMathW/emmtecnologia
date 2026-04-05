@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SocketService = void 0;
 const common_1 = require("@nestjs/common");
 const socket_io_client_1 = require("socket.io-client");
+const axios_1 = require("axios");
 let SocketService = SocketService_1 = class SocketService {
     constructor() {
         this.connections = new Map();
@@ -47,21 +48,33 @@ let SocketService = SocketService_1 = class SocketService {
                 token: `Bearer ${process.env.TOKEN_ADMIN || ''}`,
             },
             reconnection: true,
+            reconnectionDelay: 2000,
+            reconnectionAttempts: 10,
             transports: ['websocket', 'polling'],
+            timeout: 10000,
         });
         this.setupSocketEvents(newSocket, id);
         this.connections.set(id, newSocket);
         return new Promise((resolve, reject) => {
-            newSocket.on('connect', () => {
+            newSocket.once('connect', () => {
                 this.logger.log(`Conectado ao websocket do servidor ${this.url}/${id}`);
                 resolve(newSocket);
             });
-            newSocket.on('connect_error', (error) => {
+            newSocket.once('connect_error', (error) => {
                 this.logger.error(`Erro de conexão para empresa ${id}: ${error.message}`);
                 this.connections.delete(id);
                 reject(error);
             });
         });
+    }
+    isHttpConnection() {
+        const u = (this.url || '').toLowerCase();
+        return (u.includes('localhost') ||
+            u.includes('127.0.0.1') ||
+            u.startsWith('http://'));
+    }
+    getBaseUrl() {
+        return (this.url || '').replace(/\/$/, '');
     }
     async sendMessage(data) {
         try {
@@ -69,9 +82,36 @@ let SocketService = SocketService_1 = class SocketService {
             const socket = await this.getSocket(data.companyId);
             this.logger.warn(`Enviando mensagem para o websocket para a empresa ${data.companyId}`);
             socket.emit('receivedMessageWhatsAppOficial', data);
+            return;
         }
         catch (error) {
             this.logger.error(`Falha ao obter socket ou enviar mensagem: ${error.message}`);
+        }
+        try {
+            this.logger.warn(`[HTTP FALLBACK] Enviando mensagem via HTTP para empresa ${data.companyId}`);
+            const baseUrl = this.getBaseUrl();
+            if (!baseUrl) {
+                this.logger.error('[HTTP FALLBACK] URL do backend não configurada');
+                return;
+            }
+            await axios_1.default.post(`${baseUrl}/whatsapp-oficial/receive`, {
+                token: process.env.TOKEN_ADMIN || '',
+                fromNumber: data.fromNumber,
+                nameContact: data.nameContact,
+                companyId: data.companyId,
+                message: data.message,
+            }, {
+                headers: {
+                    Authorization: `Bearer ${process.env.TOKEN_ADMIN || ''}`,
+                    'Content-Type': 'application/json',
+                },
+                timeout: 15000,
+            });
+            this.logger.warn(`[HTTP FALLBACK] Mensagem enviada via HTTP para empresa ${data.companyId}`);
+        }
+        catch (err) {
+            const axiosErr = err;
+            this.logger.error(`[HTTP FALLBACK] Falha ao enviar via HTTP: ${axiosErr?.message || err}`);
         }
     }
     async readMessage(data) {
@@ -80,9 +120,55 @@ let SocketService = SocketService_1 = class SocketService {
             const socket = await this.getSocket(data.companyId);
             this.logger.warn(`Enviando 'read' para o websocket para a empresa ${data.companyId}`);
             socket.emit('readMessageWhatsAppOficial', data);
+            return;
         }
         catch (error) {
             this.logger.error(`Falha ao obter socket ou enviar 'read': ${error.message}`);
+        }
+        try {
+            this.logger.warn(`[HTTP FALLBACK] Enviando read via HTTP para empresa ${data.companyId}`);
+            const baseUrl = this.getBaseUrl();
+            if (!baseUrl) {
+                this.logger.error('[HTTP FALLBACK] URL do backend não configurada');
+                return;
+            }
+            await axios_1.default.post(`${baseUrl}/whatsapp-oficial/read`, {
+                messageId: data.messageId,
+                companyId: data.companyId,
+                token: process.env.TOKEN_ADMIN || '',
+            }, {
+                headers: {
+                    Authorization: `Bearer ${process.env.TOKEN_ADMIN || ''}`,
+                    'Content-Type': 'application/json',
+                },
+                timeout: 15000,
+            });
+            this.logger.warn(`[HTTP FALLBACK] Read enviado via HTTP para empresa ${data.companyId}`);
+        }
+        catch (err) {
+            const axiosErr = err;
+            this.logger.error(`[HTTP FALLBACK] Falha ao enviar read via HTTP: ${axiosErr?.message || err}`);
+        }
+    }
+    async sendStatusUpdate(params) {
+        try {
+            const baseUrl = this.getBaseUrl();
+            if (!baseUrl) {
+                this.logger.error('[HTTP STATUS] URL do backend não configurada');
+                return;
+            }
+            await axios_1.default.post(`${baseUrl}/whatsapp-oficial/status`, params, {
+                headers: {
+                    Authorization: `Bearer ${process.env.TOKEN_ADMIN || ''}`,
+                    'Content-Type': 'application/json',
+                },
+                timeout: 10000,
+            });
+            this.logger.log(`[HTTP STATUS] Status enviado: ${params.status} para mensagem ${params.messageId}`);
+        }
+        catch (err) {
+            const axiosErr = err;
+            this.logger.error(`[HTTP STATUS] Falha ao enviar status: ${axiosErr?.message || err}`);
         }
     }
     setupSocketEvents(socket, id) {

@@ -53,16 +53,60 @@ export const updateContact = async (
   contact: Contact,
   contactData: ContactData
 ) => {
-  await contact.update(contactData);
+  // Se uma nova profilePicUrl válida foi passada, baixar a imagem pro disco
+  const newProfilePicUrl = contactData.profilePicUrl;
+  if (newProfilePicUrl && !newProfilePicUrl.includes("nopicture")) {
+    contact.profilePicUrl = newProfilePicUrl;
+
+    const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
+    const folder = path.resolve(
+      publicFolder,
+      `company${contact.companyId}`,
+      "contacts"
+    );
+
+    if (!fs.existsSync(folder)) {
+      fs.mkdirSync(folder, { recursive: true });
+      fs.chmodSync(folder, 0o777);
+    }
+
+    const filename = `${contact.id}.jpeg`;
+    const filePath = path.join(folder, filename);
+
+    // Remove arquivo antigo se diferente
+    const oldUrl = contact.urlPicture;
+    if (oldUrl && oldUrl !== filename && !oldUrl.includes("nopicture")) {
+      const oldBase = oldUrl.replace(/\\/g, "/").split("/").pop();
+      if (oldBase) {
+        const oldFile = path.join(folder, oldBase);
+        if (fs.existsSync(oldFile)) {
+          fs.unlinkSync(oldFile);
+        }
+      }
+    }
+
+    try {
+      const response = await axios.get(newProfilePicUrl, {
+        responseType: "arraybuffer"
+      });
+      fs.writeFileSync(filePath, response.data);
+      contact.setDataValue("urlPicture", filename);
+      contact.pictureUpdated = true;
+    } catch (e) {
+      logger.error(
+        `[PIC-UPDATE] Erro ao baixar foto para contato ${contact.number}: ${e.message}`
+      );
+    }
+  }
+
+  await contact.save();
+  await contact.reload();
 
   const io = getIO();
-  io.to(`company-${contact.companyId}-mainchannel`).emit(
-    `company-${contact.companyId}-contact`,
-    {
-      action: "update",
-      contact
-    }
-  );
+  io.of(String(contact.companyId)).emit(`company-${contact.companyId}-contact`, {
+    action: "update",
+    contact
+  });
   return contact;
 };
 
@@ -168,6 +212,7 @@ const CreateOrUpdateContactService = async ({
       // Se vier nopicture ou vazio, mantém o que estava antes para não sobrescrever
       if (profilePicUrl && !profilePicUrl.includes("nopicture")) {
         contact.profilePicUrl = profilePicUrl;
+        updateImage = true; // forçar download da nova imagem
       } else if (!contact.profilePicUrl) {
         contact.profilePicUrl = profilePicUrl || null;
       }

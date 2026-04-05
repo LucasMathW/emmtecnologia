@@ -237,6 +237,11 @@ let WebhookService = WebhookService_1 = class WebhookService {
             companyId: conexao.companyId,
             token: conexao.token_mult100,
         });
+        await this.socket.sendStatusUpdate({
+            messageId: status.id,
+            status: status.status,
+            companyId: conexao.companyId,
+        });
         const statusKey = 'status:' + conexao.id + ':' + status.id;
         await this.redis.set(statusKey, status.status, 86400);
     }
