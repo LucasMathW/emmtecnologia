@@ -449,7 +449,7 @@ const CreateOrUpdateBaileysReactionService = async ({
       userId: actor.userId,
       fromJid: actor.fromJid,
       originalMessage,
-      fromMe: parsed.isFromMe
+      fromMe: parsed.isFromMe || Boolean(originalMessage.getDataValue("fromMe"))
     });
     return;
   }
