@@ -49,6 +49,7 @@ import flowBuilder from "./flowBuilderRoutes";
 import flowCampaignRoutes from "./flowCampaignRoutes";
 import callRoutes from "./callRoutes";
 import companyKanbanRoutes from "./companyKanbanRoutes";
+import whatsAppOficialRoutes from "./whatsAppOficialRoutes";
 
 import ChatController from "../controllers/ChatController";
 
@@ -56,6 +57,7 @@ const routes = Router();
 
 routes.use(userRoutes);
 routes.use("/auth", authRoutes);
+routes.use(whatsAppOficialRoutes);
 routes.use("/api/messages", apiRoutes);
 routes.use(settingRoutes);
 routes.use(contactRoutes);

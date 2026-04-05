@@ -155,6 +155,8 @@ export const CreateCompanyConnectionOficial = async (data: ICreateConnectionWhat
     }
 }
 
+let _apiStatusChecked = false;
+
 export const checkAPIOficial = async () => {
     try {
 
@@ -163,7 +165,10 @@ export const checkAPIOficial = async () => {
         const res = await axios.get(`${urlApi}`);
 
         if (res.status == 200 || res.status == 201) {
-            console.log('API ONLINE')
+            if (!_apiStatusChecked) {
+                console.log('API ONLINE');
+                _apiStatusChecked = true;
+            }
             return res.data as string;
         }
 

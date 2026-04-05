@@ -384,14 +384,14 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
           whatsappId: whatsapp.id
         });
 
-        /*await SendWhatsAppOficialMessage({
+        await SendWhatsAppOficialMessage({
           body: `\u200e${bodyMessage}`,
           ticket: contactAndTicket,
           quotedMsg,
           type: 'text',
           media: null,
           vCard: null
-        }); */
+        });
       } else {
         messageCreated = await MessageApi.create({
           companyId,

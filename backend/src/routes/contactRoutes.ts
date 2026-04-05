@@ -85,6 +85,11 @@ contactRoutes.delete(
   isAuth,
   ContactController.deleteContactWallet
 );
+contactRoutes.put(
+  "/contacts/:contactId/refresh-profile-pic",
+  isAuth,
+  ContactController.refreshProfilePic
+);
 // contactRoutes.get("/contacts/list-whatsapp", isAuth, ContactController.listWhatsapp);
 
 export default contactRoutes;

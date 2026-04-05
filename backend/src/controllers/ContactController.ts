@@ -48,6 +48,7 @@ import ToggleDisableBotContactService from "../services/ContactServices/ToggleDi
 import GetGroupParticipantsService from "../services/ContactServices/GetGroupParticipantsService";
 import SearchContactMessagesService from "../services/ContactServices/SearchContactMessagesService";
 import BulkDeleteContactsService from "../services/ContactServices/BulkDeleteContactsService";
+import ForceProfilePicRefresh from "../services/WbotServices/ForceProfilePicRefresh";
 import DeleteAllContactsService from "../services/ContactServices/DeleteAllContactsService";
 import GetDefaultWhatsApp from "../helpers/GetDefaultWhatsApp";
 import Contact from "../models/Contact";
@@ -849,5 +850,30 @@ export const deleteAll = async (
       throw new AppError(`Validation error: ${err.message}`, 400);
     }
     throw err;
+  }
+};
+
+export const refreshProfilePic = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const contactId = getRequestParam(req.params.contactId, "contactId");
+    const { companyId } = req.user;
+
+    const { contact, updated } = await ForceProfilePicRefresh(
+      contactId,
+      companyId
+    );
+
+    const io = getIO();
+    io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+      action: "update",
+      contact
+    });
+
+    return res.status(200).json({ contact, updated });
+  } catch (error: any) {
+    throw new AppError(error.message || "Erro ao atualizar foto de perfil", 500);
   }
 };
