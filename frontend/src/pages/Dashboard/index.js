@@ -314,50 +314,50 @@ const Dashboard = () => {
           ...params,
           date_from: moment(dateStartTicket).format("YYYY-MM-DD"),
         };
-        console.log('Data de início:', dateStartTicket);
+        if (process.env.NODE_ENV === "development") console.log('Data de início:', dateStartTicket);
       }
-  
+
       if (!isEmpty(dateEndTicket) && moment(dateEndTicket).isValid()) {
         params = {
           ...params,
           date_to: moment(dateEndTicket).format("YYYY-MM-DD"),
         };
-        console.log('Data de fim:', dateEndTicket);
+        if (process.env.NODE_ENV === "development") console.log('Data de fim:', dateEndTicket);
       }
     }
-  
+
     // Se nenhum parâmetro foi definido, usar período padrão de 30 dias
     if (Object.keys(params).length === 0) {
-      console.log('Nenhum filtro definido, usando 30 dias como padrão');
+      if (process.env.NODE_ENV === "development") console.log('Nenhum filtro definido, usando 30 dias como padrão');
       params = { days: 30 };
     }
-  
-    console.log('Parâmetros finais para busca:', params);
-  
+
+    if (process.env.NODE_ENV === "development") console.log('Parâmetros finais para busca:', params);
+
     try {
       const data = await find(params);
-      console.log('Dados recebidos no componente:', data);
-  
+      if (process.env.NODE_ENV === "development") console.log('Dados recebidos no componente:', data);
+
       // Garantir que counters sempre tenha valores válidos
       const safeCounters = data.counters || {};
-      
+
       // Verificar especificamente o campo tickets
-      console.log('Campo tickets recebido:', safeCounters.tickets);
-      
+      if (process.env.NODE_ENV === "development") console.log('Campo tickets recebido:', safeCounters.tickets);
+
       setCounters(safeCounters);
-      
+
       if (isArray(data.attendants)) {
         setAttendants(data.attendants);
       } else {
         console.warn('Attendants não é um array:', data.attendants);
         setAttendants([]);
       }
-  
-      console.log('Estado atualizado - Counters:', safeCounters);
-      console.log('Estado atualizado - Attendants:', data.attendants);
-      
-      // Log específico para verificar se o campo tickets está presente
-      console.log('Valor de tickets no estado:', safeCounters.tickets);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log('Estado atualizado - Counters:', safeCounters);
+        console.log('Estado atualizado - Attendants:', data.attendants);
+        console.log('Valor de tickets no estado:', safeCounters.tickets);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
       toast.error('Erro ao carregar dados do dashboard');

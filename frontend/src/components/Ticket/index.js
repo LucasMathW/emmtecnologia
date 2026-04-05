@@ -137,7 +137,7 @@ const Ticket = () => {
             const lsKey2 = `${companyId}-${data.contact?.id}`;
             const storedLs = JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey] || JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey2] || "";
             const finalPic = storedPic || storedLs;
-            console.log("[FETCH TICKET] storedPic:", storedPic?.substring(0, 60), "storedLs:", storedLs?.substring(0, 60), "finalPic:", finalPic?.substring(0, 60));
+            if (process.env.NODE_ENV === "development") console.log("[FETCH TICKET] storedPic:", storedPic?.substring(0, 60), "storedLs:", storedLs?.substring(0, 60), "finalPic:", finalPic?.substring(0, 60));
             if (finalPic) {
               const separator = finalPic.includes("?") ? "" : `?t=${Date.now()}`;
               contactData = { ...data.contact, urlPicture: `${finalPic}${separator}` };

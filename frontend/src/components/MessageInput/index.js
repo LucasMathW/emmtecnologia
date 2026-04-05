@@ -775,7 +775,7 @@ const MessageInput = ({
   }, []);
 
   const handleFlowProcessing = useCallback((isProcessing) => {
-    console.log("🔄 Flow processing:", isProcessing);
+    if (process.env.NODE_ENV === "development") console.log("🔄 Flow processing:", isProcessing);
     setFlowProcessing(isProcessing);
     flowProcessingRef.current = isProcessing;
 
@@ -1423,12 +1423,14 @@ const MessageInput = ({
   }, [inputMessage]);
 
   useEffect(() => {
-    console.log(
-      "🔍 Modal state:",
-      triggerFlowModalOpen,
-      "Flow processing:",
-      flowProcessing,
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "🔍 Modal state:",
+        triggerFlowModalOpen,
+        "Flow processing:",
+        flowProcessing,
+      );
+    }
 
     // 🔥 RESET SIMPLES: Se modal fecha, libera campo
     if (!triggerFlowModalOpen && flowProcessing) {

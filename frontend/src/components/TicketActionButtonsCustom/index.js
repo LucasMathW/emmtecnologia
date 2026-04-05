@@ -175,18 +175,18 @@ const TicketActionButtonsCustom = ({
   }, []);
 
   useEffect(() => {
-    console.log("DEBUG openFinalizacaoVenda:", openFinalizacaoVenda);
+    if (process.env.NODE_ENV === "development") console.log("DEBUG openFinalizacaoVenda:", openFinalizacaoVenda);
   }, [openFinalizacaoVenda]);
 
   useEffect(() => {
-    console.log("DEBUG open (modal avaliação):", open);
+    if (process.env.NODE_ENV === "development") console.log("DEBUG open (modal avaliação):", open);
   }, [open]);
 
   const fetchData = async () => {
     const companyId = user.companyId;
     const planConfigs = await getPlanCompany(undefined, companyId);
 
-    console.log("DEBUG planConfigs:", planConfigs);
+    if (process.env.NODE_ENV === "development") console.log("DEBUG planConfigs:", planConfigs);
 
     if (isMounted.current) {
       setShowSchedules(planConfigs.plan.useSchedules);
@@ -718,7 +718,7 @@ const TicketActionButtonsCustom = ({
   };
 
   const handleClickResolver = () => {
-    console.log("DEBUG handleClickResolver chamado");
+    if (process.env.NODE_ENV === "development") console.log("DEBUG handleClickResolver chamado");
     if (
       user.finalizacaoComValorVendaAtiva === true ||
       user.finalizacaoComValorVendaAtiva === "true"
@@ -1108,7 +1108,7 @@ const TicketActionButtonsCustom = ({
         )}
       </>
       {openFinalizacaoVenda &&
-        (console.log("DEBUG JSX: Renderizando FinalizacaoVendaModal"),
+        (process.env.NODE_ENV === "development" && console.log("DEBUG JSX: Renderizando FinalizacaoVendaModal"),
         (
           <FinalizacaoVendaModal
             open={openFinalizacaoVenda}

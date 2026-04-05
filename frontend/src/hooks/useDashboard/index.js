@@ -12,7 +12,7 @@ const useDashboard = () => {
         params
       });
 
-      console.log('Dados recebidos do dashboard:', data);
+      if (process.env.NODE_ENV === "development") console.log('Dados recebidos do dashboard:', data);
 
       // Validar estrutura dos dados
       if (!data) {
@@ -46,7 +46,7 @@ const useDashboard = () => {
         attendants: Array.isArray(data.attendants) ? data.attendants : []
       };
 
-      console.log('Dados processados do dashboard:', responseData);
+      if (process.env.NODE_ENV === "development") console.log('Dados processados do dashboard:', responseData);
 
       return responseData;
     } catch (error) {
@@ -95,7 +95,7 @@ const useDashboard = () => {
         params
       });
 
-      console.log('Dados do relatório recebidos:', data);
+      if (process.env.NODE_ENV === "development") console.log('Dados do relatório recebidos:', data);
       return data;
     } catch (error) {
       console.error('Erro ao buscar relatório:', error);

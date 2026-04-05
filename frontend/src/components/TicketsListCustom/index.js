@@ -266,7 +266,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
-    console.log("[REDUCER ACTION RESET] Limpando todo o state!");
+    if (process.env.NODE_ENV === "development") console.log("[REDUCER ACTION RESET] Limpando todo o state!");
     return [];
   }
 
