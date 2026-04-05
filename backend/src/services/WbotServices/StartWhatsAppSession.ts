@@ -33,7 +33,6 @@ export const StartWhatsAppSession = async (
           await redisGroupCache.set(whatsapp.id, id, groupMetadata);
         }
       }
-      console.log(`🚩🚩🚩🚩🚩🚩`);
       wbotMessageListener(wbot, companyId);
       wbotMonitor(wbot, whatsapp, companyId);
     }
