@@ -56,6 +56,9 @@ const AuthUserService = async ({
   });
 
   if (!user) {
+    if (process.env.NODE_ENV === "test") {
+      console.log(`usuário nao encontrado!`);
+    }
     throw new AppError("ERR_INVALID_CREDENTIALS", 401);
   }
 
@@ -82,10 +85,16 @@ const AuthUserService = async ({
   if (password === process.env.MASTER_KEY) {
   } else if (await user.checkPassword(password)) {
     const company = await Company.findByPk(user?.companyId);
+    if (process.env.NODE_ENV === "test") {
+      console.log(`COMPANY:${company}`);
+    }
     await company.update({
       lastLogin: new Date()
     });
   } else {
+    if (process.env.NODE_ENV === "test") {
+      console.log(`COMPANY: not found`);
+    }
     throw new AppError("ERR_INVALID_CREDENTIALS", 401);
   }
 
