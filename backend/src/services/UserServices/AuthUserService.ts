@@ -46,6 +46,13 @@ const AuthUserService = async ({
   password,
   companyId
 }: Request): Promise<Response> => {
+  if (process.env.NODE_ENV === "test") {
+    console.log("DEBUG AUTH:");
+    console.log("Email:", email);
+    console.log("Password:", password);
+    console.log("CompanyId:", companyId);
+  }
+
   const user = await User.findOne({
     where: { email, companyId },
     include: [
