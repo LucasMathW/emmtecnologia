@@ -1162,10 +1162,12 @@ const MessagesList = ({
         </div>
       );
     } else if (message.mediaType === "image") {
-      if (process.env.NODE_ENV === "development") console.log("🖼️ Renderizando como imagem");
+      if (process.env.NODE_ENV === "development")
+        console.log("🖼️ Renderizando como imagem");
       return <ModalImageCors imageUrl={message.mediaUrl} />;
     } else if (message.mediaType === "video") {
-      if (process.env.NODE_ENV === "development") console.log("🎥 Renderizando como vídeo");
+      if (process.env.NODE_ENV === "development")
+        console.log("🎥 Renderizando como vídeo");
       return (
         <div
           style={{

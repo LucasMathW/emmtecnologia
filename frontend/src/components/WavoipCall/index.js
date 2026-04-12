@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Wavoip from 'wavoip-api';
 import SoundCalling from './calling.mp3';
 import SoundRinging from './ring.mp3';
+import api from '../../services/api';
 
 const WavoipPhoneWidget = ({
   token,
@@ -9,6 +10,7 @@ const WavoipPhoneWidget = ({
   name = 'MultiFlow Phone',
   country = 'BR',
   autoConnect = true,
+  whatsappId = null,
   onCallStart,
   onCallEnd,
   onConnectionStatus,
@@ -23,6 +25,7 @@ const WavoipPhoneWidget = ({
   const [incomingCall, setIncomingCall] = useState(null);
   const [callStartTime, setCallStartTime] = useState(null);
   const [numberError, setNumberError] = useState('');
+  const [callDirection, setCallDirection] = useState(null); // 'outbound' | 'inbound' | null
   const [callerName, setCallerName] = useState(''); // Nome de quem está ligando
   
   const wavoipInstanceRef = useRef(null);
@@ -32,6 +35,19 @@ const WavoipPhoneWidget = ({
 
   const callingSoundRef = useRef(null);
   const ringingSoundRef = useRef(null);
+
+  // Refs to access latest values without recreating the socket connection
+  const isMinimizedRef = useRef(isMinimized);
+  const onCallStartRef = useRef(onCallStart);
+  const onCallEndRef = useRef(onCallEnd);
+  const onConnectionStatusRef = useRef(onConnectionStatus);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => { isMinimizedRef.current = isMinimized; }, [isMinimized]);
+  useEffect(() => { onCallStartRef.current = onCallStart; }, [onCallStart]);
+  useEffect(() => { onCallEndRef.current = onCallEnd; }, [onCallEnd]);
+  useEffect(() => { onConnectionStatusRef.current = onConnectionStatus; }, [onConnectionStatus]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   const stopCalling = () => {
     const audio = callingSoundRef.current;
@@ -392,31 +408,85 @@ const WavoipPhoneWidget = ({
     }
   };
 
+  // Salvar histórico de chamada recebida (defined BEFORE connectToWavoip to avoid TDZ error)
+  const saveIncomingCallHistory = useCallback(async (data) => {
+    try {
+      const duration = data?.duration || callDuration || 0;
+      const status = data?.status || 'ENDED';
+      const type = data?.type || 'whatsapp';
+
+      // Capture caller number from multiple reliable sources (don't rely on React state)
+      const fromSignaling = data?.content?.from_tag || '';
+      const fromIncoming = incomingCall?.number || '';
+      const callerPhone = fromSignaling || fromIncoming || callerName || 'Desconhecido';
+
+      await api.post('/call/historical/incoming', {
+        phone_from: callerPhone,
+        duration,
+        status,
+        type,
+        whatsapp_id: whatsappId || null
+      });
+    } catch (error) {
+      console.error('[WAVOIP] Erro ao salvar histórico de chamada recebida:', error);
+    }
+  }, [incomingCall, callerName, callDuration, whatsappId]);
+
   // Conectar ao Wavoip
   const connectToWavoip = useCallback(async () => {
+    console.log('[WAVOIP] Iniciando conexão...', { token: token ? token.substring(0, 10) + '...' : 'null', whatsappId });
     try {
       const WAV = new Wavoip();
       const instance = WAV.connect(token);
+      console.log('[WAVOIP] Instância criada:', instance);
       wavoipInstanceRef.current = instance;
 
       instance.socket.on('connect', () => {
+        console.log('[WAVOIP] ✅ SOCKET CONNECT - Socket ID:', instance.socket.id);
         setIsConnected(true);
-        if (onConnectionStatus) onConnectionStatus('connected');
+        if (onConnectionStatusRef.current) onConnectionStatusRef.current('connected');
       });
 
       instance.socket.on('disconnect', (reason) => {
+        console.log('[WAVOIP] ❌ SOCKET DISCONNECT - Razão:', reason);
         setIsConnected(false);
         setIsInCall(false);
         setCallStatus('');
         setCallerName('');
         setIncomingCall(null);
-        if (onConnectionStatus) onConnectionStatus('disconnected');
+        if (onConnectionStatusRef.current) onConnectionStatusRef.current('disconnected');
       });
 
+      instance.socket.on('connect_error', (err) => {
+        console.log('[WAVOIP] ⚠️ SOCKET CONNECT_ERROR:', err.message);
+      });
+
+      instance.socket.on('reconnect', (attempt) => {
+        console.log('[WAVOIP] 🔄 SOCKET RECONNECT - Tentativa:', attempt);
+        setIsConnected(true);
+        if (onConnectionStatusRef.current) onConnectionStatusRef.current('connected');
+      });
+
+      instance.socket.on('reconnect_error', (err) => {
+        console.log('[WAVOIP] ⚠️ SOCKET RECONNECT_ERROR:', err.message);
+      });
+
+      instance.socket.on('reconnect_failed', () => {
+        console.log('[WAVOIP] ❌ SOCKET RECONNECT_FAILED');
+      });
+
+      // Intercept ALL socket events to see what's actually arriving
+      const originalOn = instance.socket.on.bind(instance.socket);
+      instance.socket.on = function(event, callback) {
+        console.log('[WAVOIP] Registering listener for:', event);
+        return originalOn(event, callback);
+      };
+
       instance.socket.on('signaling', (data) => {
-        console.log('Signaling event:', data);
-        
+        console.log('[WAVOIP] ====== SIGNALING EVENT RECEIVED ======', JSON.stringify(data, null, 2));
+
         if (data.tag === 'offer') {
+          console.log('[WAVOIP] 📞 INCOMING CALL OFFER from:', data.content?.from_tag);
           unlockAudio();
           playRinging()
           setIncomingCall({
@@ -424,24 +494,22 @@ const WavoipPhoneWidget = ({
             data: data
           });
           setCallerName(data.content?.from_tag || 'Número desconhecido');
-          if (isMinimized) {
+          if (isMinimizedRef.current) {
             setIsMinimized(false);
           }
-          if (onCallStart) onCallStart(data);
-        }
-        
-        if (data.tag === 'answer' || data.tag == 'accept_elsewhere' || data.tag == 'accept') {
+          if (onCallStartRef.current) onCallStartRef.current(data);
+        } else if (data.tag === 'answer' || data.tag == 'accept_elsewhere' || data.tag == 'accept') {
+          console.log('[WAVOIP] ✅ CALL ANSWERED');
           setIsInCall(true);
           setCallStatus('Em chamada');
           setCallStartTime(Date.now());
           startDurationTimer();
           stopRinging()
           stopCalling()
-          if (onCallStart) onCallStart(data);
-        }
-        
-        if (data.tag === 'bye' || data.tag == 'terminate' || data.tag == 'reject_elsewhere' || data.tag == 'reject') {
-          console.log('Chamada finalizada via bye');
+          if (onCallStartRef.current) onCallStartRef.current(data);
+        } else if (data.tag === 'bye' || data.tag == 'terminate' || data.tag == 'reject_elsewhere' || data.tag == 'reject') {
+          console.log('[WAVOIP] 📴 CALL ENDED - Tag:', data.tag, JSON.stringify(data, null, 2));
+          saveIncomingCallHistory(data);
           setIsInCall(false);
           setCallStatus('');
           setCallerName('');
@@ -450,43 +518,49 @@ const WavoipPhoneWidget = ({
           setIncomingCall(null);
           stopRinging()
           stopCalling()
-          if (onCallEnd) onCallEnd(data);
+          if (onCallEndRef.current) onCallEndRef.current(data);
+        } else {
+          console.log('[WAVOIP] ⚠️ SIGNALING TAG NOT HANDLED:', data.tag, data);
         }
       });
 
       instance.socket.on('audio_transport:create', ({ room, sampleRate }) => {
-        console.log('Audio transport created:', { room, sampleRate });
+        console.log('[WAVOIP] 🎵 Audio transport created:', { room, sampleRate });
         setIsInCall(true);
         setCallStatus('Conectando...');
       });
 
       instance.socket.on('audio_transport:terminate', ({ room }) => {
-        console.log('Audio transport terminated:', { room });
+        console.log('[WAVOIP] 🎵 Audio transport terminated. Room:', room, 'Caller:', incomingCall?.number || callerName);
+        saveIncomingCallHistory({ room });
         setIsInCall(false);
         setCallStatus('');
         setCallerName('');
         setCurrentNumber('');
         stopDurationTimer();
         setIncomingCall(null);
-        if (onCallEnd) onCallEnd({ room });
+        if (onCallEndRef.current) onCallEndRef.current({ room });
       });
 
       instance.deviceEmitter.on('incoming_call', (data) => {
-        console.log('Incoming call event:', data);
+        console.log('[WAVOIP] ====== INCOMING CALL EVENT ======', JSON.stringify(data, null, 2));
         setIncomingCall({
           number: data.content?.from_tag || 'Número desconhecido',
           data: data
         });
         setCallerName(data.content?.from_tag || 'Número desconhecido');
-        if (isMinimized) {
+        if (isMinimizedRef.current) {
           setIsMinimized(false);
         }
       });
 
+      console.log('[WAVOIP] Todos os listeners registrados com sucesso');
+
     } catch (error) {
-      if (onError) onError(error);
+      console.error('[WAVOIP] ❌ ERRO AO CONECTAR:', error);
+      if (onErrorRef.current) onErrorRef.current(error);
     }
-  }, [token, isMinimized, onCallStart, onCallEnd, onConnectionStatus, onError]);
+  }, [token]);
 
   // Fazer chamada
   const makeCall = useCallback(() => {
@@ -508,9 +582,9 @@ const WavoipPhoneWidget = ({
       setCallerName(validation.formatted);
       setCallStartTime(Date.now());
       startDurationTimer();
-      if (onCallStart) onCallStart({ whatsappid: validation.formatted });
+      if (onCallStartRef.current) onCallStartRef.current({ whatsappid: validation.formatted });
     } catch (error) {
-      if (onError) onError(error);
+      if (onErrorRef.current) onErrorRef.current(error);
     }
   }, [currentNumber, numberError, onCallStart, onError]);
 
@@ -527,9 +601,9 @@ const WavoipPhoneWidget = ({
       stopDurationTimer();
       setIncomingCall(null);
        stopCalling()
-      if (onCallEnd) onCallEnd({ action: 'ended' });
+      if (onCallEndRef.current) onCallEndRef.current({ action: 'ended' });
     } catch (error) {
-      if (onError) onError(error);
+      if (onErrorRef.current) onErrorRef.current(error);
     }
   }, [onCallEnd, onError]);
 
@@ -546,27 +620,29 @@ const WavoipPhoneWidget = ({
       startDurationTimer();
        stopCalling()
       stopRinging()
-      if (onCallStart) onCallStart(incomingCall?.data);
+      if (onCallStartRef.current) onCallStartRef.current(incomingCall?.data);
     } catch (error) {
-      if (onError) onError(error);
+      if (onErrorRef.current) onErrorRef.current(error);
     }
   }, [incomingCall, onCallStart, onError]);
 
   // Rejeitar chamada
   const rejectCall = useCallback(() => {
     if (!wavoipInstanceRef.current || !incomingCall) return;
-    
+
     try {
       stopCalling()
-    stopRinging()
+      stopRinging()
+      // Salvar histórico da chamada rejeitada antes de rejeitar
+      saveIncomingCallHistory({ status: 'REJECTED', duration: 0 });
       wavoipInstanceRef.current.rejectCall();
       setIncomingCall(null);
       setCallerName('');
-      if (onCallEnd) onCallEnd({ action: 'rejected' });
+      if (onCallEndRef.current) onCallEndRef.current({ action: 'rejected' });
     } catch (error) {
-      if (onError) onError(error);
+      if (onErrorRef.current) onErrorRef.current(error);
     }
-  }, [incomingCall, onCallEnd, onError]);
+  }, [incomingCall, onCallEnd, onError, saveIncomingCallHistory]);
 
   // Limpar número
   const clearNumber = useCallback(() => {
@@ -677,12 +753,13 @@ const WavoipPhoneWidget = ({
     validateCurrentNumber();
   }, [currentNumber, validateCurrentNumber]);
 
-  // Conectar automaticamente
+  // Conectar automaticamente — apenas uma vez
   useEffect(() => {
-    if (autoConnect) {
+    if (autoConnect && token) {
       connectToWavoip();
     }
-  }, [autoConnect, connectToWavoip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Adicionar listener do teclado
   useEffect(() => {

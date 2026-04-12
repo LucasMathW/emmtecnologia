@@ -139,8 +139,22 @@ const CallHistoricals = () => {
     totalServed: 0,
     totalFinish: 0
   });
+  const [wavoipToken, setWavoipToken] = useState(null);
   const { user, socket } = useContext(AuthContext);
   const { profile } = user;
+
+  // Buscar token WavoIP do usuário
+  useEffect(() => {
+    const fetchWavoipToken = async () => {
+      try {
+        const { data } = await api.get("/call/historical/user/whatsapp");
+        setWavoipToken(data?.whatsapp?.wavoip || null);
+      } catch (err) {
+        setWavoipToken(null);
+      }
+    };
+    fetchWavoipToken();
+  }, []);
 
   useEffect(() => {
     dispatch({ type: "RESET" });
@@ -198,8 +212,21 @@ const CallHistoricals = () => {
     setSearchParam(event.target.value.toLowerCase());
   };
 
-  const handleMakeCall = (callUrl) => {
-    window.open(callUrl, '_blank');
+  const handleMakeCall = (call) => {
+    const url = buildCallUrl(call);
+    if (url) {
+      window.open(url, '_blank');
+    } else {
+      toastError("Token WavoIP não disponível.");
+    }
+  };
+
+  const buildCallUrl = (call) => {
+    const token = call.wavoipToken || wavoipToken;
+    const phone = call.phone_to?.replace(/\D/g, '');
+    const name = encodeURIComponent(call.name || phone || '');
+    if (!token || !phone) return null;
+    return `https://app.wavoip.com/call?token=${token}&phone=${phone}&name=${name}&start_if_ready=true&close_after_call=true`;
   };
 
   const formatDate = (dateString) => {
@@ -483,21 +510,29 @@ const CallHistoricals = () => {
                   </TableCell>
                   <TableCell align="center">
                   {call.callSaveUrl && (
-                    <IconButton
-                      size="small"
-                      className={classes.callButton}
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = call.callSaveUrl;
-                        link.setAttribute('download', 'audio.mp3');
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      title="Baixar áudio"
-                    >
-                      <DownloadIcon />
-                    </IconButton>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <audio
+                        controls
+                        preload="none"
+                        style={{ height: '32px', maxWidth: '180px' }}
+                        src={call.callSaveUrl}
+                      />
+                      <IconButton
+                        size="small"
+                        className={classes.callButton}
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = call.callSaveUrl;
+                          link.setAttribute('download', 'audio.mp3');
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        title="Baixar áudio"
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                    </div>
                   )}
                 </TableCell>
                   <TableCell align="center">

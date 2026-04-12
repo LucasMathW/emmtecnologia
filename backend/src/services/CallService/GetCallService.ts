@@ -18,7 +18,7 @@ const loginWavoip = async () => {
 
         return login?.data?.result?.token;
     } catch (error) {
-        throw new Error(error);
+        throw new Error(error instanceof Error ? error.message : "Erro ao conectar na WavoIP");
     }
 }
 
@@ -116,13 +116,17 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
         let totalFinish = 0;
         let total = 0;
 
+        // Track incoming/ outcoming IDs already covered by wavoip API
+        const incomingApiIds = [];
+        const outgoingApiIds = [];
+
         for (const device of devicesAll) {
             let callSaveUrl = '';
             if (device?.duration) {
                 callSaveUrl = `https://storage.wavoip.com/${device?.whatsapp_call_id}`;
             }
              if (device.direction == 'OUTCOMING') {
-                const historicMatch = historicalDB.find(h => 
+                const historicMatch = historicalDB.find(h =>
                     h.token_wavoip === device.token &&
                     Math.abs(new Date(h.createdAt).getTime() - new Date(device.created_date).getTime()) <= 1 * 60 * 1000 // diferença de até 1 minutos
                 );
@@ -130,10 +134,12 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
                 if (historicMatch && !cache.includes(historicMatch.id)) {
                     cache.push(historicMatch.id);
                     resultFinal.push({ ...historicMatch, devices: device, callSaveUrl });
+                    outgoingApiIds.push(historicMatch.id);
                 }
             }
 
             if (device.direction == 'INCOMING') {
+                incomingApiIds.push(device.id);
                 resultFinal.push({ devices: device, callSaveUrl, user: { id: '', name: '' }, company: { id: '', name: '' }, phone_to: device?.caller, createdAt: device?.created_date });
             }
 
@@ -152,10 +158,49 @@ const getHistorical = async (body: { "user_id": number, "company_id": number }) 
             total += 1;
         }
 
+        // Also add incoming calls saved locally to DB that weren't covered by the WavoIP API
+        for (const record of historicalDB) {
+            if (!record.phone_to) continue;
+            const isIncomingFromApi = incomingApiIds.some(id => true); // API already covers some
+            const isOutgoingCached = outgoingApiIds.includes(record.id);
+
+            // Add local incoming calls that aren't already in resultFinal
+            if (!isOutgoingCached && !record.devices) {
+                // Check if this local record is not already merged via OUTCOMING match
+                const alreadyInResult = resultFinal.some(r => r.id === record.id);
+                if (!alreadyInResult) {
+                    resultFinal.push(record);
+                }
+            }
+        }
+
         return { resultFinal, total, totalReject, totalServed, totalFinish };
 
-    } catch (error) {
-        throw new Error(error);
+    } catch (error: unknown) {
+        // WavoIP falhou — retorna apenas registros locais do banco
+        const historicalDB: any = await CallHistory.findAll({
+            raw: true,
+            nest: true,
+            include: [{
+                model: User,
+                attributes: ['id', 'name'],
+            },
+            {
+                model: Company,
+                attributes: ['id', 'name'],
+            }],
+            where: {
+                company_id: body.company_id
+            }
+        });
+
+        return {
+            resultFinal: historicalDB,
+            total: historicalDB.length,
+            totalReject: historicalDB.filter((h: any) => h.devices?.status === 'REJECTED').length,
+            totalServed: historicalDB.filter((h: any) => h.devices?.duration).length,
+            totalFinish: historicalDB.filter((h: any) => h.devices?.status === 'ENDED').length,
+        };
     }
 }
 

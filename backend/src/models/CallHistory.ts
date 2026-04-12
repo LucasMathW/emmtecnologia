@@ -6,6 +6,7 @@ import {
   AutoIncrement,
   ForeignKey,
   CreatedAt,
+  UpdatedAt,
   Default,
   BelongsTo
 } from "sequelize-typescript";
@@ -63,7 +64,7 @@ class CallHistory extends Model<CallHistory> {
   @Column
   createdAt: Date;
 
-  @CreatedAt
+  @UpdatedAt
   @Default(new Date())
   @Column
   updatedAt: Date;

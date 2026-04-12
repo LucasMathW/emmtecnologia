@@ -246,6 +246,16 @@ export const initIO = (httpServer: Server): SocketIO => {
       receivedService.readMessage(data);
     });
 
+    // Call history events
+    socket.on("call-history", (data: any) => {
+      try {
+        const companyId = parseInt(socket.nsp.name.split("/")[1]);
+        io.of(`/${companyId}`).emit(`company-${companyId}-call-history`, data);
+      } catch (error) {
+        logger.error("Error emitting call-history event:", error);
+      }
+    });
+
     //  NOVO: Heartbeat para manter usuário online e verificar aniversários periodicamente
     socket.on("heartbeat", () => handleHeartbeat(socket));
 
@@ -334,5 +344,35 @@ export const emitBirthdayEvents = async (companyId: number) => {
     if (error instanceof Error && error.stack) {
       logger.debug(" [RDS-SOCKET] Error stack:", error.stack);
     }
+  }
+};
+
+// FUNÇÃO: Emitir eventos de histórico de chamadas para uma empresa específica
+export const emitCallHistoryUpdate = async (
+  companyId: number,
+  action: "create" | "update",
+  record: any
+) => {
+  try {
+    if (!io) {
+      logger.warn(
+        `Socket IO não inicializado ao tentar emitir evento call-history para empresa ${companyId}`
+      );
+      return;
+    }
+
+    io.of(`/${companyId}`).emit(`company-${companyId}-call-history`, {
+      action,
+      record
+    });
+
+    logger.info(
+      `[CALL-HISTORY] Emitido evento ${action} para empresa ${companyId}`
+    );
+  } catch (error) {
+    logger.error(
+      ` Erro ao emitir evento call-history para empresa ${companyId}:`,
+      error instanceof Error ? error.message : "Unknown error"
+    );
   }
 };

@@ -60,6 +60,41 @@ const convertToOggOpus = async (inputFile: string): Promise<string> => {
   return outputFile;
 };
 
+// Convert image to WebP sticker (512x512, no metadata) for WhatsApp
+const convertToSticker = async (inputFile: string): Promise<string> => {
+  const parsed = path.parse(inputFile);
+  const outputFile = path.join(parsed.dir, `${parsed.name}-${Date.now()}.webp`);
+
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(inputFile)
+      .outputOptions([
+        "-vcodec libwebp",
+        "-vf scale=512:512:force_original_aspect_ratio=decrease",
+        "-lossless 0",
+        "-loop 0",
+        "-preset default",
+        "-an -vsync 0",
+        "-s 512:512"
+      ])
+      .save(outputFile)
+      .on("end", () => resolve())
+      .on("error", err => {
+        // fallback: just scale without strict options
+        ffmpeg(inputFile)
+          .outputOptions([
+            "-vcodec libwebp",
+            "-vf scale=512:512",
+            "-an -vsync 0"
+          ])
+          .save(outputFile)
+          .on("end", () => resolve())
+          .on("error", err2 => reject(err2));
+      });
+  });
+
+  return outputFile;
+};
+
 const getMediaTypeFromMimeType = (mimetype: string): string => {
   const documentMimeTypes = [
     "application/pdf",

@@ -34,6 +34,7 @@ import {
   Create,
   Description,
   HighlightOff,
+  SentimentVerySatisfied,
   Mic,
   Mood,
   MoreVert,
@@ -79,6 +80,7 @@ import axios from "axios";
 import useCompanySettings from "../../hooks/useSettings/companySettings";
 import { ForwardMessageContext } from "../../context/ForwarMessage/ForwardMessageContext";
 import MessageUploadMedias from "../MessageUploadMedias";
+import StickerPicker from "../StickerPicker";
 import { EditMessageContext } from "../../context/EditingMessage/EditingMessageContext";
 import ScheduleModal from "../ScheduleModal";
 import usePlans from "../../hooks/usePlans";
@@ -534,6 +536,51 @@ const MessageInput = ({
   const [flowProcessing, setFlowProcessing] = useState(false);
   const flowProcessingRef = useRef(false);
 
+  const [stickerAnchorEl, setStickerAnchorEl] = useState(null);
+  const [stickerPopoverOpen, setStickerPopoverOpen] = useState(false);
+
+  const handleOpenStickerPicker = (event) => {
+    setStickerAnchorEl(event.currentTarget);
+    setStickerPopoverOpen(true);
+  };
+
+  const handleCloseStickerPicker = () => {
+    setStickerPopoverOpen(false);
+    setStickerAnchorEl(null);
+  };
+
+  const handleSendSticker = async (stickerData) => {
+    handleCloseStickerPicker();
+
+    if (stickerData.type === "text") {
+      setInputMessage((prev) => prev + stickerData.body);
+      return;
+    }
+
+    if (stickerData.type === "sticker") {
+      if (!ticketId) return;
+
+      setLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append("medias", stickerData.file, "sticker.webp");
+        formData.append("body", "");
+        formData.append("fromMe", true);
+        formData.append(
+          "isPrivate",
+          privateMessage || isTicketPending() ? "true" : "false",
+        );
+        formData.append("isSticker", "true");
+
+        await api.post(`/messages/${ticketId}`, formData);
+      } catch (err) {
+        toastError(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const [formatMenuAnchorPosition, setFormatMenuAnchorPosition] =
     useState(null);
   const [selectedText, setSelectedText] = useState({
@@ -775,7 +822,8 @@ const MessageInput = ({
   }, []);
 
   const handleFlowProcessing = useCallback((isProcessing) => {
-    if (process.env.NODE_ENV === "development") console.log("🔄 Flow processing:", isProcessing);
+    if (process.env.NODE_ENV === "development")
+      console.log("🔄 Flow processing:", isProcessing);
     setFlowProcessing(isProcessing);
     flowProcessingRef.current = isProcessing;
 
@@ -1982,6 +2030,52 @@ const MessageInput = ({
                     </ClickAwayListener>
                   </div>
                 ) : null}
+
+                <Tooltip title="Stickers">
+                  <IconButton
+                    aria-label="stickerPicker"
+                    component="span"
+                    disabled={disableOption()}
+                    onClick={handleOpenStickerPicker}
+                  >
+                    <svg
+                      className={classes.sendMessageIcons}
+                      width="22"
+                      height="22"
+                      viewBox="0 0 100 100"
+                    >
+                      <path
+                        d="M16,0 L84,0 Q100,0 100,16 L100,68 Q88,68 68,88 L68,100 L16,100 Q0,100 0,84 L0,16 Q0,0 16,0 Z"
+                        fill="white"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                      />
+                      <path
+                        d="M68,100 L68,72 Q68,68 72,68 L100,68 Q96,80 88,88 Q80,96 68,100 Z"
+                        fill="#e8e8e8"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="36" cy="42" r="5" fill="currentColor" />
+                      <circle cx="64" cy="42" r="5" fill="currentColor" />
+                      <path
+                        d="M33,62 Q50,76 67,62"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </IconButton>
+                </Tooltip>
+
+                <StickerPicker
+                  anchorEl={stickerAnchorEl}
+                  open={stickerPopoverOpen}
+                  onClose={handleCloseStickerPicker}
+                  onSend={handleSendSticker}
+                />
 
                 <Fab
                   disabled={disableOption()}

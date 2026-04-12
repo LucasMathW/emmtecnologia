@@ -43,6 +43,7 @@ import {
   verifyMessageMedia
 } from "../services/FacebookServices/facebookMessageListener";
 import EditWhatsAppMessage from "../services/MessageServices/EditWhatsAppMessage";
+import { SendMessageSticker } from "../helpers/SendMessageSticker";
 import SendWhatsAppOficialMessage from "../services/WhatsAppOficial/SendWhatsAppOficialMessage";
 import ShowService from "../services/QuickMessageService/ShowService";
 import {
@@ -192,7 +193,7 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const ticketId = getRequestParam(req.params.ticketId, "ticketId");
-  const { body, quotedMsg, vCard, isPrivate = "false" }: MessageData = req.body;
+  const { body, quotedMsg, vCard, isPrivate = "false", isSticker }: MessageData & { isSticker?: string } = req.body;
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
 
@@ -216,6 +217,21 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
           fieldname: media.fieldname,
           size: media.size
         });
+
+        if (isSticker === "true") {
+          // Send as sticker
+          if (ticket.channel === "whatsapp") {
+            await SendMessageSticker(
+              ticket.whatsappId,
+              {
+                number: ticket.contactId,
+                mediaPath: media.path
+              },
+              ticket.isGroup
+            );
+          }
+          continue;
+        }
 
         if (isAudioFile(media)) {
         } else {

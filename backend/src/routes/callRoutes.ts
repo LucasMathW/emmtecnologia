@@ -7,6 +7,7 @@ const callRoutes = express.Router();
 
 callRoutes.get("/historical", isAuth, CallController.getHistoric)
 callRoutes.post("/historical/wavoip", isAuth, CallController.createCallHistoric);
+callRoutes.post("/historical/incoming", isAuth, CallController.createIncomingCallHistory);
 callRoutes.get("/historical/user/whatsapp", isAuth, CallController.getWhatsappUserId);
 
 export default callRoutes;
