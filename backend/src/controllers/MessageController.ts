@@ -192,8 +192,17 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
+  if (process.env.NODE_ENV === "test") {
+    console.log(`audio chgou aqui!!! rota ok`);
+  }
   const ticketId = getRequestParam(req.params.ticketId, "ticketId");
-  const { body, quotedMsg, vCard, isPrivate = "false", isSticker }: MessageData & { isSticker?: string } = req.body;
+  const {
+    body,
+    quotedMsg,
+    vCard,
+    isPrivate = "false",
+    isSticker
+  }: MessageData & { isSticker?: string } = req.body;
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
 
@@ -269,8 +278,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
             if (ticket.channel === "facebook") {
               await verifyMessageMedia(sentMedia, ticket, ticket.contact, true);
             }
-          } catch (error) {
-          }
+          } catch (error) {}
         }
       }
     } else {
