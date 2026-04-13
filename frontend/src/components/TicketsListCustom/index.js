@@ -255,6 +255,13 @@ const reducer = (state, action) => {
     });
   }
 
+  if (action.type === "FILTER_TICKETS_BY_QUEUE") {
+    return state.filter((ticket) => {
+      if (!ticket.queueId) return true;
+      return action.payload.indexOf(ticket.queueId) > -1;
+    });
+  }
+
   if (action.type === "DELETE_TICKET") {
     const ticketId = action.payload;
     const ticketIndex = state.findIndex((t) => t.id === ticketId);
@@ -363,6 +370,13 @@ const TicketsListCustom = (props) => {
       });
     }
   }, [tickets]);
+
+  useEffect(() => {
+    dispatch({
+      type: "FILTER_TICKETS_BY_QUEUE",
+      payload: selectedQueueIds,
+    });
+  }, [selectedQueueIds]);
 
   const shouldUpdateTicket = useCallback(
     (ticket) => {

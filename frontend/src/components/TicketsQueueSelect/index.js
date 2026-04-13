@@ -18,9 +18,9 @@ const useStyles = makeStyles((theme) => ({
   queueSelectContainer: {
     minWidth: 120,
     maxWidth: 200,
-    width: '100%',
+    width: "100%",
     marginTop: -4,
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       minWidth: 100,
       maxWidth: 150,
     },
@@ -35,7 +35,13 @@ const TicketsQueueSelect = ({
   const classes = useStyles();
 
   const handleChange = (e) => {
-    onChange(e.target.value);
+    const value = e.target.value;
+
+    const normalizedValues = Array.isArray(value)
+      ? value.map((id) => Number(id))
+      : [];
+
+    onChange(normalizedValues);
   };
 
   return (
@@ -77,7 +83,7 @@ const TicketsQueueSelect = ({
               <MenuItem
                 dense
                 key={queue.id}
-                value={queue.id}
+                value={Number(queue.id)}
                 className={classes.menuItem}
               >
                 <Checkbox
@@ -86,7 +92,9 @@ const TicketsQueueSelect = ({
                   }}
                   size="small"
                   color="primary"
-                  checked={selectedQueueIds.indexOf(queue.id) > -1}
+                  checked={
+                    selectedQueueIds.map(Number).indexOf(Number(queue.id)) > -1
+                  }
                 />
                 <ListItemText
                   primary={queue.name}

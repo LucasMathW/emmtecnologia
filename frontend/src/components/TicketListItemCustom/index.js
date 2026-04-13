@@ -232,7 +232,6 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const TicketListItemCustom = ({ setTabOpen, ticket }) => {
-
   const classes = useStyles();
   const theme = useTheme();
   const history = useHistory();
@@ -645,7 +644,11 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
               height: "50px",
               borderRadius: "50%",
             }}
-            src={ticket?.contact?.urlPicture ? `${ticket.contact.urlPicture}?t=${ticket.contact._picCachedBust || Date.now()}` : ''}
+            src={
+              ticket?.contact?.urlPicture
+                ? `${ticket.contact.urlPicture}?t=${ticket.contact._picCachedBust || Date.now()}`
+                : ""
+            }
             className={classes.clickableAvatar}
             onClick={handleImageClick}
           />
