@@ -1,51 +1,153 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 
-import ModalImage from "react-modal-image";
-import api from "../../services/api";
-
-const useStyles = makeStyles(theme => ({
-	messageMedia: {
-		objectFit: "cover",
-		width: 250,
-		height: "auto", // Redimensionar automaticamente a altura para manter a proporção
-		borderTopLeftRadius: 8,
-		borderTopRightRadius: 8,
-		borderBottomLeftRadius: 8,
-		borderBottomRightRadius: 8,
-	}
+const useStyles = makeStyles((theme) => ({
+  messageMedia: {
+    objectFit: "cover",
+    width: 250,
+    height: "auto",
+    borderRadius: 8,
+    cursor: "zoom-in",
+    display: "block",
+    position: "relative",
+    zIndex: 10,
+  },
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 99999,
+    cursor: "zoom-out",
+  },
+  controls: {
+    position: "fixed",
+    bottom: 24,
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    gap: 12,
+    zIndex: 100000,
+  },
+  controlBtn: {
+    background: "rgba(255,255,255,0.15)",
+    border: "1px solid rgba(255,255,255,0.3)",
+    color: "#fff",
+    borderRadius: 8,
+    padding: "8px 16px",
+    fontSize: 20,
+    cursor: "pointer",
+  },
+  closeBtn: {
+    position: "fixed",
+    top: 16,
+    right: 20,
+    background: "transparent",
+    border: "none",
+    color: "#fff",
+    fontSize: 32,
+    cursor: "pointer",
+    zIndex: 100000,
+    lineHeight: 1,
+  },
 }));
 
 const ModalImageCors = ({ imageUrl }) => {
-	const classes = useStyles();
-	const [fetching, setFetching] = useState(true);
-	const [blobUrl, setBlobUrl] = useState("");
+  const classes = useStyles();
+  const [open, setOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
-	useEffect(() => {
-		if (!imageUrl) return;
-		const fetchImage = async () => {
-			const { data, headers } = await api.get(imageUrl, {
-				responseType: "blob",
-			});
-			const url = window.URL.createObjectURL(
-				new Blob([data], { type: headers["content-type"] })
-			);
-			setBlobUrl(url);
-			setFetching(false);
-		};
-		fetchImage();
-	}, [imageUrl]);
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open]);
 
-	return (
-		<ModalImage
-			className={classes.messageMedia}
-			smallSrcSet={fetching ? imageUrl : blobUrl}
-			medium={fetching ? imageUrl : blobUrl}
-			large={fetching ? imageUrl : blobUrl}
-			alt="image"
-			showRotate={true}
-		/>
-	);
+  const handleClose = () => {
+    setOpen(false);
+    setZoom(1);
+    setRotation(0);
+  };
+
+  if (!imageUrl) return null;
+
+  return (
+    <>
+      <img
+        src={imageUrl}
+        alt="imagem"
+        className={classes.messageMedia}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setOpen(true);
+        }}
+        onError={(e) => {
+          console.error("Erro ao carregar imagem:", imageUrl);
+        }}
+      />
+
+      {open && (
+        <div className={classes.overlay} onClick={handleClose}>
+          <button className={classes.closeBtn} onClick={handleClose}>
+            ✕
+          </button>
+
+          <img
+            src={imageUrl}
+            alt="imagem expandida"
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              objectFit: "contain",
+              borderRadius: 4,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              transform: `scale(${zoom}) rotate(${rotation}deg)`,
+              transition: "transform 0.2s ease",
+              cursor: "default",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          <div
+            className={classes.controls}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={classes.controlBtn}
+              onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+            >
+              −
+            </button>
+            <button className={classes.controlBtn} onClick={() => setZoom(1)}>
+              ↺
+            </button>
+            <button
+              className={classes.controlBtn}
+              onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+            >
+              +
+            </button>
+            <button
+              className={classes.controlBtn}
+              onClick={() => setRotation((r) => r + 90)}
+            >
+              🔄
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 export default ModalImageCors;

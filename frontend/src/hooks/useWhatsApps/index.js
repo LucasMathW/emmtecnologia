@@ -13,7 +13,10 @@ const reducer = (state, action) => {
     const whatsAppIndex = state.findIndex((s) => s.id === whatsApp.id);
 
     if (whatsAppIndex !== -1) {
-      state[whatsAppIndex] = whatsApp;
+      state[whatsAppIndex] = {
+        ...state[whatsAppIndex],
+        ...whatsApp,
+      };
       return [...state];
     } else {
       return [whatsApp, ...state];
@@ -25,10 +28,10 @@ const reducer = (state, action) => {
     const whatsAppIndex = state.findIndex((s) => s.id === whatsApp.id);
 
     if (whatsAppIndex !== -1) {
-      state[whatsAppIndex].status = whatsApp.status;
-      state[whatsAppIndex].updatedAt = whatsApp.updatedAt;
-      state[whatsAppIndex].qrcode = whatsApp.qrcode;
-      state[whatsAppIndex].retries = whatsApp.retries;
+      state[whatsAppIndex] = {
+        ...state[whatsAppIndex],
+        ...whatsApp,
+      };
       return [...state];
     } else {
       return [...state];
@@ -47,6 +50,8 @@ const reducer = (state, action) => {
   if (action.type === "RESET") {
     return [];
   }
+
+  return state;
 };
 
 const useWhatsApps = () => {
@@ -54,7 +59,6 @@ const useWhatsApps = () => {
   const [loading, setLoading] = useState(true);
   const { user, socket } = useContext(AuthContext);
 
-  // Effect para carregar os dados iniciais
   useEffect(() => {
     setLoading(true);
     const fetchSession = async () => {
@@ -70,18 +74,7 @@ const useWhatsApps = () => {
     fetchSession();
   }, []);
 
-  // Effect para configurar os listeners do socket
   useEffect(() => {
-    // Debug para entender o que está chegando
-    // console.log('useWhatsApps - Debug:', {
-    //   userId: user?.id,
-    //   companyId: user?.companyId,
-    //   socket: socket,
-    //   socketType: typeof socket,
-    //   hasOnMethod: socket && typeof socket.on === 'function',
-    //   hasOffMethod: socket && typeof socket.off === 'function'
-    // });
-
     if (
       user?.companyId &&
       socket &&
@@ -110,20 +103,11 @@ const useWhatsApps = () => {
       const whatsappEvent = `company-${companyId}-whatsapp`;
       const sessionEvent = `company-${companyId}-whatsappSession`;
 
-      // console.log("Registrando listeners WhatsApp:", {
-      //   whatsappEvent,
-      //   sessionEvent,
-      // });
-
       socket.on(whatsappEvent, onCompanyWhatsapp);
       socket.on(sessionEvent, onCompanyWhatsappSession);
 
       return () => {
         if (socket && typeof socket.off === "function") {
-          // console.log("Removendo listeners WhatsApp:", {
-          //   whatsappEvent,
-          //   sessionEvent,
-          // });
           socket.off(whatsappEvent, onCompanyWhatsapp);
           socket.off(sessionEvent, onCompanyWhatsappSession);
         }
@@ -136,7 +120,7 @@ const useWhatsApps = () => {
         hasOffMethod: socket && typeof socket.off === "function",
       });
     }
-  }, [socket, user?.companyId]); // Dependências corretas
+  }, [socket, user?.companyId]);
 
   return { whatsApps, loading };
 };
