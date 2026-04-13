@@ -148,19 +148,22 @@ const reducer = (state, action) => {
   if (action.type === "LOAD_TICKETS") {
     const newTickets = action.payload;
 
-    return newTickets.reduce((nextState, ticket) => {
-      const ticketIndex = nextState.findIndex((t) => t.id === ticket.id);
-      if (ticketIndex !== -1) {
-        nextState[ticketIndex] = { ...nextState[ticketIndex], ...ticket };
-        if (ticket.unreadMessages > 0) {
-          const moved = nextState.splice(ticketIndex, 1)[0];
-          nextState.unshift(moved);
+    return newTickets.reduce(
+      (nextState, ticket) => {
+        const ticketIndex = nextState.findIndex((t) => t.id === ticket.id);
+        if (ticketIndex !== -1) {
+          nextState[ticketIndex] = { ...nextState[ticketIndex], ...ticket };
+          if (ticket.unreadMessages > 0) {
+            const moved = nextState.splice(ticketIndex, 1)[0];
+            nextState.unshift(moved);
+          }
+        } else {
+          nextState.push(ticket);
         }
-      } else {
-        nextState.push(ticket);
-      }
-      return nextState;
-    }, [...state]);
+        return nextState;
+      },
+      [...state],
+    );
   }
 
   if (action.type === "RESET_UNREAD") {
@@ -228,8 +231,11 @@ const reducer = (state, action) => {
 
     return state.map((t) => {
       const matchById = t.contactId === contact.id;
-      const matchByNumber = t.contact?.number && normalize(t.contact.number) === normalize(contact.number);
-      const matchByName = t.contact?.name && contact.name && t.contact.name === contact.name;
+      const matchByNumber =
+        t.contact?.number &&
+        normalize(t.contact.number) === normalize(contact.number);
+      const matchByName =
+        t.contact?.name && contact.name && t.contact.name === contact.name;
 
       if (matchById || matchByNumber || matchByName) {
         const mergedContact = {
@@ -266,7 +272,8 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
-    if (process.env.NODE_ENV === "development") console.log("[REDUCER ACTION RESET] Limpando todo o state!");
+    if (process.env.NODE_ENV === "development")
+      console.log("[REDUCER ACTION RESET] Limpando todo o state!");
     return [];
   }
 
@@ -452,7 +459,33 @@ const TicketsListCustom = (props) => {
         return;
       }
 
+      // if (data.action === "create" && data.ticket) {
+      //   dispatch({
+      //     type: "UPDATE_TICKET_UNREAD_MESSAGES",
+      //     payload: data.ticket,
+      //     status,
+      //     sortDir: sortTickets,
+      //   });
+
+      //   dispatch({
+      //     type: "UPDATE_TICKET_PRESENCE",
+      //     payload: {
+      //       ticketId: data.ticket.id,
+      //       status: data.status,
+      //     },
+      //   });
+
+      //   return;
+      // }
+
       if (data.action === "create" && data.ticket) {
+        if (
+          !shouldUpdateTicket(data.ticket) ||
+          notBelongsToUserQueues(data.ticket)
+        ) {
+          return;
+        }
+
         dispatch({
           type: "UPDATE_TICKET_UNREAD_MESSAGES",
           payload: data.ticket,
@@ -471,8 +504,42 @@ const TicketsListCustom = (props) => {
         return;
       }
 
+      // if (data.action === "update") {
+      //   if (data.ticket) {
+      //     dispatch({
+      //       type: "UPDATE_TICKET",
+      //       payload: data.ticket,
+      //       sortDir: sortTickets,
+      //     });
+      //   }
+
+      //   if (data.message) {
+      //     dispatch({
+      //       type: "UPDATE_TICKET",
+      //       payload: {
+      //         id: data.message.ticketId,
+      //         lastMessage: data.message.body,
+      //       },
+      //       sortDir: sortTickets,
+      //     });
+      //   }
+      // }
+
       if (data.action === "update") {
         if (data.ticket) {
+          if (
+            !shouldUpdateTicket(data.ticket) ||
+            notBelongsToUserQueues(data.ticket)
+          ) {
+            dispatch({
+              type: "DELETE_TICKET",
+              payload: data.ticket.id,
+              status,
+              sortDir: sortTickets,
+            });
+            return;
+          }
+
           dispatch({
             type: "UPDATE_TICKET",
             payload: data.ticket,
@@ -569,7 +636,10 @@ const TicketsListCustom = (props) => {
     const normalize = (n) => n?.replace(/\D/g, "");
     ticketsList = ticketsList.map((t) => {
       for (const number in preservedPicsRef.current) {
-        if (t.contact?.number && normalize(t.contact.number) === normalize(number)) {
+        if (
+          t.contact?.number &&
+          normalize(t.contact.number) === normalize(number)
+        ) {
           const newPic = preservedPicsRef.current[number];
           if (t.contact.urlPicture !== newPic) {
             t = { ...t, contact: { ...t.contact, urlPicture: newPic } };
