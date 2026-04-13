@@ -46,7 +46,7 @@ const AuthUserService = async ({
   password,
   companyId
 }: Request): Promise<Response> => {
-  if (process.env.NODE_ENV === "test") {
+  if (process.env.NODE_ENV === "development") {
     console.log("DEBUG AUTH:");
     console.log("Email:", email);
     console.log("Password:", password);
