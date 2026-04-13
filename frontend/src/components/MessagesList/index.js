@@ -530,26 +530,59 @@ const reducer = (state, action) => {
   if (action.type === "ADD_MESSAGE") {
     const newMessage = action.payload;
 
-    // 🔥 Se existir mensagem temporária parecida, substitui
-    const tempIndex = state.findIndex(
+    // 🔥 1. Tentar match pelo tempId que vem no campo _tempId da mensagem real
+    // (quando o backend ecoa de volta, ou via socket)
+    if (newMessage._tempId) {
+      const tempByIdIndex = state.findIndex((m) => m.id === newMessage._tempId);
+      if (tempByIdIndex !== -1) {
+        const updated = [...state];
+        updated[tempByIdIndex] = newMessage;
+        return updated;
+      }
+    }
+
+    // 🔥 2. Match para mensagens de texto: id temp + body igual
+    const tempTextIndex = state.findIndex(
       (m) =>
         String(m.id).startsWith("temp-") &&
         m.fromMe &&
+        !m.mediaUrl &&
+        !m._isMediaOptimistic &&
         m.body === newMessage.body,
     );
-
-    if (tempIndex !== -1) {
-      state[tempIndex] = newMessage;
-      return [...state];
+    if (tempTextIndex !== -1) {
+      const updated = [...state];
+      updated[tempTextIndex] = newMessage;
+      return updated;
     }
 
+    // 🔥 3. Match para mídia: pegar o temp mais antigo do mesmo mediaType
+    //    Isso garante FIFO — se o usuário enviou 2 áudios em sequência,
+    //    o primeiro temp é substituído pelo primeiro real que chegar.
+    if (newMessage.mediaType && newMessage.mediaType !== "text") {
+      const tempMediaIndex = state.findIndex(
+        (m) =>
+          String(m.id).startsWith("temp-") &&
+          m.fromMe &&
+          m._isMediaOptimistic === true &&
+          m.mediaType === newMessage.mediaType,
+      );
+      if (tempMediaIndex !== -1) {
+        const updated = [...state];
+        updated[tempMediaIndex] = newMessage;
+        return updated;
+      }
+    }
+
+    // 🔥 4. Sem temp encontrado — comportamento normal
     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
     if (messageIndex !== -1) {
-      state[messageIndex] = newMessage;
-    } else {
-      state.push(newMessage);
+      const updated = [...state];
+      updated[messageIndex] = newMessage;
+      return updated;
     }
-    return [...state];
+
+    return [...state, newMessage];
   }
 
   if (action.type === "ADD_OPTIMISTIC_MESSAGE") {
@@ -739,53 +772,6 @@ const MessagesList = ({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
-
-  // useEffect(() => {
-  //   setLoading(true);
-  //   const delayDebounceFn = setTimeout(() => {
-  //     const fetchMessages = async () => {
-  //       if (ticketId === "undefined") {
-  //         history.push("/tickets");
-  //         return;
-  //       }
-  //       if (isNil(ticketId)) return;
-
-  //       try {
-  //         const { data } = await api.get("/messages/" + ticketId, {
-  //           params: {
-  //             pageNumber,
-  //             selectedQueues: JSON.stringify(selectedQueuesMessage),
-  //           },
-  //         });
-
-  //         if (currentTicketId.current === ticketId) {
-  //           dispatch({
-  //             type: "LOAD_MESSAGES",
-  //             payload: data.messages,
-  //           });
-  //           setHasMore(data.hasMore);
-  //           setLoading(false);
-  //           setLoadingMore(false);
-  //         }
-
-  //         if (pageNumber === 1 && data.messages.length > 1) {
-  //           scrollToBottom();
-  //         }
-  //       } catch (err) {
-  //         setLoading(false);
-  //         toastError(err);
-  //         setLoadingMore(false);
-  //       }
-  //     };
-
-  //     fetchMessages();
-  //   }, 500);
-
-  //   return () => {
-  //     isMounted = false;
-  //     clearTimeout(delayDebounceFn);
-  //   };
-  // }, [pageNumber, ticketId, selectedQueuesMessage]);
 
   useEffect(() => {
     let active = true;
@@ -1028,6 +1014,24 @@ const MessagesList = ({
   };
 
   const checkMessageMedia = (message) => {
+    // 🔥 Mensagem otimista de mídia: exibe placeholder animado enquanto aguarda
+    if (message._isMediaOptimistic) {
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 12px",
+            opacity: 0.7,
+          }}
+        >
+          <CircularProgress size={16} style={{ color: "#aaa" }} />
+          <span style={{ fontSize: 13, color: "#aaa" }}>Enviando...</span>
+        </div>
+      );
+    }
+
     const isAudioMessage = (message) => {
       if (message.mediaType === "audio") {
         console.log(
@@ -1620,41 +1624,6 @@ const MessagesList = ({
         )}
       </div>
     );
-
-    // return (
-    //   <div
-    //     style={{
-    //       marginTop: 6,
-    //       display: "inline-flex",
-    //       gap: 6,
-    //       background: "#f0f0f0",
-    //       borderRadius: 12,
-    //       padding: "2px 6px",
-    //       fontSize: 13,
-    //       alignSelf: "flex-start",
-    //     }}
-    //   >
-    //     {orderedReactions.map((reaction) => (
-    //       <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
-    //         {reaction.emoji}
-    //       </span>
-    //     ))}
-
-    //     {/* Contador total (apenas se > 1) */}
-    //     {total > 1 && (
-    //       <span
-    //         style={{
-    //           marginLeft: 4,
-    //           fontSize: 12,
-    //           fontWeight: 600,
-    //           color: "#555", // 🔥 micro ajuste fino
-    //         }}
-    //       >
-    //         {total}
-    //       </span>
-    //     )}
-    //   </div>
-    // );
   };
 
   const renderMessages = () => {
@@ -1790,6 +1759,7 @@ const MessagesList = ({
                 )}
 
                 {(message.mediaUrl ||
+                  message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
                   message.mediaType === "contactMessage" ||
                   message.mediaType === "template" ||
@@ -1916,6 +1886,7 @@ const MessagesList = ({
                 )}
 
                 {(message.mediaUrl ||
+                  message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
                   message.mediaType === "contactMessage" ||
                   message.mediaType === "template") &&
@@ -1928,24 +1899,31 @@ const MessagesList = ({
                 >
                   {message.quotedMsg && renderQuotedMessage(message)}
 
-                  {((message.mediaType === "image" ||
-                    message.mediaType === "video") &&
-                    getBasename(message.mediaUrl) === message.body) ||
-                    (message.mediaType !== "audio" &&
-                      message.mediaType !== "reactionMessage" &&
-                      message.mediaType !== "locationMessage" &&
-                      message.mediaType !== "contactMessage" &&
-                      message.mediaType !== "template" && (
-                        <>
-                          {xmlRegex.test(message.body) && (
-                            <div>{formatXml(message.body)}</div>
-                          )}
-                          {!xmlRegex.test(message.body) && (
-                            <MarkdownWrapper>{message.body}</MarkdownWrapper>
-                          )}
-                        </>
-                      ))}
-                  {/* {renderReactions(message)} */}
+                  {/* Não renderizar body nas mensagens otimistas de mídia */}
+                  {!message._isMediaOptimistic && (
+                    <>
+                      {((message.mediaType === "image" ||
+                        message.mediaType === "video") &&
+                        getBasename(message.mediaUrl) === message.body) ||
+                        (message.mediaType !== "audio" &&
+                          message.mediaType !== "reactionMessage" &&
+                          message.mediaType !== "locationMessage" &&
+                          message.mediaType !== "contactMessage" &&
+                          message.mediaType !== "template" && (
+                            <>
+                              {xmlRegex.test(message.body) && (
+                                <div>{formatXml(message.body)}</div>
+                              )}
+                              {!xmlRegex.test(message.body) && (
+                                <MarkdownWrapper>
+                                  {message.body}
+                                </MarkdownWrapper>
+                              )}
+                            </>
+                          ))}
+                    </>
+                  )}
+
                   <span className={classes.timestamp}>
                     {message.isEdited
                       ? "Editada " +
@@ -2007,7 +1985,6 @@ const MessagesList = ({
           vertical: "bottom",
           horizontal: "center",
         }}
-        // disablePortal
         sx={{
           "& .MuiPaper-root": {
             borderRadius: 28,
@@ -2048,7 +2025,6 @@ const MessagesList = ({
                     key={emoji}
                     className={`${classes.reactionEmoji} ${isActive ? classes.reactionEmojiActive : ""}`}
                     onClick={() => {
-                      // if (!messageForReaction) return;
                       handleSendReaction(messageForReaction, emoji);
                       setReactionBar(null);
                     }}
@@ -2070,7 +2046,7 @@ const MessagesList = ({
                     messageId: reactionBar.messageId,
                     messageWid: reactionBar.messageWid,
                     anchorEl: reactionBar.anchorEl,
-                    fromMe: reactionMessage?.fromMe, // 🔥 ESSENCIAL
+                    fromMe: reactionMessage?.fromMe,
                   });
 
                   setReactionBar(null);
@@ -2078,15 +2054,6 @@ const MessagesList = ({
               >
                 +
               </span>
-              {/* <span
-                className={classes.reactionAddButton}
-                onClick={() => {
-                  setReactionBar(reactionBar);
-                  setReactionBar(null);
-                }}
-              >
-                +
-              </span> */}
             </>
           );
         })()}
