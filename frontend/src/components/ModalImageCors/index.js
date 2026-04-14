@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 
 const useStyles = makeStyles((theme) => ({
@@ -6,6 +6,7 @@ const useStyles = makeStyles((theme) => ({
     objectFit: "cover",
     width: 250,
     height: "auto",
+    maxHeight: 300, // ← limita altura para não sobrepor botões
     borderRadius: 8,
     cursor: "zoom-in",
     display: "block",
@@ -62,7 +63,9 @@ const ModalImageCors = ({ imageUrl }) => {
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const imgRef = useRef(null);
 
+  // Fechar com ESC
   useEffect(() => {
     if (!open) return;
     const handleKey = (e) => {
@@ -70,6 +73,20 @@ const ModalImageCors = ({ imageUrl }) => {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
+  }, [open]);
+
+  // Zoom com scroll do mouse
+  useEffect(() => {
+    if (!open) return;
+    const handleWheel = (e) => {
+      e.preventDefault();
+      setZoom((z) => {
+        const delta = e.deltaY > 0 ? -0.15 : 0.15;
+        return Math.min(5, Math.max(0.5, z + delta));
+      });
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
   }, [open]);
 
   const handleClose = () => {
@@ -91,9 +108,7 @@ const ModalImageCors = ({ imageUrl }) => {
           e.preventDefault();
           setOpen(true);
         }}
-        onError={(e) => {
-          console.error("Erro ao carregar imagem:", imageUrl);
-        }}
+        onError={(e) => console.error("Erro ao carregar imagem:", imageUrl)}
       />
 
       {open && (
@@ -103,6 +118,7 @@ const ModalImageCors = ({ imageUrl }) => {
           </button>
 
           <img
+            ref={imgRef}
             src={imageUrl}
             alt="imagem expandida"
             style={{
@@ -112,7 +128,7 @@ const ModalImageCors = ({ imageUrl }) => {
               borderRadius: 4,
               boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
               transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              transition: "transform 0.2s ease",
+              transition: "transform 0.15s ease",
               cursor: "default",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -125,21 +141,28 @@ const ModalImageCors = ({ imageUrl }) => {
             <button
               className={classes.controlBtn}
               onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+              title="Diminuir zoom"
             >
               −
             </button>
-            <button className={classes.controlBtn} onClick={() => setZoom(1)}>
+            <button
+              className={classes.controlBtn}
+              onClick={() => setZoom(1)}
+              title="Zoom original"
+            >
               ↺
             </button>
             <button
               className={classes.controlBtn}
-              onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+              onClick={() => setZoom((z) => Math.min(5, z + 0.25))}
+              title="Aumentar zoom"
             >
               +
             </button>
             <button
               className={classes.controlBtn}
               onClick={() => setRotation((r) => r + 90)}
+              title="Rotacionar"
             >
               🔄
             </button>
