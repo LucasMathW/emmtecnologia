@@ -61,6 +61,7 @@ import { usePdfViewer } from "../../hooks/usePdfViewer";
 import { getEffectiveConstraintOfTypeParameter, NewLineKind } from "typescript";
 import EmojiEmotionsOutlinedIcon from "@material-ui/icons/EmojiEmotionsOutlined";
 import Box from "@material-ui/core/Box";
+import ForwardMessageBar from "../ForwardMessageBar";
 
 const useStyles = makeStyles((theme) => ({
   emojiPickerOverride: {
@@ -681,13 +682,19 @@ const MessagesList = ({
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
   const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
-  const { showSelectMessageCheckbox } = useContext(ForwardMessageContext);
+  const { showSelectMessageCheckbox, setForwardMessageModalOpen } = useContext(
+    ForwardMessageContext,
+  );
   const { user, socket } = useContext(AuthContext);
   const companyId = user.companyId;
   const lastReadRef = useRef(null);
   const [isTabActive, setIsTabActive] = useState(
     document.visibilityState === "visible",
   );
+
+  const isSticker = (msg) =>
+    msg.mediaType === "sticker" ||
+    (msg.body === "sticker" && msg.mediaUrl?.endsWith(".webp"));
 
   const QUICK_REACTIONS = ["😂", "❤️", "😮", "😢", "🙏", "👍"];
 
@@ -1014,6 +1021,16 @@ const MessagesList = ({
   };
 
   const checkMessageMedia = (message) => {
+    console.log(
+      "checkMessageMedia:",
+      message.id,
+      "mediaType:",
+      message.mediaType,
+      "body:",
+      message.body,
+      "mediaUrl:",
+      message.mediaUrl,
+    );
     // 🔥 Mensagem otimista de mídia: exibe placeholder animado enquanto aguarda
     if (message._isMediaOptimistic) {
       return (
@@ -1163,6 +1180,49 @@ const MessagesList = ({
           }}
         >
           <AudioModal url={message.mediaUrl} message={message} />
+        </div>
+      );
+    } else if (
+      message.mediaType === "sticker" ||
+      (message.body === "sticker" && message.mediaUrl?.endsWith(".webp"))
+    ) {
+      return (
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <img
+            src={message.mediaUrl}
+            alt="sticker"
+            style={{
+              width: 150,
+              height: 150,
+              objectFit: "contain",
+              display: "block",
+              background: "transparent",
+              borderRadius: 8,
+            }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              bottom: 4,
+              right: 4,
+              fontSize: 11,
+              color: "#fff",
+              backgroundColor: "rgba(0,0,0,0.45)",
+              borderRadius: 6,
+              padding: "2px 4px",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              pointerEvents: "none",
+            }}
+          >
+            {format(parseISO(message.createdAt), "HH:mm")}
+            {message.fromMe && (
+              <span style={{ display: "flex", alignItems: "center" }}>
+                {renderMessageAck(message)}
+              </span>
+            )}
+          </span>
         </div>
       );
     } else if (message.mediaType === "image") {
@@ -1672,7 +1732,296 @@ const MessagesList = ({
             </React.Fragment>
           );
         }
+        // if (!message.fromMe) {
+        //   return (
+        //     <React.Fragment key={message.id}>
+        //       {renderDailyTimestamps(message, index)}
+        //       {renderTicketsSeparator(message, index)}
+        //       {renderMessageDivider(message, index)}
+        //       <div
+        //         data-message-container
+        //         data-message-id={message.id}
+        //         className={clsx(classes.messageLeft, {
+        //           [classes.messageWithReaction]:
+        //             message.reactions && message.reactions.length > 0,
+        //         })}
+        //         title={message.queueId && message.queue?.name}
+        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+        //         style={
+        //           isSticker(message) && !message.quotedMsg
+        //             ? {
+        //                 backgroundColor: "transparent",
+        //                 boxShadow: "none",
+        //                 padding: 0,
+        //                 minWidth: "unset",
+        //               }
+        //             : {}
+        //         }
+        //       >
+        //         {showSelectMessageCheckbox && (
+        //           <SelectMessageCheckbox message={message} />
+        //         )}
+        //         <IconButton
+        //           variant="contained"
+        //           size="small"
+        //           id="messageActionsButton"
+        //           disabled={message.isDeleted}
+        //           className={classes.messageActionsButton}
+        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+        //         >
+        //           <ExpandMore />
+        //         </IconButton>
+        //         <IconButton
+        //           variant="contained"
+        //           size="small"
+        //           id="messageActionsButton"
+        //           disabled={message.isDeleted}
+        //           className={classes.messageActionsButton}
+        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+        //         >
+        //           <ExpandMore />
+        //         </IconButton>
 
+        //         <div
+        //           className={classes.reactionButton}
+        //           onClick={(e) => {
+        //             e.stopPropagation();
+        //             openReactionBar(message, e.currentTarget);
+        //           }}
+        //         >
+        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
+        //         </div>
+
+        //         {message.isForwarded && (
+        //           <div>
+        //             <span className={classes.forwardMessage}>
+        //               <Reply
+        //                 style={{
+        //                   color: "grey",
+        //                   transform: "scaleX(-1)",
+        //                 }}
+        //               />{" "}
+        //               Encaminhada
+        //             </span>
+        //             <br />
+        //           </div>
+        //         )}
+
+        //         {isGroup && (
+        //           <span className={classes.messageContactName}>
+        //             {message.contact?.name}
+        //           </span>
+        //         )}
+
+        //         {isYouTubeLink(message.body) && (
+        //           <>
+        //             <YouTubePreview videoUrl={message.body} />
+        //           </>
+        //         )}
+
+        //         {!lgpdDeleteMessage && message.isDeleted && (
+        //           <div>
+        //             <span className={classes.deletedMessage}>
+        //               🚫 Essa mensagem foi apagada pelo contato &nbsp;
+        //             </span>
+        //           </div>
+        //         )}
+
+        //         {(message.mediaUrl ||
+        //           message._isMediaOptimistic ||
+        //           message.mediaType === "locationMessage" ||
+        //           message.mediaType === "contactMessage" ||
+        //           isSticker(message) ||
+        //           message.mediaType === "template" ||
+        //           message.mediaType === "adMetaPreview") &&
+        //           checkMessageMedia(message)}
+
+        //         {(!isSticker(message) || message.quotedMsg) && (
+        //           <div
+        //             className={clsx(classes.textContentItem, {
+        //               [classes.textContentItemDeleted]: message.isDeleted,
+        //             })}
+        //           >
+        //             {message.quotedMsg && renderQuotedMessage(message)}
+
+        //             {message.mediaType !== "adMetaPreview" &&
+        //               ((message.mediaUrl !== null &&
+        //                 (message.mediaType === "image" ||
+        //                   message.mediaType === "video") &&
+        //                 getBasename(message.mediaUrl).trim() !==
+        //                   message.body.trim()) ||
+        //                 (message.mediaType !== "audio" &&
+        //                   message.mediaType !== "image" &&
+        //                   message.mediaType !== "video" &&
+        //                   !isSticker(message) &&
+        //                   message.mediaType !== "reactionMessage" &&
+        //                   message.mediaType !== "locationMessage" &&
+        //                   message.mediaType !== "contactMessage" &&
+        //                   message.mediaType !== "template")) && (
+        //                 <>
+        //                   {xmlRegex.test(message.body) && (
+        //                     <span>{message.body}</span>
+        //                   )}
+        //                   {!xmlRegex.test(message.body) && (
+        //                     <MarkdownWrapper>
+        //                       {lgpdDeleteMessage && message.isDeleted
+        //                         ? "🚫 _Mensagem apagada_ "
+        //                         : message.body}
+        //                     </MarkdownWrapper>
+        //                   )}
+        //                 </>
+        //               )}
+        //             <span className={classes.timestamp}>
+        //               {message.isEdited
+        //                 ? "Editada " +
+        //                   format(parseISO(message.createdAt), "HH:mm")
+        //                 : format(parseISO(message.createdAt), "HH:mm")}
+        //             </span>
+        //           </div>
+        //         )}
+        //         {renderReactions(message)}
+        //       </div>
+        //     </React.Fragment>
+        //   );
+        // } else {
+        //   return (
+        //     <React.Fragment key={message.id}>
+        //       {renderDailyTimestamps(message, index)}
+        //       {renderTicketsSeparator(message, index)}
+        //       {renderMessageDivider(message, index)}
+        //       <div
+        //         data-message-container
+        //         data-message-id={message.id}
+        //         className={clsx(
+        //           message.isPrivate
+        //             ? classes.messageRightPrivate
+        //             : classes.messageRight,
+        //           {
+        //             [classes.messageWithReaction]:
+        //               message.reactions && message.reactions.length > 0,
+        //           },
+        //         )}
+        //         title={message.queueId && message.queue?.name}
+        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+        //         style={
+        //           isSticker(message)
+        //             ? {
+        //                 backgroundColor: "transparent",
+        //                 boxShadow: "none",
+        //                 padding: 0,
+        //                 minWidth: "unset",
+        //               }
+        //             : {}
+        //         }
+        //       >
+        //         {showSelectMessageCheckbox && (
+        //           <SelectMessageCheckbox message={message} />
+        //         )}
+
+        //         <IconButton
+        //           variant="contained"
+        //           size="small"
+        //           id="messageActionsButton"
+        //           disabled={message.isDeleted}
+        //           className={classes.messageActionsButton}
+        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+        //         >
+        //           <ExpandMore />
+        //         </IconButton>
+
+        //         <div
+        //           className={classes.reactionButtonRight}
+        //           onClick={(e) => {
+        //             e.stopPropagation();
+        //             openReactionBar(message, e.currentTarget);
+        //           }}
+        //         >
+        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
+        //         </div>
+
+        //         {message.isForwarded && (
+        //           <div>
+        //             <span className={classes.forwardMessage}>
+        //               <Reply
+        //                 style={{
+        //                   color: "grey",
+        //                   transform: "scaleX(-1)",
+        //                 }}
+        //               />{" "}
+        //               Encaminhada
+        //             </span>
+        //             <br />
+        //           </div>
+        //         )}
+
+        //         {isYouTubeLink(message.body) && (
+        //           <>
+        //             <YouTubePreview videoUrl={message.body} />
+        //           </>
+        //         )}
+
+        //         {!lgpdDeleteMessage && message.isDeleted && (
+        //           <div>
+        //             <span className={classes.deletedMessage}>
+        //               🚫 Essa mensagem foi apagada &nbsp;
+        //             </span>
+        //           </div>
+        //         )}
+
+        //         {(message.mediaUrl ||
+        //           message._isMediaOptimistic ||
+        //           message.mediaType === "locationMessage" ||
+        //           message.mediaType == "sticker" ||
+        //           message.mediaType === "contactMessage" ||
+        //           message.mediaType === "template") &&
+        //           checkMessageMedia(message)}
+
+        //         <div
+        //           className={clsx(classes.textContentItem, {
+        //             [classes.textContentItemDeleted]: message.isDeleted,
+        //           })}
+        //         >
+        //           {message.quotedMsg && renderQuotedMessage(message)}
+
+        //           {/* Não renderizar body nas mensagens otimistas de mídia */}
+        //           {!message._isMediaOptimistic && (
+        //             <>
+        //               {((message.mediaType === "image" ||
+        //                 message.mediaType === "video") &&
+        //                 getBasename(message.mediaUrl) === message.body) ||
+        //                 (message.mediaType !== "audio" &&
+        //                   !isSticker(message) &&
+        //                   message.mediaType !== "reactionMessage" &&
+        //                   message.mediaType !== "locationMessage" &&
+        //                   message.mediaType !== "contactMessage" &&
+        //                   message.mediaType !== "template" && (
+        //                     <>
+        //                       {xmlRegex.test(message.body) && (
+        //                         <div>{formatXml(message.body)}</div>
+        //                       )}
+        //                       {!xmlRegex.test(message.body) && (
+        //                         <MarkdownWrapper>
+        //                           {message.body}
+        //                         </MarkdownWrapper>
+        //                       )}
+        //                     </>
+        //                   ))}
+        //             </>
+        //           )}
+
+        //           <span className={classes.timestamp}>
+        //             {message.isEdited
+        //               ? "Editada " +
+        //                 format(parseISO(message.createdAt), "HH:mm")
+        //               : format(parseISO(message.createdAt), "HH:mm")}
+        //             {renderMessageAck(message)}
+        //           </span>
+        //         </div>
+        //         {renderReactions(message)}
+        //       </div>
+        //     </React.Fragment>
+        //   );
+        // }
         if (!message.fromMe) {
           return (
             <React.Fragment key={message.id}>
@@ -1688,6 +2037,16 @@ const MessagesList = ({
                 })}
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+                style={
+                  isSticker(message) && !message.quotedMsg
+                    ? {
+                        backgroundColor: "transparent",
+                        boxShadow: "none",
+                        padding: 0,
+                        minWidth: "unset",
+                      }
+                    : {}
+                }
               >
                 {showSelectMessageCheckbox && (
                   <SelectMessageCheckbox message={message} />
@@ -1727,10 +2086,7 @@ const MessagesList = ({
                   <div>
                     <span className={classes.forwardMessage}>
                       <Reply
-                        style={{
-                          color: "grey",
-                          transform: "scaleX(-1)",
-                        }}
+                        style={{ color: "grey", transform: "scaleX(-1)" }}
                       />{" "}
                       Encaminhada
                     </span>
@@ -1745,9 +2101,7 @@ const MessagesList = ({
                 )}
 
                 {isYouTubeLink(message.body) && (
-                  <>
-                    <YouTubePreview videoUrl={message.body} />
-                  </>
+                  <YouTubePreview videoUrl={message.body} />
                 )}
 
                 {!lgpdDeleteMessage && message.isDeleted && (
@@ -1762,50 +2116,54 @@ const MessagesList = ({
                   message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
                   message.mediaType === "contactMessage" ||
+                  isSticker(message) ||
                   message.mediaType === "template" ||
                   message.mediaType === "adMetaPreview") &&
                   checkMessageMedia(message)}
 
-                <div
-                  className={clsx(classes.textContentItem, {
-                    [classes.textContentItemDeleted]: message.isDeleted,
-                  })}
-                >
-                  {message.quotedMsg && renderQuotedMessage(message)}
+                {(!isSticker(message) || message.quotedMsg) && (
+                  <div
+                    className={clsx(classes.textContentItem, {
+                      [classes.textContentItemDeleted]: message.isDeleted,
+                    })}
+                  >
+                    {message.quotedMsg && renderQuotedMessage(message)}
 
-                  {message.mediaType !== "adMetaPreview" &&
-                    ((message.mediaUrl !== null &&
-                      (message.mediaType === "image" ||
-                        message.mediaType === "video") &&
-                      getBasename(message.mediaUrl).trim() !==
-                        message.body.trim()) ||
-                      (message.mediaType !== "audio" &&
-                        message.mediaType !== "image" &&
-                        message.mediaType !== "video" &&
-                        message.mediaType !== "reactionMessage" &&
-                        message.mediaType !== "locationMessage" &&
-                        message.mediaType !== "contactMessage" &&
-                        message.mediaType !== "template")) && (
-                      <>
-                        {xmlRegex.test(message.body) && (
-                          <span>{message.body}</span>
-                        )}
-                        {!xmlRegex.test(message.body) && (
-                          <MarkdownWrapper>
-                            {lgpdDeleteMessage && message.isDeleted
-                              ? "🚫 _Mensagem apagada_ "
-                              : message.body}
-                          </MarkdownWrapper>
-                        )}
-                      </>
-                    )}
-                  <span className={classes.timestamp}>
-                    {message.isEdited
-                      ? "Editada " +
-                        format(parseISO(message.createdAt), "HH:mm")
-                      : format(parseISO(message.createdAt), "HH:mm")}
-                  </span>
-                </div>
+                    {message.mediaType !== "adMetaPreview" &&
+                      ((message.mediaUrl !== null &&
+                        (message.mediaType === "image" ||
+                          message.mediaType === "video") &&
+                        getBasename(message.mediaUrl).trim() !==
+                          message.body.trim()) ||
+                        (message.mediaType !== "audio" &&
+                          message.mediaType !== "image" &&
+                          message.mediaType !== "video" &&
+                          !isSticker(message) &&
+                          message.mediaType !== "reactionMessage" &&
+                          message.mediaType !== "locationMessage" &&
+                          message.mediaType !== "contactMessage" &&
+                          message.mediaType !== "template")) && (
+                        <>
+                          {xmlRegex.test(message.body) && (
+                            <span>{message.body}</span>
+                          )}
+                          {!xmlRegex.test(message.body) && (
+                            <MarkdownWrapper>
+                              {lgpdDeleteMessage && message.isDeleted
+                                ? "🚫 _Mensagem apagada_ "
+                                : message.body}
+                            </MarkdownWrapper>
+                          )}
+                        </>
+                      )}
+                    <span className={classes.timestamp}>
+                      {message.isEdited
+                        ? "Editada " +
+                          format(parseISO(message.createdAt), "HH:mm")
+                        : format(parseISO(message.createdAt), "HH:mm")}
+                    </span>
+                  </div>
+                )}
                 {renderReactions(message)}
               </div>
             </React.Fragment>
@@ -1830,6 +2188,16 @@ const MessagesList = ({
                 )}
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+                style={
+                  isSticker(message) && !message.quotedMsg
+                    ? {
+                        backgroundColor: "transparent",
+                        boxShadow: "none",
+                        padding: 0,
+                        minWidth: "unset",
+                      }
+                    : {}
+                }
               >
                 {showSelectMessageCheckbox && (
                   <SelectMessageCheckbox message={message} />
@@ -1860,10 +2228,7 @@ const MessagesList = ({
                   <div>
                     <span className={classes.forwardMessage}>
                       <Reply
-                        style={{
-                          color: "grey",
-                          transform: "scaleX(-1)",
-                        }}
+                        style={{ color: "grey", transform: "scaleX(-1)" }}
                       />{" "}
                       Encaminhada
                     </span>
@@ -1872,9 +2237,7 @@ const MessagesList = ({
                 )}
 
                 {isYouTubeLink(message.body) && (
-                  <>
-                    <YouTubePreview videoUrl={message.body} />
-                  </>
+                  <YouTubePreview videoUrl={message.body} />
                 )}
 
                 {!lgpdDeleteMessage && message.isDeleted && (
@@ -1888,50 +2251,53 @@ const MessagesList = ({
                 {(message.mediaUrl ||
                   message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
+                  isSticker(message) ||
                   message.mediaType === "contactMessage" ||
                   message.mediaType === "template") &&
                   checkMessageMedia(message)}
 
-                <div
-                  className={clsx(classes.textContentItem, {
-                    [classes.textContentItemDeleted]: message.isDeleted,
-                  })}
-                >
-                  {message.quotedMsg && renderQuotedMessage(message)}
+                {(!isSticker(message) || message.quotedMsg) && (
+                  <div
+                    className={clsx(classes.textContentItem, {
+                      [classes.textContentItemDeleted]: message.isDeleted,
+                    })}
+                  >
+                    {message.quotedMsg && renderQuotedMessage(message)}
 
-                  {/* Não renderizar body nas mensagens otimistas de mídia */}
-                  {!message._isMediaOptimistic && (
-                    <>
-                      {((message.mediaType === "image" ||
-                        message.mediaType === "video") &&
-                        getBasename(message.mediaUrl) === message.body) ||
-                        (message.mediaType !== "audio" &&
-                          message.mediaType !== "reactionMessage" &&
-                          message.mediaType !== "locationMessage" &&
-                          message.mediaType !== "contactMessage" &&
-                          message.mediaType !== "template" && (
-                            <>
-                              {xmlRegex.test(message.body) && (
-                                <div>{formatXml(message.body)}</div>
-                              )}
-                              {!xmlRegex.test(message.body) && (
-                                <MarkdownWrapper>
-                                  {message.body}
-                                </MarkdownWrapper>
-                              )}
-                            </>
-                          ))}
-                    </>
-                  )}
+                    {!message._isMediaOptimistic && (
+                      <>
+                        {((message.mediaType === "image" ||
+                          message.mediaType === "video") &&
+                          getBasename(message.mediaUrl) === message.body) ||
+                          (message.mediaType !== "audio" &&
+                            !isSticker(message) &&
+                            message.mediaType !== "reactionMessage" &&
+                            message.mediaType !== "locationMessage" &&
+                            message.mediaType !== "contactMessage" &&
+                            message.mediaType !== "template" && (
+                              <>
+                                {xmlRegex.test(message.body) && (
+                                  <div>{formatXml(message.body)}</div>
+                                )}
+                                {!xmlRegex.test(message.body) && (
+                                  <MarkdownWrapper>
+                                    {message.body}
+                                  </MarkdownWrapper>
+                                )}
+                              </>
+                            ))}
+                      </>
+                    )}
 
-                  <span className={classes.timestamp}>
-                    {message.isEdited
-                      ? "Editada " +
-                        format(parseISO(message.createdAt), "HH:mm")
-                      : format(parseISO(message.createdAt), "HH:mm")}
-                    {renderMessageAck(message)}
-                  </span>
-                </div>
+                    <span className={classes.timestamp}>
+                      {message.isEdited
+                        ? "Editada " +
+                          format(parseISO(message.createdAt), "HH:mm")
+                        : format(parseISO(message.createdAt), "HH:mm")}
+                      {renderMessageAck(message)}
+                    </span>
+                  </div>
+                )}
                 {renderReactions(message)}
               </div>
             </React.Fragment>
@@ -2163,6 +2529,7 @@ const MessagesList = ({
           <CircularProgress className={classes.circleLoading} />
         </div>
       )}
+      <ForwardMessageBar onForward={() => setForwardMessageModalOpen(true)} />
     </div>
   );
 };
