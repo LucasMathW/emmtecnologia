@@ -134,15 +134,14 @@ const reducer = (state, action) => {
     const ticketIndex = state.findIndex(
       (t) => t.id === action.payload.ticketId,
     );
+    if (ticketIndex === -1) return state; // ticket não está nessa lista, ignora
 
-    if (ticketIndex !== -1) {
-      state[ticketIndex] = {
-        ...state[ticketIndex],
-        presence: action.payload.status,
-      };
-    }
-
-    return [...state];
+    // Imutável — cria novo array com novo objeto no índice correto
+    return state.map((t) =>
+      t.id === action.payload.ticketId
+        ? { ...t, presence: action.payload.status }
+        : t,
+    );
   }
 
   if (action.type === "LOAD_TICKETS") {
@@ -446,6 +445,7 @@ const TicketsListCustom = (props) => {
 
   const onCompanyAppMessageTicketsList = useCallback(
     (data) => {
+      console.log("[APP_MESSAGE] chegou:", data);
       if (data.action === "reaction:update") {
         dispatch({
           type: "UPDATE_TICKET_REACTION_PREVIEW",
@@ -472,25 +472,6 @@ const TicketsListCustom = (props) => {
         });
         return;
       }
-
-      // if (data.action === "create" && data.ticket) {
-      //   dispatch({
-      //     type: "UPDATE_TICKET_UNREAD_MESSAGES",
-      //     payload: data.ticket,
-      //     status,
-      //     sortDir: sortTickets,
-      //   });
-
-      //   dispatch({
-      //     type: "UPDATE_TICKET_PRESENCE",
-      //     payload: {
-      //       ticketId: data.ticket.id,
-      //       status: data.status,
-      //     },
-      //   });
-
-      //   return;
-      // }
 
       if (data.action === "create" && data.ticket) {
         if (
@@ -604,6 +585,16 @@ const TicketsListCustom = (props) => {
     const eventTicket = `company-${companyId}-ticket`;
     const eventAppMessage = `company-${companyId}-appMessage`;
     const eventContact = `company-${companyId}-contact`;
+
+    console.log("[SOCKET] companyId:", companyId);
+    console.log("[SOCKET] connected?", socket.socket?.connected);
+    console.log("[SOCKET] namespace:", socket.socket?.nsp);
+    console.log("[SOCKET] id:", socket.socket?.id);
+    console.log("[SOCKET] listening event:", eventAppMessage);
+
+    const debugPresence = (data) => {
+      console.log("[SOCKET] EVENTO RECEBIDO:", eventAppMessage, data);
+    };
 
     socket.socket.on("connect", onConnectTicketsList);
     socket.socket.on(eventTicket, onCompanyTicketTicketsList);

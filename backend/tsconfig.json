@@ -12,6 +12,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/services/TicketServices/ListTicketsService.backup.text"
+  ],
   "exclude": ["public", "node_modules", "dist"]
 }

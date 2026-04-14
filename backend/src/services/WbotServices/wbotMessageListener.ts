@@ -2556,7 +2556,6 @@ export const flowbuilderIntegration = async (
 
   // Verificar se ticket foi fechado e reabrir se necessário
   if (msg && !msg.key.fromMe && ticket.status === "closed") {
-
     await ticket.update({ status: "pending" });
     await ticket.reload({
       include: [
@@ -3669,8 +3668,7 @@ const handleOpenAi = async (
           );
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.mp3`);
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.wav`);
-        } catch (error) {
-        }
+        } catch (error) {}
       });
     }
   } else if (msg.message?.audioMessage) {
@@ -3744,8 +3742,7 @@ const handleOpenAi = async (
           );
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.mp3`);
           deleteFileSync(`${publicFolder}/${fileNameWithOutExtension}.wav`);
-        } catch (error) {
-        }
+        } catch (error) {}
       });
     }
   }
@@ -3980,7 +3977,6 @@ const handleMessage = async (
         `${unreadMessages}`
       );
     }
-
 
     const settings = await CompaniesSettings.findOne({
       where: { companyId }
@@ -4631,7 +4627,6 @@ const handleMessage = async (
           "[HANDLE MESSAGE] Ticket sem integração, pulando verificação de campanhas"
         );
       } else {
-
         const contactForCampaign = await ShowContactService(
           ticket.contactId,
           ticket.companyId
@@ -5813,7 +5808,9 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
-    // console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
+    if (process.env.NODE_ENV == "development") {
+      console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
+    }
     const presences = data.presences || {};
 
     for (const remoteJid in presences) {
