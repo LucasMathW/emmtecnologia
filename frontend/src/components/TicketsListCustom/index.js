@@ -554,7 +554,7 @@ const TicketsListCustom = (props) => {
         }
       }
     },
-    [dispatch, status, sortTickets],
+    [dispatch, status, sortTickets, shouldUpdateTicket, notBelongsToUserQueues],
   );
 
   const onCompanyContactTicketsList = useCallback(

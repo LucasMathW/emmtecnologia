@@ -511,6 +511,142 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// const reducer = (state, action) => {
+//   if (action.type === "LOAD_MESSAGES") {
+//     const messages = action.payload;
+//     const newMessages = [];
+
+//     messages.forEach((message) => {
+//       const messageIndex = state.findIndex((m) => m.id === message.id);
+//       if (messageIndex !== -1) {
+//         state[messageIndex] = message;
+//       } else {
+//         newMessages.push(message);
+//       }
+//     });
+
+//     return [...newMessages, ...state];
+//   }
+
+//   if (action.type === "ADD_MESSAGE") {
+//     const newMessage = action.payload;
+
+//     // 🔥 1. Tentar match pelo tempId que vem no campo _tempId da mensagem real
+//     // (quando o backend ecoa de volta, ou via socket)
+//     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
+//     if (messageIndex !== -1) {
+//       // Atualiza existente
+//       const updated = [...state];
+//       updated[messageIndex] = newMessage;
+//       return updated;
+//     }
+
+//     // 🔥 2. Match para mensagens de texto: id temp + body igual
+//     const tempTextIndex = state.findIndex(
+//       (m) =>
+//         String(m.id).startsWith("temp-") &&
+//         m.fromMe &&
+//         !m.mediaUrl &&
+//         !m._isMediaOptimistic &&
+//         m.body === newMessage.body,
+//     );
+//     if (tempTextIndex !== -1) {
+//       const updated = [...state];
+//       updated[tempTextIndex] = newMessage;
+//       return updated;
+//     }
+
+//     // 🔥 3. Match para mídia: pegar o temp mais antigo do mesmo mediaType
+//     //    Isso garante FIFO — se o usuário enviou 2 áudios em sequência,
+//     //    o primeiro temp é substituído pelo primeiro real que chegar.
+//     if (newMessage.mediaType && newMessage.mediaType !== "text") {
+//       const tempMediaIndex = state.findIndex(
+//         (m) =>
+//           String(m.id).startsWith("temp-") &&
+//           m.fromMe &&
+//           m._isMediaOptimistic === true &&
+//           m.mediaType === newMessage.mediaType,
+//       );
+//       if (tempMediaIndex !== -1) {
+//         const updated = [...state];
+//         updated[tempMediaIndex] = newMessage;
+//         return updated;
+//       }
+//     }
+
+//     // 🔥 4. Sem temp encontrado — comportamento normal
+//     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
+//     if (messageIndex !== -1) {
+//       const updated = [...state];
+//       updated[messageIndex] = newMessage;
+//       return updated;
+//     }
+
+//     return [...state, newMessage];
+//   }
+
+//   if (action.type === "ADD_OPTIMISTIC_MESSAGE") {
+//     return [...state, action.payload];
+//   }
+
+//   if (action.type === "UPDATE_MESSAGE") {
+//     const messageToUpdate = action.payload;
+//     return state.map((m) => {
+//       if (m.id !== messageToUpdate.id) return m;
+//       return {
+//         ...m,
+//         ...messageToUpdate,
+//         ticket: m.ticket,
+//         contact: m.contact,
+//       };
+//     });
+//   }
+
+//   if (action.type === "DELETE_MESSAGE") {
+//     const messageId = action.payload;
+//     return state.map((m) => {
+//       if (m.id !== messageId) return m;
+//       return {
+//         ...m,
+//         isDeleted: true,
+//       };
+//     });
+//   }
+
+//   if (action.type === "REACTION_UPDATE") {
+//     console.log();
+//     const { messageId, reaction } = action.payload;
+
+//     return state.map((message) => {
+//       if (String(message.id) !== String(messageId)) return message;
+
+//       const reactions = Array.isArray(message.reactions)
+//         ? message.reactions
+//         : [];
+
+//       const filtered = reactions.filter(
+//         (r) => String(r.userId) !== String(reaction.userId),
+//       );
+
+//       if (!reaction.emoji) {
+//         return {
+//           ...message,
+//           reactions: filtered,
+//         };
+//       }
+
+//       return {
+//         ...message,
+//         reactions: [...filtered, reaction],
+//       };
+//     });
+//   }
+
+//   if (action.type === "RESET") {
+//     return [];
+//   }
+// };
+
 const reducer = (state, action) => {
   if (action.type === "LOAD_MESSAGES") {
     const messages = action.payload;
@@ -531,8 +667,7 @@ const reducer = (state, action) => {
   if (action.type === "ADD_MESSAGE") {
     const newMessage = action.payload;
 
-    // 🔥 1. Tentar match pelo tempId que vem no campo _tempId da mensagem real
-    // (quando o backend ecoa de volta, ou via socket)
+    // 🔥 1. Match pelo tempId explícito (_tempId vindo do backend)
     if (newMessage._tempId) {
       const tempByIdIndex = state.findIndex((m) => m.id === newMessage._tempId);
       if (tempByIdIndex !== -1) {
@@ -542,7 +677,15 @@ const reducer = (state, action) => {
       }
     }
 
-    // 🔥 2. Match para mensagens de texto: id temp + body igual
+    // 🔥 2. Evitar duplicata: se a mensagem já existe pelo id real, atualiza
+    const existingIndex = state.findIndex((m) => m.id === newMessage.id);
+    if (existingIndex !== -1) {
+      const updated = [...state];
+      updated[existingIndex] = newMessage;
+      return updated;
+    }
+
+    // 🔥 3. Match para mensagens de texto otimistas (temp- + body igual)
     const tempTextIndex = state.findIndex(
       (m) =>
         String(m.id).startsWith("temp-") &&
@@ -557,9 +700,7 @@ const reducer = (state, action) => {
       return updated;
     }
 
-    // 🔥 3. Match para mídia: pegar o temp mais antigo do mesmo mediaType
-    //    Isso garante FIFO — se o usuário enviou 2 áudios em sequência,
-    //    o primeiro temp é substituído pelo primeiro real que chegar.
+    // 🔥 4. Match para mídia otimista: FIFO pelo mediaType
     if (newMessage.mediaType && newMessage.mediaType !== "text") {
       const tempMediaIndex = state.findIndex(
         (m) =>
@@ -575,14 +716,7 @@ const reducer = (state, action) => {
       }
     }
 
-    // 🔥 4. Sem temp encontrado — comportamento normal
-    const messageIndex = state.findIndex((m) => m.id === newMessage.id);
-    if (messageIndex !== -1) {
-      const updated = [...state];
-      updated[messageIndex] = newMessage;
-      return updated;
-    }
-
+    // 🔥 5. Mensagem nova sem nenhum temp correspondente — adiciona ao final
     return [...state, newMessage];
   }
 
@@ -615,7 +749,6 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "REACTION_UPDATE") {
-    console.log();
     const { messageId, reaction } = action.payload;
 
     return state.map((message) => {
@@ -630,16 +763,10 @@ const reducer = (state, action) => {
       );
 
       if (!reaction.emoji) {
-        return {
-          ...message,
-          reactions: filtered,
-        };
+        return { ...message, reactions: filtered };
       }
 
-      return {
-        ...message,
-        reactions: [...filtered, reaction],
-      };
+      return { ...message, reactions: [...filtered, reaction] };
     });
   }
 
@@ -834,10 +961,80 @@ const MessagesList = ({
     };
   }, [pageNumber, ticketId, selectedQueuesMessage]);
 
+  // useEffect(() => {
+  //   if (ticketId === "undefined") {
+  //     return;
+  //   }
+  //   const companyId = user.companyId;
+
+  //   const connectEventMessagesList = () => {
+  //     socket.emit("joinChatBox", `${ticketId}`);
+  //   };
+
+  //   const onAppMessageMessagesList = (data) => {
+  //     if (data.action === "reaction:update") {
+  //       console.log("UPDATE DE REACAO");
+  //       dispatch({
+  //         type: "REACTION_UPDATE",
+  //         payload: {
+  //           messageId: data.messageId,
+  //           reaction: data.reaction,
+  //         },
+  //       });
+  //     }
+  //     const msg = data.message;
+  //     if (!msg) return;
+
+  //     const chatTicketUuid = ticketId;
+  //     const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
+  //     const msgTicketId = msg.ticketId || msg.ticket?.id || null;
+  //     const isSameChat =
+  //       String(msgTicketUuid) === String(chatTicketUuid) ||
+  //       String(msgTicketId) === String(chatTicketUuid);
+
+  //     if (!isSameChat) {
+  //       return;
+  //     }
+
+  //     if (data.action === "create") {
+  //       dispatch({ type: "ADD_MESSAGE", payload: msg });
+  //       scrollToBottom();
+  //       setTimeout(() => {
+  //         tryMarkAsRead();
+  //       }, 150);
+  //     }
+
+  //     if (data.action === "update") {
+  //       dispatch({ type: "UPDATE_MESSAGE", payload: msg });
+  //     }
+
+  //     if (data.action === "tombstone") {
+  //       dispatch({
+  //         type: "UPDATE_MESSAGE",
+  //         payload: { ...msg, isDeleted: true },
+  //       });
+  //     }
+
+  //     if (data.action === "delete") {
+  //       dispatch({ type: "DELETE_MESSAGE", payload: msg.id });
+  //     }
+  //   };
+
+  //   socket.on("connect", connectEventMessagesList);
+  //   socket.on(`company-${companyId}-appMessage`, onAppMessageMessagesList);
+
+  //   return () => {
+  //     socket.emit("joinChatBoxLeave", `${ticketId}`);
+  //     socket.off("connect", connectEventMessagesList);
+  //     socket.off(`company-${companyId}-appMessage`, onAppMessageMessagesList);
+  //   };
+  // }, [ticketId]);
+
+  // Substitua o useEffect do socket (~linha 385)
+
   useEffect(() => {
-    if (ticketId === "undefined") {
-      return;
-    }
+    if (ticketId === "undefined") return;
+
     const companyId = user.companyId;
 
     const connectEventMessagesList = () => {
@@ -846,7 +1043,6 @@ const MessagesList = ({
 
     const onAppMessageMessagesList = (data) => {
       if (data.action === "reaction:update") {
-        console.log("UPDATE DE REACAO");
         dispatch({
           type: "REACTION_UPDATE",
           payload: {
@@ -855,6 +1051,7 @@ const MessagesList = ({
           },
         });
       }
+
       const msg = data.message;
       if (!msg) return;
 
@@ -865,16 +1062,12 @@ const MessagesList = ({
         String(msgTicketUuid) === String(chatTicketUuid) ||
         String(msgTicketId) === String(chatTicketUuid);
 
-      if (!isSameChat) {
-        return;
-      }
+      if (!isSameChat) return;
 
       if (data.action === "create") {
         dispatch({ type: "ADD_MESSAGE", payload: msg });
         scrollToBottom();
-        setTimeout(() => {
-          tryMarkAsRead();
-        }, 150);
+        setTimeout(() => tryMarkAsRead(), 150);
       }
 
       if (data.action === "update") {
@@ -893,14 +1086,28 @@ const MessagesList = ({
       }
     };
 
+    // Registrar listeners
     socket.on("connect", connectEventMessagesList);
     socket.on(`company-${companyId}-appMessage`, onAppMessageMessagesList);
+
+    // Entrar na sala imediatamente
+    if (socket.connected) {
+      connectEventMessagesList();
+    }
 
     return () => {
       socket.emit("joinChatBoxLeave", `${ticketId}`);
       socket.off("connect", connectEventMessagesList);
       socket.off(`company-${companyId}-appMessage`, onAppMessageMessagesList);
     };
+  }, [ticketId, user.companyId]); // ← handler definido DENTRO do effect, sem stale closure
+
+  // Forçar entrada na sala quando o socket já está conectado ao montar
+  useEffect(() => {
+    if (!ticketId || ticketId === "undefined") return;
+    if (socket?.connected) {
+      socket.emit("joinChatBox", `${ticketId}`);
+    }
   }, [ticketId]);
 
   useEffect(() => {
