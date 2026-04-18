@@ -102,7 +102,6 @@ const CreateMessageService = async ({
     }
   }
 
-
   await Message.upsert({ ...correctedMessageData, companyId, contactId });
 
   const message = await Message.findOne({
