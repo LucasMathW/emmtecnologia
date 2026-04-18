@@ -325,7 +325,6 @@ const handleRemoveReaction = async ({
 
   const isRemovingLatest = currentLastReaction?.messageId === msg.id;
 
-
   await MessageReaction.destroy({
     where: { messageId: msg.id, userId }
   });
@@ -346,7 +345,6 @@ const handleRemoveReaction = async ({
   if (!isRemovingLatest) {
     return;
   }
-
 
   await ticket.update({
     lastMessageType: "message"
