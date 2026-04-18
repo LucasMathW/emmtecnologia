@@ -1,6 +1,5 @@
 import { getIO } from "../../libs/socket";
 import { Op } from "sequelize";
-import Ticket from "../../models/Ticket";
 import Contact from "../../models/Contact";
 
 interface PresencePayload {
@@ -9,6 +8,7 @@ interface PresencePayload {
   status: "typing" | "recording" | "paused" | "online" | "offline";
 }
 
+// Cache e timeouts por contactId (não mais ticketId)
 const presenceCache = new Map<number, string | null>();
 const presenceTimeouts = new Map<number, NodeJS.Timeout>();
 
@@ -19,10 +19,6 @@ export const handlePresenceUpdate = async ({
 }: PresencePayload) => {
   const io = getIO();
 
-  if (process.env.NODE_ENV == "development") {
-    console.log(`[PRESENCE] Iniciando processamento: ${remoteJid} - ${status}`);
-  }
-
   // Normaliza variações de número com/sem dígito 9
   const rawNumber = remoteJid.split("@")[0];
   const numberVariants = [rawNumber];
@@ -31,10 +27,6 @@ export const handlePresenceUpdate = async ({
   }
   if (rawNumber.length === 12) {
     numberVariants.push(rawNumber.slice(0, 4) + "9" + rawNumber.slice(4));
-  }
-
-  if (process.env.NODE_ENV == "development") {
-    console.log(`[PRESENCE] Buscando contato com variantes:`, numberVariants);
   }
 
   const contact = await Contact.findOne({
@@ -53,62 +45,50 @@ export const handlePresenceUpdate = async ({
     return;
   }
 
-  if (process.env.NODE_ENV == "development") {
-    console.log(
-      `[PRESENCE] ✅ Contato encontrado: ${contact.id} - ${contact.name} (${contact.number})`
-    );
-  }
-
-  const ticket = await Ticket.findOne({
-    where: {
-      contactId: contact.id,
-      companyId,
-      status: ["open", "pending", "group", "chatbot"] // ← inclui todos ativos
-    }
-  });
-
-  if (!ticket) {
-    console.log(
-      `[PRESENCE] ticket ativo não encontrado para contactId: ${contact.id}`
-    );
-    return;
-  }
-
   const newPresence =
     status === "typing" || status === "recording" ? status : null;
 
-  if (presenceCache.get(ticket.id) === newPresence) return;
+  // Evitar emissão duplicada
+  if (presenceCache.get(contact.id) === newPresence) return;
 
-  presenceCache.set(ticket.id, newPresence);
+  presenceCache.set(contact.id, newPresence);
 
+  console.log(
+    `[PRESENCE] ✅ emitindo por contactId: ${contact.id} - ${contact.name} → ${newPresence}`
+  );
+
+  // Emite por contactId — frontend filtra pelo contato, não pelo ticket
   io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
     action: "presence:update",
-    ticket: { id: ticket.id },
+    contactId: contact.id, // ← chave da mudança
     status: newPresence
   });
 
   if (newPresence !== null) {
-    const existing = presenceTimeouts.get(ticket.id);
+    const existing = presenceTimeouts.get(contact.id);
     if (existing) clearTimeout(existing);
 
     const timeout = setTimeout(() => {
-      if (presenceCache.get(ticket.id) === newPresence) {
-        presenceCache.set(ticket.id, null);
+      if (presenceCache.get(contact.id) === newPresence) {
+        presenceCache.set(contact.id, null);
         io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
           action: "presence:update",
-          ticket: { id: ticket.id },
+          contactId: contact.id,
           status: null
         });
+        console.log(
+          `[PRESENCE] ⏱️ timeout — limpando presence do contato ${contact.id}`
+        );
       }
-      presenceTimeouts.delete(ticket.id);
+      presenceTimeouts.delete(contact.id);
     }, 10_000);
 
-    presenceTimeouts.set(ticket.id, timeout);
+    presenceTimeouts.set(contact.id, timeout);
   } else {
-    const existing = presenceTimeouts.get(ticket.id);
+    const existing = presenceTimeouts.get(contact.id);
     if (existing) {
       clearTimeout(existing);
-      presenceTimeouts.delete(ticket.id);
+      presenceTimeouts.delete(contact.id);
     }
   }
 };
