@@ -70,6 +70,56 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 
+  presenceIndicator: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "8px 14px",
+    backgroundColor: theme.mode === "light" ? "#ffffff" : "#1f2c33",
+    borderRadius: 20,
+    boxShadow:
+      theme.mode === "light"
+        ? "0 4px 12px rgba(0,0,0,0.15)"
+        : "0 4px 12px rgba(0,0,0,0.5)",
+    width: "fit-content",
+  },
+  presenceText: {
+    fontSize: 15,
+    color: "#128C7E",
+    fontStyle: "italic",
+  },
+  "@keyframes presenceBounce": {
+    "0%, 80%, 100%": { transform: "translateY(0)", opacity: 0.4 },
+    "40%": { transform: "translateY(-4px)", opacity: 1 },
+  },
+  "@keyframes presenceWave": {
+    "0%, 100%": { transform: "scaleY(0.4)" },
+    "50%": { transform: "scaleY(1)" },
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    backgroundColor: "#128C7E",
+    display: "inline-block",
+    animation: "$presenceBounce 1.2s infinite ease-in-out",
+  },
+  dot1: { animationDelay: "0s" },
+  dot2: { animationDelay: "0.2s" },
+  dot3: { animationDelay: "0.4s" },
+  audioBar: {
+    width: 3,
+    backgroundColor: "#128C7E",
+    borderRadius: 2,
+    animation: "$presenceWave 0.8s infinite ease-in-out",
+  },
+  audioBar1: { height: 6, animationDelay: "0s" },
+  audioBar2: { height: 12, animationDelay: "0.1s" },
+  audioBar3: { height: 8, animationDelay: "0.2s" },
+  audioBar4: { height: 14, animationDelay: "0.3s" },
+  audioBar5: { height: 6, animationDelay: "0.4s" },
+
   reactionButton: {
     position: "absolute",
     top: "50%",
@@ -87,6 +137,7 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: theme.palette.action.hover,
     },
   },
+
   reactionAddButton: {
     width: 32,
     height: 32,
@@ -111,6 +162,7 @@ const useStyles = makeStyles((theme) => ({
       transform: "scale(1.05)",
     },
   },
+
   reactionButtonRight: {
     display: "none",
     position: "absolute",
@@ -129,6 +181,7 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: theme.palette.action.hover,
     },
   },
+
   reactionPopover: {
     borderRadius: 28,
     padding: "6px 8px",
@@ -140,6 +193,7 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: theme.shadows[4],
     overflow: "hidden",
   },
+
   reactionEmoji: {
     width: 32,
     height: 32,
@@ -168,6 +222,7 @@ const useStyles = makeStyles((theme) => ({
   messageWithReaction: {
     marginBottom: 21,
   },
+
   messagesListWrapper: {
     overflow: "hidden",
     position: "relative",
@@ -178,6 +233,7 @@ const useStyles = makeStyles((theme) => ({
     minWidth: 300,
     minHeight: 200,
   },
+
   currentTick: {
     alignItems: "center",
     textAlign: "center",
@@ -188,6 +244,7 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: "10px",
     boxShadow: "1px 5px 10px #b3b3b3",
   },
+
   currentTicktText: {
     color: theme.palette.primary,
     fontWeight: "bold",
@@ -795,6 +852,8 @@ const MessagesList = ({
   const lastMessageRef = useRef();
   const messageRef = useRef(null);
   const messageRight = useRef(null);
+  const presenceTimeoutRef = useRef(null);
+  const ticketNumericIdRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState({});
   const { setReplyingMessage } = useContext(ReplyMessageContext);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -807,6 +866,8 @@ const MessagesList = ({
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
+  // Presença do contato (digitando, gravando, etc.)
+  const [contactPresence, setContactPresence] = useState(null);
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
   const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
   const { showSelectMessageCheckbox, setForwardMessageModalOpen } = useContext(
@@ -893,6 +954,7 @@ const MessagesList = ({
     dispatch({ type: "RESET" });
     setPageNumber(1);
     currentTicketId.current = ticketId;
+    ticketNumericIdRef.current = null;
   }, [ticketId, selectedQueuesMessage]);
 
   useEffect(() => {
@@ -928,6 +990,10 @@ const MessagesList = ({
           },
         });
 
+        if (data.messages.length > 0) {
+          ticketNumericIdRef.current = data.messages[0].ticketId;
+        }
+
         if (!active) return;
 
         if (currentTicketId.current === ticketId) {
@@ -961,95 +1027,39 @@ const MessagesList = ({
     };
   }, [pageNumber, ticketId, selectedQueuesMessage]);
 
-  // useEffect(() => {
-  //   if (ticketId === "undefined") {
-  //     return;
-  //   }
-  //   const companyId = user.companyId;
-
-  //   const connectEventMessagesList = () => {
-  //     socket.emit("joinChatBox", `${ticketId}`);
-  //   };
-
-  //   const onAppMessageMessagesList = (data) => {
-  //     if (data.action === "reaction:update") {
-  //       console.log("UPDATE DE REACAO");
-  //       dispatch({
-  //         type: "REACTION_UPDATE",
-  //         payload: {
-  //           messageId: data.messageId,
-  //           reaction: data.reaction,
-  //         },
-  //       });
-  //     }
-  //     const msg = data.message;
-  //     if (!msg) return;
-
-  //     const chatTicketUuid = ticketId;
-  //     const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
-  //     const msgTicketId = msg.ticketId || msg.ticket?.id || null;
-  //     const isSameChat =
-  //       String(msgTicketUuid) === String(chatTicketUuid) ||
-  //       String(msgTicketId) === String(chatTicketUuid);
-
-  //     if (!isSameChat) {
-  //       return;
-  //     }
-
-  //     if (data.action === "create") {
-  //       dispatch({ type: "ADD_MESSAGE", payload: msg });
-  //       scrollToBottom();
-  //       setTimeout(() => {
-  //         tryMarkAsRead();
-  //       }, 150);
-  //     }
-
-  //     if (data.action === "update") {
-  //       dispatch({ type: "UPDATE_MESSAGE", payload: msg });
-  //     }
-
-  //     if (data.action === "tombstone") {
-  //       dispatch({
-  //         type: "UPDATE_MESSAGE",
-  //         payload: { ...msg, isDeleted: true },
-  //       });
-  //     }
-
-  //     if (data.action === "delete") {
-  //       dispatch({ type: "DELETE_MESSAGE", payload: msg.id });
-  //     }
-  //   };
-
-  //   socket.on("connect", connectEventMessagesList);
-  //   socket.on(`company-${companyId}-appMessage`, onAppMessageMessagesList);
-
-  //   return () => {
-  //     socket.emit("joinChatBoxLeave", `${ticketId}`);
-  //     socket.off("connect", connectEventMessagesList);
-  //     socket.off(`company-${companyId}-appMessage`, onAppMessageMessagesList);
-  //   };
-  // }, [ticketId]);
-
-  // Substitua o useEffect do socket (~linha 385)
-
   useEffect(() => {
     if (ticketId === "undefined") return;
 
     const companyId = user.companyId;
+    const eventAppMessage = `company-${companyId}-appMessage`;
 
     const connectEventMessagesList = () => {
       socket.emit("joinChatBox", `${ticketId}`);
     };
 
     const onAppMessageMessagesList = (data) => {
+      // Presença — tratado aqui também, sem segundo listener
+      if (data.action === "presence:update") {
+        if (data.ticketId && String(data.ticketId) !== String(ticketId)) return;
+        setContactPresence(data.status || null);
+        if (data.status) {
+          clearTimeout(presenceTimeoutRef.current);
+          presenceTimeoutRef.current = setTimeout(
+            () => setContactPresence(null),
+            10_000,
+          );
+        } else {
+          clearTimeout(presenceTimeoutRef.current);
+        }
+        return;
+      }
+
       if (data.action === "reaction:update") {
         dispatch({
           type: "REACTION_UPDATE",
-          payload: {
-            messageId: data.messageId,
-            reaction: data.reaction,
-          },
+          payload: { messageId: data.messageId, reaction: data.reaction },
         });
+        return;
       }
 
       const msg = data.message;
@@ -1057,14 +1067,21 @@ const MessagesList = ({
 
       const chatTicketUuid = ticketId;
       const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
-      const msgTicketId = msg.ticketId || msg.ticket?.id || null;
+      const msgTicketId = String(msg.ticketId || msg.ticket?.id || "");
+      const numericId = ticketNumericIdRef.current
+        ? String(ticketNumericIdRef.current)
+        : null;
+
       const isSameChat =
         String(msgTicketUuid) === String(chatTicketUuid) ||
-        String(msgTicketId) === String(chatTicketUuid);
+        msgTicketId === String(chatTicketUuid) ||
+        (numericId && msgTicketId === numericId); // ← chave do fix
 
       if (!isSameChat) return;
 
       if (data.action === "create") {
+        setContactPresence(null);
+        clearTimeout(presenceTimeoutRef.current);
         dispatch({ type: "ADD_MESSAGE", payload: msg });
         scrollToBottom();
         setTimeout(() => tryMarkAsRead(), 150);
@@ -1086,11 +1103,9 @@ const MessagesList = ({
       }
     };
 
-    // Registrar listeners
     socket.on("connect", connectEventMessagesList);
-    socket.on(`company-${companyId}-appMessage`, onAppMessageMessagesList);
+    socket.on(eventAppMessage, onAppMessageMessagesList);
 
-    // Entrar na sala imediatamente
     if (socket.connected) {
       connectEventMessagesList();
     }
@@ -1098,17 +1113,18 @@ const MessagesList = ({
     return () => {
       socket.emit("joinChatBoxLeave", `${ticketId}`);
       socket.off("connect", connectEventMessagesList);
-      socket.off(`company-${companyId}-appMessage`, onAppMessageMessagesList);
+      socket.off(eventAppMessage, onAppMessageMessagesList);
+      clearTimeout(presenceTimeoutRef.current);
     };
-  }, [ticketId, user.companyId]); // ← handler definido DENTRO do effect, sem stale closure
+  }, [ticketId, user.companyId]); // ← remover o segundo useEffect de presença
 
   // Forçar entrada na sala quando o socket já está conectado ao montar
-  useEffect(() => {
-    if (!ticketId || ticketId === "undefined") return;
-    if (socket?.connected) {
-      socket.emit("joinChatBox", `${ticketId}`);
-    }
-  }, [ticketId]);
+  // useEffect(() => {
+  //   if (!ticketId || ticketId === "undefined") return;
+  //   if (socket?.connected) {
+  //     socket.emit("joinChatBox", `${ticketId}`);
+  //   }
+  // }, [ticketId]);
 
   useEffect(() => {
     return () => {
@@ -1117,6 +1133,97 @@ const MessagesList = ({
       }
     };
   }, [dragTimeout]);
+
+  // useEffect(() => {
+  //   if (!ticketId || ticketId === "undefined" || !companyId) return;
+
+  //   const eventAppMessage = `company-${companyId}-appMessage`;
+
+  //   const onPresenceUpdate = (data) => {
+  //     if (data.action !== "presence:update") return;
+  //     if (!data.contactId) return;
+
+  //     // O ticket precisa ter o contactId — buscamos via lastMessageRef ou via ticketId
+  //     // A forma mais simples: comparar com o contact do ticket atual
+  //     // O socket emite data.contactId — filtramos pelo ticketId via data.ticketId (se vier)
+  //     // Fallback: aceitar qualquer presence enquanto esse chat estiver aberto
+  //     if (data.ticketId && String(data.ticketId) !== String(ticketId)) return;
+
+  //     setContactPresence(data.status || null);
+
+  //     // Limpa automaticamente após 10s (segurança caso o "parou" não chegue)
+  //     if (data.status) {
+  //       clearTimeout(presenceTimeoutRef.current);
+  //       presenceTimeoutRef.current = setTimeout(() => {
+  //         setContactPresence(null);
+  //       }, 10_000);
+  //     } else {
+  //       clearTimeout(presenceTimeoutRef.current);
+  //     }
+  //   };
+
+  //   socket.on(eventAppMessage, onPresenceUpdate);
+
+  //   return () => {
+  //     socket.off(eventAppMessage, onPresenceUpdate);
+  //     clearTimeout(presenceTimeoutRef.current);
+  //   };
+  // }, [ticketId, companyId]);
+
+  const renderPresenceIndicator = () => {
+    if (!contactPresence) return null;
+
+    const isRecording =
+      contactPresence === "recording" || contactPresence === "recording_audio";
+
+    const isTyping =
+      contactPresence === "composing" || contactPresence === "typing";
+
+    if (!isTyping && !isRecording) return null;
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-start",
+          marginLeft: 16,
+          marginTop: 8,
+          marginBottom: 12,
+        }}
+      >
+        <div className={classes.presenceIndicator}>
+          {isTyping ? (
+            <>
+              <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                <span className={`${classes.dot} ${classes.dot1}`} />
+                <span className={`${classes.dot} ${classes.dot2}`} />
+                <span className={`${classes.dot} ${classes.dot3}`} />
+              </div>
+              <span className={classes.presenceText}>digitando...</span>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "flex-end",
+                  height: 16,
+                }}
+              >
+                <span className={`${classes.audioBar} ${classes.audioBar1}`} />
+                <span className={`${classes.audioBar} ${classes.audioBar2}`} />
+                <span className={`${classes.audioBar} ${classes.audioBar3}`} />
+                <span className={`${classes.audioBar} ${classes.audioBar4}`} />
+                <span className={`${classes.audioBar} ${classes.audioBar5}`} />
+              </div>
+              <span className={classes.presenceText}>gravando áudio...</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const loadMore = () => {
     if (loadingMore) return;
@@ -1228,16 +1335,14 @@ const MessagesList = ({
   };
 
   const checkMessageMedia = (message) => {
-    console.log(
-      "checkMessageMedia:",
-      message.id,
-      "mediaType:",
-      message.mediaType,
-      "body:",
-      message.body,
-      "mediaUrl:",
-      message.mediaUrl,
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "checkMessageMedia:",
+        message.id,
+        "mediaType:",
+        message.mediaType,
+      );
+    }
     // 🔥 Mensagem otimista de mídia: exibe placeholder animado enquanto aguarda
     if (message._isMediaOptimistic) {
       return (
@@ -1939,296 +2044,7 @@ const MessagesList = ({
             </React.Fragment>
           );
         }
-        // if (!message.fromMe) {
-        //   return (
-        //     <React.Fragment key={message.id}>
-        //       {renderDailyTimestamps(message, index)}
-        //       {renderTicketsSeparator(message, index)}
-        //       {renderMessageDivider(message, index)}
-        //       <div
-        //         data-message-container
-        //         data-message-id={message.id}
-        //         className={clsx(classes.messageLeft, {
-        //           [classes.messageWithReaction]:
-        //             message.reactions && message.reactions.length > 0,
-        //         })}
-        //         title={message.queueId && message.queue?.name}
-        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
-        //         style={
-        //           isSticker(message) && !message.quotedMsg
-        //             ? {
-        //                 backgroundColor: "transparent",
-        //                 boxShadow: "none",
-        //                 padding: 0,
-        //                 minWidth: "unset",
-        //               }
-        //             : {}
-        //         }
-        //       >
-        //         {showSelectMessageCheckbox && (
-        //           <SelectMessageCheckbox message={message} />
-        //         )}
-        //         <IconButton
-        //           variant="contained"
-        //           size="small"
-        //           id="messageActionsButton"
-        //           disabled={message.isDeleted}
-        //           className={classes.messageActionsButton}
-        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
-        //         >
-        //           <ExpandMore />
-        //         </IconButton>
-        //         <IconButton
-        //           variant="contained"
-        //           size="small"
-        //           id="messageActionsButton"
-        //           disabled={message.isDeleted}
-        //           className={classes.messageActionsButton}
-        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
-        //         >
-        //           <ExpandMore />
-        //         </IconButton>
 
-        //         <div
-        //           className={classes.reactionButton}
-        //           onClick={(e) => {
-        //             e.stopPropagation();
-        //             openReactionBar(message, e.currentTarget);
-        //           }}
-        //         >
-        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
-        //         </div>
-
-        //         {message.isForwarded && (
-        //           <div>
-        //             <span className={classes.forwardMessage}>
-        //               <Reply
-        //                 style={{
-        //                   color: "grey",
-        //                   transform: "scaleX(-1)",
-        //                 }}
-        //               />{" "}
-        //               Encaminhada
-        //             </span>
-        //             <br />
-        //           </div>
-        //         )}
-
-        //         {isGroup && (
-        //           <span className={classes.messageContactName}>
-        //             {message.contact?.name}
-        //           </span>
-        //         )}
-
-        //         {isYouTubeLink(message.body) && (
-        //           <>
-        //             <YouTubePreview videoUrl={message.body} />
-        //           </>
-        //         )}
-
-        //         {!lgpdDeleteMessage && message.isDeleted && (
-        //           <div>
-        //             <span className={classes.deletedMessage}>
-        //               🚫 Essa mensagem foi apagada pelo contato &nbsp;
-        //             </span>
-        //           </div>
-        //         )}
-
-        //         {(message.mediaUrl ||
-        //           message._isMediaOptimistic ||
-        //           message.mediaType === "locationMessage" ||
-        //           message.mediaType === "contactMessage" ||
-        //           isSticker(message) ||
-        //           message.mediaType === "template" ||
-        //           message.mediaType === "adMetaPreview") &&
-        //           checkMessageMedia(message)}
-
-        //         {(!isSticker(message) || message.quotedMsg) && (
-        //           <div
-        //             className={clsx(classes.textContentItem, {
-        //               [classes.textContentItemDeleted]: message.isDeleted,
-        //             })}
-        //           >
-        //             {message.quotedMsg && renderQuotedMessage(message)}
-
-        //             {message.mediaType !== "adMetaPreview" &&
-        //               ((message.mediaUrl !== null &&
-        //                 (message.mediaType === "image" ||
-        //                   message.mediaType === "video") &&
-        //                 getBasename(message.mediaUrl).trim() !==
-        //                   message.body.trim()) ||
-        //                 (message.mediaType !== "audio" &&
-        //                   message.mediaType !== "image" &&
-        //                   message.mediaType !== "video" &&
-        //                   !isSticker(message) &&
-        //                   message.mediaType !== "reactionMessage" &&
-        //                   message.mediaType !== "locationMessage" &&
-        //                   message.mediaType !== "contactMessage" &&
-        //                   message.mediaType !== "template")) && (
-        //                 <>
-        //                   {xmlRegex.test(message.body) && (
-        //                     <span>{message.body}</span>
-        //                   )}
-        //                   {!xmlRegex.test(message.body) && (
-        //                     <MarkdownWrapper>
-        //                       {lgpdDeleteMessage && message.isDeleted
-        //                         ? "🚫 _Mensagem apagada_ "
-        //                         : message.body}
-        //                     </MarkdownWrapper>
-        //                   )}
-        //                 </>
-        //               )}
-        //             <span className={classes.timestamp}>
-        //               {message.isEdited
-        //                 ? "Editada " +
-        //                   format(parseISO(message.createdAt), "HH:mm")
-        //                 : format(parseISO(message.createdAt), "HH:mm")}
-        //             </span>
-        //           </div>
-        //         )}
-        //         {renderReactions(message)}
-        //       </div>
-        //     </React.Fragment>
-        //   );
-        // } else {
-        //   return (
-        //     <React.Fragment key={message.id}>
-        //       {renderDailyTimestamps(message, index)}
-        //       {renderTicketsSeparator(message, index)}
-        //       {renderMessageDivider(message, index)}
-        //       <div
-        //         data-message-container
-        //         data-message-id={message.id}
-        //         className={clsx(
-        //           message.isPrivate
-        //             ? classes.messageRightPrivate
-        //             : classes.messageRight,
-        //           {
-        //             [classes.messageWithReaction]:
-        //               message.reactions && message.reactions.length > 0,
-        //           },
-        //         )}
-        //         title={message.queueId && message.queue?.name}
-        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
-        //         style={
-        //           isSticker(message)
-        //             ? {
-        //                 backgroundColor: "transparent",
-        //                 boxShadow: "none",
-        //                 padding: 0,
-        //                 minWidth: "unset",
-        //               }
-        //             : {}
-        //         }
-        //       >
-        //         {showSelectMessageCheckbox && (
-        //           <SelectMessageCheckbox message={message} />
-        //         )}
-
-        //         <IconButton
-        //           variant="contained"
-        //           size="small"
-        //           id="messageActionsButton"
-        //           disabled={message.isDeleted}
-        //           className={classes.messageActionsButton}
-        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
-        //         >
-        //           <ExpandMore />
-        //         </IconButton>
-
-        //         <div
-        //           className={classes.reactionButtonRight}
-        //           onClick={(e) => {
-        //             e.stopPropagation();
-        //             openReactionBar(message, e.currentTarget);
-        //           }}
-        //         >
-        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
-        //         </div>
-
-        //         {message.isForwarded && (
-        //           <div>
-        //             <span className={classes.forwardMessage}>
-        //               <Reply
-        //                 style={{
-        //                   color: "grey",
-        //                   transform: "scaleX(-1)",
-        //                 }}
-        //               />{" "}
-        //               Encaminhada
-        //             </span>
-        //             <br />
-        //           </div>
-        //         )}
-
-        //         {isYouTubeLink(message.body) && (
-        //           <>
-        //             <YouTubePreview videoUrl={message.body} />
-        //           </>
-        //         )}
-
-        //         {!lgpdDeleteMessage && message.isDeleted && (
-        //           <div>
-        //             <span className={classes.deletedMessage}>
-        //               🚫 Essa mensagem foi apagada &nbsp;
-        //             </span>
-        //           </div>
-        //         )}
-
-        //         {(message.mediaUrl ||
-        //           message._isMediaOptimistic ||
-        //           message.mediaType === "locationMessage" ||
-        //           message.mediaType == "sticker" ||
-        //           message.mediaType === "contactMessage" ||
-        //           message.mediaType === "template") &&
-        //           checkMessageMedia(message)}
-
-        //         <div
-        //           className={clsx(classes.textContentItem, {
-        //             [classes.textContentItemDeleted]: message.isDeleted,
-        //           })}
-        //         >
-        //           {message.quotedMsg && renderQuotedMessage(message)}
-
-        //           {/* Não renderizar body nas mensagens otimistas de mídia */}
-        //           {!message._isMediaOptimistic && (
-        //             <>
-        //               {((message.mediaType === "image" ||
-        //                 message.mediaType === "video") &&
-        //                 getBasename(message.mediaUrl) === message.body) ||
-        //                 (message.mediaType !== "audio" &&
-        //                   !isSticker(message) &&
-        //                   message.mediaType !== "reactionMessage" &&
-        //                   message.mediaType !== "locationMessage" &&
-        //                   message.mediaType !== "contactMessage" &&
-        //                   message.mediaType !== "template" && (
-        //                     <>
-        //                       {xmlRegex.test(message.body) && (
-        //                         <div>{formatXml(message.body)}</div>
-        //                       )}
-        //                       {!xmlRegex.test(message.body) && (
-        //                         <MarkdownWrapper>
-        //                           {message.body}
-        //                         </MarkdownWrapper>
-        //                       )}
-        //                     </>
-        //                   ))}
-        //             </>
-        //           )}
-
-        //           <span className={classes.timestamp}>
-        //             {message.isEdited
-        //               ? "Editada " +
-        //                 format(parseISO(message.createdAt), "HH:mm")
-        //               : format(parseISO(message.createdAt), "HH:mm")}
-        //             {renderMessageAck(message)}
-        //           </span>
-        //         </div>
-        //         {renderReactions(message)}
-        //       </div>
-        //     </React.Fragment>
-        //   );
-        // }
         if (!message.fromMe) {
           return (
             <React.Fragment key={message.id}>
@@ -2258,7 +2074,7 @@ const MessagesList = ({
                 {showSelectMessageCheckbox && (
                   <SelectMessageCheckbox message={message} />
                 )}
-                <IconButton
+                {/* <IconButton
                   variant="contained"
                   size="small"
                   id="messageActionsButton"
@@ -2267,7 +2083,8 @@ const MessagesList = ({
                   onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
                 >
                   <ExpandMore />
-                </IconButton>
+                </IconButton> */}
+
                 <IconButton
                   variant="contained"
                   size="small"
@@ -2705,6 +2522,11 @@ const MessagesList = ({
         }}
       >
         {messagesList.length > 0 ? renderMessages() : []}
+        {/* Indicador de presença — digitando / gravando */}
+        {renderPresenceIndicator()}
+
+        {/* ancora de scroll */}
+        {/* <div ref={lastMessageRef} style={{ float: "left", clear: "both" }} /> */}
       </div>
 
       {channel !== "whatsapp" && channel !== undefined && (
