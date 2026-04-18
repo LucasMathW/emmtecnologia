@@ -46,24 +46,42 @@ class SocketWorker {
   }
 
   // Adiciona um ouvinte de eventos
+  // on(event, callback) {
+  //   this.connect();
+
+  //   const wrappedCallback = (...args) => {
+  //     // console.log("[SOCKET ON]", {
+  //     //   payload: args,
+  //     // });
+
+  //     callback(...args);
+  //   };
+
+  //   this.socket.on(event, wrappedCallback);
+
+  //   // Armazena o ouvinte no objeto de ouvintes
+  //   if (!this.eventListeners[event]) {
+  //     this.eventListeners[event] = [];
+  //   }
+  //   this.eventListeners[event].push(callback);
+  // }
   on(event, callback) {
     this.connect();
 
     const wrappedCallback = (...args) => {
-      // console.log("[SOCKET ON]", {
-      //   payload: args,
-      // });
-
       callback(...args);
     };
 
     this.socket.on(event, wrappedCallback);
 
-    // Armazena o ouvinte no objeto de ouvintes
     if (!this.eventListeners[event]) {
       this.eventListeners[event] = [];
     }
-    this.eventListeners[event].push(callback);
+    // CORREÇÃO: salvar o par original → wrapped para poder remover depois
+    this.eventListeners[event].push({
+      original: callback,
+      wrapped: wrappedCallback,
+    });
   }
 
   // Emite um evento
@@ -73,25 +91,51 @@ class SocketWorker {
   }
 
   // Desconecta um ou mais ouvintes de eventos
-  off(event, callback) {
-    // console.log(event, callback)
-    this.connect();
-    if (this.eventListeners[event]) {
-      // console.log("Desconectando do servidor Socket.IO:", event, callback);
-      if (callback) {
-        // Desconecta um ouvinte específico
-        this.socket.off(event, callback);
-        this.eventListeners[event] = this.eventListeners[event].filter(
-          (cb) => cb !== callback,
-        );
-      } else {
-        // console.log("DELETOU EVENTOS DO SOCKET:", this.eventListeners[event]);
+  // off(event, callback) {
+  //   // console.log(event, callback)
+  //   this.connect();
+  //   if (this.eventListeners[event]) {
+  //     // console.log("Desconectando do servidor Socket.IO:", event, callback);
+  //     if (callback) {
+  //       // Desconecta um ouvinte específico
+  //       this.socket.off(event, callback);
+  //       this.eventListeners[event] = this.eventListeners[event].filter(
+  //         (cb) => cb !== callback,
+  //       );
+  //     } else {
+  //       // console.log("DELETOU EVENTOS DO SOCKET:", this.eventListeners[event]);
 
-        // Desconecta todos os ouvintes do evento
-        this.eventListeners[event].forEach((cb) => this.socket.off(event, cb));
-        delete this.eventListeners[event];
+  //       // Desconecta todos os ouvintes do evento
+  //       this.eventListeners[event].forEach((cb) => this.socket.off(event, cb));
+  //       delete this.eventListeners[event];
+  //     }
+  //     // console.log("EVENTOS DO SOCKET:", this.eventListeners);
+  //   }
+  // }
+  off(event, callback) {
+    this.connect();
+    if (!this.eventListeners[event]) return;
+
+    if (callback) {
+      // Encontrar o wrappedCallback correspondente ao callback original
+      const listenerObj = this.eventListeners[event].find(
+        (item) => item.original === callback,
+      );
+
+      if (listenerObj) {
+        // Remover do socket.io usando a referência wrapped correta
+        this.socket.off(event, listenerObj.wrapped);
+        // Remover da lista interna
+        this.eventListeners[event] = this.eventListeners[event].filter(
+          (item) => item.original !== callback,
+        );
       }
-      // console.log("EVENTOS DO SOCKET:", this.eventListeners);
+    } else {
+      // Remover todos os listeners do evento
+      this.eventListeners[event].forEach((item) => {
+        this.socket.off(event, item.wrapped);
+      });
+      delete this.eventListeners[event];
     }
   }
 
