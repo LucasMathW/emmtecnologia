@@ -11,8 +11,7 @@ import React, {
 import { makeStyles } from "@material-ui/core/styles";
 import List from "@material-ui/core/List";
 import Paper from "@material-ui/core/Paper";
-
-// import TicketListItem from "../TicketListItemCustom";
+// import TicketListItem from "../TicketListItemCustom"
 import TicketsListSkeleton from "../TicketsListSkeleton";
 
 import useTickets from "../../hooks/useTickets";
@@ -131,38 +130,119 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "UPDATE_TICKET_PRESENCE") {
-    const ticketIndex = state.findIndex(
-      (t) => t.id === action.payload.ticketId,
-    );
-    if (ticketIndex === -1) return state; // ticket não está nessa lista, ignora
+    const { contactId, status } = action.payload;
 
-    // Imutável — cria novo array com novo objeto no índice correto
+    // console.log("[REDUCER][UPDATE_TICKET_PRESENCE] recebido por contactId:", {
+    //   contactId,
+    //   status,
+    // });
+
+    // Atualiza TODOS os tickets desse contato que estiverem no estado
+    // (pode ter mais de um em abas diferentes, todos ficam sincronizados)
+    const affected = state.filter((t) => t.contactId === contactId);
+
+    if (affected.length === 0) {
+      if (process.env.NODE_ENV === "development") {
+        // console.log(
+        //   "[REDUCER][UPDATE_TICKET_PRESENCE] contato não encontrado nesta instância:",
+        //   { contactId },
+        // );
+      }
+      return state;
+    }
+
+    console.log(
+      `[REDUCER][UPDATE_TICKET_PRESENCE] ✅ atualizando ${affected.length} ticket(s) do contato ${contactId} → ${status}`,
+    );
+
     return state.map((t) =>
-      t.id === action.payload.ticketId
-        ? { ...t, presence: action.payload.status }
-        : t,
+      t.contactId === contactId ? { ...t, presence: status } : t,
     );
   }
 
   if (action.type === "LOAD_TICKETS") {
     const newTickets = action.payload;
+    const presenceCache = action.presenceCache || {};
+    const recentTickets = action.recentTickets || {};
 
-    return newTickets.reduce(
+    // 🎯 LOG ESTRATÉGICO #2 - LOAD_TICKETS ANTES
+    console.log("🟡 [REDUCER] LOAD_TICKETS - ANTES:", {
+      incomingTicketsCount: newTickets.length,
+      incomingTicketIds: newTickets.map((t) => t.id),
+      currentStateLength: state.length,
+      currentStateIds: state.map((t) => t.id),
+      recentTicketsIds: Object.keys(recentTickets),
+      timestamp: new Date().toISOString(),
+    });
+
+    // Tickets que vieram via socket mas ainda não estão na resposta do backend
+    const recentIds = Object.keys(recentTickets).map(Number);
+    const backendIds = newTickets.map((t) => t.id);
+    const missingFromBackend = recentIds.filter(
+      (id) => !backendIds.includes(id),
+    );
+
+    if (missingFromBackend.length > 0) {
+      console.log(
+        "[REDUCER][LOAD_TICKETS] ♻️ reinserindo tickets recentes não confirmados pelo backend:",
+        missingFromBackend,
+      );
+    }
+
+    // Começa com os tickets recentes que o backend ainda não retornou
+    const ticketsToKeep = missingFromBackend.map((id) => recentTickets[id]);
+
+    const result = newTickets.reduce(
       (nextState, ticket) => {
+        // Busca cache por contactId
+        const cachedPresence =
+          presenceCache[`contact-${ticket.contactId}`] ?? null;
+
+        if (cachedPresence) {
+          console.log("[REDUCER][LOAD_TICKETS] ♻️ reaplicando presence:", {
+            ticketId: ticket.id,
+            contactId: ticket.contactId,
+            presence: cachedPresence,
+          });
+        }
+
+        const ticketWithPresence = {
+          ...ticket,
+          presence: cachedPresence || ticket.presence || null,
+        };
+
         const ticketIndex = nextState.findIndex((t) => t.id === ticket.id);
         if (ticketIndex !== -1) {
-          nextState[ticketIndex] = { ...nextState[ticketIndex], ...ticket };
+          nextState[ticketIndex] = {
+            ...nextState[ticketIndex],
+            ...ticketWithPresence,
+          };
           if (ticket.unreadMessages > 0) {
             const moved = nextState.splice(ticketIndex, 1)[0];
             nextState.unshift(moved);
           }
         } else {
-          nextState.push(ticket);
+          nextState.push(ticketWithPresence);
         }
         return nextState;
       },
       [...state],
     );
+
+    // 🎯 LOG ESTRATÉGICO #2 - LOAD_TICKETS DEPOIS
+    console.log("🟡 [REDUCER] LOAD_TICKETS - DEPOIS:", {
+      finalStateLength: result.length,
+      finalStateIds: result.map((t) => t.id),
+      ticketsRemovidos: state
+        .filter((t) => !result.some((nt) => nt.id === t.id))
+        .map((t) => ({ id: t.id, status: t.status })),
+      ticketsAdicionados: result
+        .filter((nt) => !state.some((t) => t.id === nt.id))
+        .map((nt) => ({ id: nt.id, status: nt.status })),
+      timestamp: new Date().toISOString(),
+    });
+
+    return result;
   }
 
   if (action.type === "RESET_UNREAD") {
@@ -200,25 +280,76 @@ const reducer = (state, action) => {
   if (action.type === "UPDATE_TICKET_UNREAD_MESSAGES") {
     const ticket = action.payload;
 
+    // 🎯 LOG ESTRATÉGICO #1 - UPDATE_TICKET_UNREAD_MESSAGES ANTES
+    console.log("🔵 [REDUCER] UPDATE_TICKET_UNREAD_MESSAGES - ANTES:", {
+      ticketId: ticket.id,
+      ticketStatus: ticket.status,
+      abaStatus: action.status,
+      timestamp: new Date().toISOString(),
+      currentStateLength: state.length,
+      currentStateIds: state.map((t) => t.id),
+    });
+
     const ticketIndex = state.findIndex((t) => t.id === ticket.id);
+
     if (ticketIndex !== -1) {
+      // Ticket já existe no estado → atualiza e move para o topo
+      console.log(
+        "[REDUCER][UPDATE_TICKET_UNREAD_MESSAGES] ticket EXISTENTE, movendo para o topo. index:",
+        ticketIndex,
+      );
       state[ticketIndex] = {
         ...state[ticketIndex],
         ...ticket,
         reactionPreview: null,
+        presence: null,
       };
-
       state.unshift(state.splice(ticketIndex, 1)[0]);
     } else {
-      if (action.status === action.payload.status) {
+      // Ticket NÃO existe no estado ainda
+      // CORREÇÃO: comparar ticket.status com action.status de forma segura
+      const ticketStatus = ticket?.status;
+      const abaStatus = action.status;
+
+      console.log(
+        "[REDUCER][UPDATE_TICKET_UNREAD_MESSAGES] ticket NOVO (não está no estado).",
+        {
+          ticketStatus,
+          abaStatus,
+          match: ticketStatus === abaStatus,
+        },
+      );
+
+      if (ticketStatus && abaStatus && ticketStatus === abaStatus) {
+        console.log(
+          "[REDUCER][UPDATE_TICKET_UNREAD_MESSAGES] ✅ inserindo ticket novo no topo do estado.",
+        );
         state.unshift(ticket);
+      } else {
+        console.warn(
+          "[REDUCER][UPDATE_TICKET_UNREAD_MESSAGES] ⚠️ ticket NÃO inserido. Status não bate ou está undefined.",
+          {
+            ticketStatus,
+            abaStatus,
+          },
+        );
       }
     }
+
     if (sortDir && ["ASC", "DESC"].includes(sortDir)) {
       sortDir === "ASC"
         ? state.sort(ticketSortAsc)
         : state.sort(ticketSortDesc);
     }
+
+    // 🎯 LOG ESTRATÉGICO #1 - UPDATE_TICKET_UNREAD_MESSAGES DEPOIS
+    console.log("🔵 [REDUCER] UPDATE_TICKET_UNREAD_MESSAGES - DEPOIS:", {
+      ticketId: ticket.id,
+      wasInserted: ticketIndex !== -1,
+      newStateLength: state.length,
+      newStateIds: state.map((t) => t.id),
+      timestamp: new Date().toISOString(),
+    });
 
     return [...state];
   }
@@ -278,8 +409,9 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
-    if (process.env.NODE_ENV === "development")
-      console.log("[REDUCER ACTION RESET] Limpando todo o state!");
+    console.log("⚪ [REDUCER] RESET - Limpando todo o state!", {
+      timestamp: new Date().toISOString(),
+    });
     return [];
   }
 
@@ -313,6 +445,12 @@ const TicketsListCustom = (props) => {
   // Preservar fotos mais recentes dos contatos entre RESET/load
   const preservedPicsRef = useRef({});
 
+  // Junto com os outros refs
+  const recentTicketsRef = useRef({}); // { [ticketId]: ticket }
+
+  //Adicionar junto com os outros refs, após o useReducer
+  const presenceCacheRef = useRef({});
+
   // Salvar fotos atualizadas na ref quando chegam
   useEffect(() => {
     ticketsList.forEach((t) => {
@@ -327,6 +465,13 @@ const TicketsListCustom = (props) => {
   const companyId = user.companyId;
 
   useEffect(() => {
+    console.log("⚪ [COMPONENTE] useEffect RESET disparado", {
+      timestamp: new Date().toISOString(),
+      motivo: "Mudança nos filtros/status",
+      status,
+      searchParam,
+      showAll,
+    });
     dispatch({ type: "RESET" });
     setPageNumber(1);
   }, [
@@ -361,11 +506,25 @@ const TicketsListCustom = (props) => {
 
   useEffect(() => {
     if (companyId) {
+      // 🎯 LOG ESTRATÉGICO #3 - useEffect que dispara LOAD_TICKETS
+      console.log("🟢 [COMPONENTE] useEffect LOAD_TICKETS disparado:", {
+        ticketsCount: tickets.length,
+        ticketIds: tickets.map((t) => t.id),
+        ticketStatuses: tickets.map((t) => ({ id: t.id, status: t.status })),
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log(
+        "[LOAD_TICKETS] despachando com presenceCache:",
+        presenceCacheRef.current,
+      );
       dispatch({
         type: "LOAD_TICKETS",
         payload: tickets,
         status,
         sortDir: sortTickets,
+        presenceCache: presenceCacheRef.current, // ← passa o cache para o reducer reaplicar
+        recentTickets: recentTicketsRef.current, // <- passa tickets recentes
       });
     }
   }, [tickets]);
@@ -412,13 +571,26 @@ const TicketsListCustom = (props) => {
         shouldUpdateTicket(data.ticket) &&
         data.ticket.status === status
       ) {
+        if (recentTicketsRef.current[data.ticket.id]) {
+          console.log(
+            `[SOCKET][ticket] ✅ ticket ${data.ticket.id} confirmado pelo backend, removendo do recentTicketsRef`,
+          );
+          delete recentTicketsRef.current[data.ticket.id];
+        }
         dispatch({
-          type: "UPDATE_TICKET",
+          type: "UPDATE_TICKET_UNREAD_MESSAGES", // ← Mudou aqui
           payload: data.ticket,
           status,
           sortDir: sortTickets,
         });
         return;
+        // dispatch({
+        //   type: "UPDATE_TICKET",
+        //   payload: data.ticket,
+        //   status,
+        //   sortDir: sortTickets,
+        // });
+        // return;
       }
 
       if (data.action === "update" && notBelongsToUserQueues(data.ticket)) {
@@ -445,7 +617,6 @@ const TicketsListCustom = (props) => {
 
   const onCompanyAppMessageTicketsList = useCallback(
     (data) => {
-      console.log("[APP_MESSAGE] chegou:", data);
       if (data.action === "reaction:update") {
         dispatch({
           type: "UPDATE_TICKET_REACTION_PREVIEW",
@@ -463,62 +634,118 @@ const TicketsListCustom = (props) => {
       }
 
       if (data.action === "presence:update") {
+        const contactId = data.contactId; // ← agora usa contactId
+        const presenceStatus = data.status;
+
+        if (!contactId) {
+          console.warn(
+            "[SOCKET][presence:update] ⚠️ contactId ausente, ignorando.",
+          );
+          return;
+        }
+
+        if (presenceStatus) {
+          presenceCacheRef.current[`contact-${contactId}`] = presenceStatus;
+        } else {
+          delete presenceCacheRef.current[`contact-${contactId}`];
+          console.log(
+            "[SOCKET][presence:update] 🗑️ removido do cache para contato:",
+            contactId,
+          );
+        }
+
         dispatch({
           type: "UPDATE_TICKET_PRESENCE",
-          payload: {
-            ticketId: data.ticket.id,
-            status: data.status,
-          },
+          payload: { contactId, status: presenceStatus },
         });
         return;
       }
 
       if (data.action === "create" && data.ticket) {
-        if (
-          !shouldUpdateTicket(data.ticket) ||
-          notBelongsToUserQueues(data.ticket)
-        ) {
+        const incomingTicketStatus = data.ticket?.status;
+
+        // CORREÇÃO PRINCIPAL: cada instância só processa eventos do seu próprio status
+        // A instância "open" não deve processar tickets "pending", e vice-versa
+        if (incomingTicketStatus && status && incomingTicketStatus !== status) {
+          console.log(
+            `[SOCKET][appMessage] ignorando create — status do ticket (${incomingTicketStatus}) ≠ status da aba (${status})`,
+          );
           return;
         }
 
+        // 🎯 LOG ESTRATÉGICO #5 - Socket recebe CREATE
+        console.log("⚡ [SOCKET] RECEBEU CREATE:", {
+          ticketId: data.ticket?.id,
+          ticketStatus: incomingTicketStatus,
+          abaStatus: status,
+          timestamp: new Date().toISOString(),
+          ticketCompleto: data.ticket,
+        });
+
+        if (!shouldUpdateTicket(data.ticket)) {
+          console.warn(
+            "[SOCKET][appMessage] ⛔ shouldUpdateTicket retornou false.",
+            { ticketId: data.ticket?.id, ticketUserId: data.ticket?.userId },
+          );
+          return;
+        }
+
+        if (notBelongsToUserQueues(data.ticket)) {
+          console.warn(
+            "[SOCKET][appMessage] ⛔ notBelongsToUserQueues retornou true.",
+            { ticketId: data.ticket?.id, queueId: data.ticket?.queueId },
+          );
+          return;
+        }
+
+        const contactId = data.ticket?.contactId || data.contact?.id;
+        if (contactId) {
+          const cacheKey = `contact-${contactId}`;
+          if (presenceCacheRef.current[cacheKey]) {
+            console.log(
+              `[SOCKET][appMessage] 🧹 limpando presence do cache ao receber mensagem do contato ${contactId}`,
+            );
+            delete presenceCacheRef.current[cacheKey];
+          }
+        }
+
+        const ticketPayload = {
+          ...data.ticket,
+          status: incomingTicketStatus || status,
+        };
+
+        console.log(
+          "[SOCKET][appMessage] ✅ despachando UPDATE_TICKET_UNREAD_MESSAGES:",
+          {
+            ticketId: ticketPayload.id,
+            ticketStatus: ticketPayload.status,
+            abaStatus: status,
+          },
+        );
+
+        // Salvar no ref para sobreviver ao RESET/LOAD
+        recentTicketsRef.current[ticketPayload.id] = ticketPayload;
+        console.log(
+          `[SOCKET][appMessage] 💾 ticket ${ticketPayload.id} salvo no recentTicketsRef`,
+        );
+
+        // Agendar remoção do ref após 30s (tempo suficiente para o backend confirmar)
+        setTimeout(() => {
+          delete recentTicketsRef.current[ticketPayload.id];
+          console.log(
+            `[SOCKET][appMessage] 🗑️ ticket ${ticketPayload.id} removido do recentTicketsRef`,
+          );
+        }, 30_000);
+
         dispatch({
           type: "UPDATE_TICKET_UNREAD_MESSAGES",
-          payload: data.ticket,
+          payload: ticketPayload,
           status,
           sortDir: sortTickets,
         });
 
-        dispatch({
-          type: "UPDATE_TICKET_PRESENCE",
-          payload: {
-            ticketId: data.ticket.id,
-            status: data.status,
-          },
-        });
-
         return;
       }
-
-      // if (data.action === "update") {
-      //   if (data.ticket) {
-      //     dispatch({
-      //       type: "UPDATE_TICKET",
-      //       payload: data.ticket,
-      //       sortDir: sortTickets,
-      //     });
-      //   }
-
-      //   if (data.message) {
-      //     dispatch({
-      //       type: "UPDATE_TICKET",
-      //       payload: {
-      //         id: data.message.ticketId,
-      //         lastMessage: data.message.body,
-      //       },
-      //       sortDir: sortTickets,
-      //     });
-      //   }
-      // }
 
       if (data.action === "update") {
         if (data.ticket) {
@@ -656,8 +883,44 @@ const TicketsListCustom = (props) => {
     });
   }
 
+  // 🎯 LOG ESTRATÉGICO #4 - FILTRO FINAL
+  console.log("🔴 [FILTRO FINAL] Verificando antes do filtro por status:", {
+    statusFiltro: status,
+    timestamp: new Date().toISOString(),
+    antesDoFiltro: {
+      count: ticketsList.length,
+      ids: ticketsList.map((t) => t.id),
+      statuses: ticketsList.map((t) => ({ id: t.id, status: t.status })),
+    },
+  });
+
   if (status && status !== "search") {
+    const removidos = ticketsList.filter((ticket) => ticket.status !== status);
+
+    if (removidos.length > 0) {
+      console.warn(
+        `🔴 [FILTRO FINAL] ⚠️ Tickets serão REMOVIDOS pelo filtro:`,
+        {
+          removidosCount: removidos.length,
+          removidos: removidos.map((t) => ({
+            id: t.id,
+            status: t.status,
+            esperado: status,
+          })),
+          timestamp: new Date().toISOString(),
+        },
+      );
+    }
+
     ticketsList = ticketsList.filter((ticket) => ticket.status === status);
+
+    console.log("🔴 [FILTRO FINAL] Após filtro:", {
+      timestamp: new Date().toISOString(),
+      depoisDoFiltro: {
+        count: ticketsList.length,
+        ids: ticketsList.map((t) => t.id),
+      },
+    });
   }
 
   return (
