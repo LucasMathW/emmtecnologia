@@ -70,6 +70,32 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 
+  // Adicione esta classe
+  messageWithMedia: {
+    paddingTop: 0, // Remove padding superior quando tem imagem
+    marginTop: 0, // Remove margem superior
+  },
+
+  // Ajuste o textContentItem para quando vier após mídia
+  textContentItemAfterMedia: {
+    overflowWrap: "break-word",
+    padding: "0px 80px 4px 6px", // Remove padding superior (primeiro valor)
+    marginTop: 0,
+  },
+
+  textContentItemImage: {
+    overflowWrap: "break-word",
+    padding: "3px 80px 6px 6px",
+    "&.messageLeft &, &.messageRight &": {
+      // Remove padding extra apenas para timestamps de imagem
+    },
+  },
+
+  textContentItemNoPadding: {
+    overflowWrap: "break-word",
+    padding: "3px 80px 2px 6px", // reduz padding bottom para não empurrar timestamp
+  },
+
   presenceIndicator: {
     display: "flex",
     alignItems: "center",
@@ -461,7 +487,7 @@ const useStyles = makeStyles((theme) => ({
   },
   textContentItem: {
     overflowWrap: "break-word",
-    padding: "3px 80px 6px 6px",
+    padding: "2px 70px 4px 6px",
   },
   textContentItemDeleted: {
     fontStyle: "italic",
@@ -486,6 +512,22 @@ const useStyles = makeStyles((theme) => ({
     bottom: 0,
     right: 5,
     color: "#999",
+  },
+  // Adicione após a classe "timestamp" existente:
+  timestampMedia: {
+    fontSize: 11,
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    color: "#fff",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 6,
+    padding: "2px 4px",
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    pointerEvents: "none",
+    zIndex: 10,
   },
   forwardMessage: {
     fontSize: 12,
@@ -567,142 +609,6 @@ const useStyles = makeStyles((theme) => ({
     color: "#f55d65",
   },
 }));
-
-// const reducer = (state, action) => {
-//   if (action.type === "LOAD_MESSAGES") {
-//     const messages = action.payload;
-//     const newMessages = [];
-
-//     messages.forEach((message) => {
-//       const messageIndex = state.findIndex((m) => m.id === message.id);
-//       if (messageIndex !== -1) {
-//         state[messageIndex] = message;
-//       } else {
-//         newMessages.push(message);
-//       }
-//     });
-
-//     return [...newMessages, ...state];
-//   }
-
-//   if (action.type === "ADD_MESSAGE") {
-//     const newMessage = action.payload;
-
-//     // 🔥 1. Tentar match pelo tempId que vem no campo _tempId da mensagem real
-//     // (quando o backend ecoa de volta, ou via socket)
-//     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
-//     if (messageIndex !== -1) {
-//       // Atualiza existente
-//       const updated = [...state];
-//       updated[messageIndex] = newMessage;
-//       return updated;
-//     }
-
-//     // 🔥 2. Match para mensagens de texto: id temp + body igual
-//     const tempTextIndex = state.findIndex(
-//       (m) =>
-//         String(m.id).startsWith("temp-") &&
-//         m.fromMe &&
-//         !m.mediaUrl &&
-//         !m._isMediaOptimistic &&
-//         m.body === newMessage.body,
-//     );
-//     if (tempTextIndex !== -1) {
-//       const updated = [...state];
-//       updated[tempTextIndex] = newMessage;
-//       return updated;
-//     }
-
-//     // 🔥 3. Match para mídia: pegar o temp mais antigo do mesmo mediaType
-//     //    Isso garante FIFO — se o usuário enviou 2 áudios em sequência,
-//     //    o primeiro temp é substituído pelo primeiro real que chegar.
-//     if (newMessage.mediaType && newMessage.mediaType !== "text") {
-//       const tempMediaIndex = state.findIndex(
-//         (m) =>
-//           String(m.id).startsWith("temp-") &&
-//           m.fromMe &&
-//           m._isMediaOptimistic === true &&
-//           m.mediaType === newMessage.mediaType,
-//       );
-//       if (tempMediaIndex !== -1) {
-//         const updated = [...state];
-//         updated[tempMediaIndex] = newMessage;
-//         return updated;
-//       }
-//     }
-
-//     // 🔥 4. Sem temp encontrado — comportamento normal
-//     const messageIndex = state.findIndex((m) => m.id === newMessage.id);
-//     if (messageIndex !== -1) {
-//       const updated = [...state];
-//       updated[messageIndex] = newMessage;
-//       return updated;
-//     }
-
-//     return [...state, newMessage];
-//   }
-
-//   if (action.type === "ADD_OPTIMISTIC_MESSAGE") {
-//     return [...state, action.payload];
-//   }
-
-//   if (action.type === "UPDATE_MESSAGE") {
-//     const messageToUpdate = action.payload;
-//     return state.map((m) => {
-//       if (m.id !== messageToUpdate.id) return m;
-//       return {
-//         ...m,
-//         ...messageToUpdate,
-//         ticket: m.ticket,
-//         contact: m.contact,
-//       };
-//     });
-//   }
-
-//   if (action.type === "DELETE_MESSAGE") {
-//     const messageId = action.payload;
-//     return state.map((m) => {
-//       if (m.id !== messageId) return m;
-//       return {
-//         ...m,
-//         isDeleted: true,
-//       };
-//     });
-//   }
-
-//   if (action.type === "REACTION_UPDATE") {
-//     console.log();
-//     const { messageId, reaction } = action.payload;
-
-//     return state.map((message) => {
-//       if (String(message.id) !== String(messageId)) return message;
-
-//       const reactions = Array.isArray(message.reactions)
-//         ? message.reactions
-//         : [];
-
-//       const filtered = reactions.filter(
-//         (r) => String(r.userId) !== String(reaction.userId),
-//       );
-
-//       if (!reaction.emoji) {
-//         return {
-//           ...message,
-//           reactions: filtered,
-//         };
-//       }
-
-//       return {
-//         ...message,
-//         reactions: [...filtered, reaction],
-//       };
-//     });
-//   }
-
-//   if (action.type === "RESET") {
-//     return [];
-//   }
-// };
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_MESSAGES") {
@@ -1540,7 +1446,21 @@ const MessagesList = ({
     } else if (message.mediaType === "image") {
       if (process.env.NODE_ENV === "development")
         console.log("🖼️ Renderizando como imagem");
-      return <ModalImageCors imageUrl={message.mediaUrl} />;
+      // Verifica se tem legenda
+      const hasCaption =
+        message.body &&
+        message.body.trim() !== "" &&
+        message.body !== getBasename(message.mediaUrl);
+
+      return (
+        <ModalImageCors
+          imageUrl={message.mediaUrl}
+          style={{
+            borderBottomLeftRadius: hasCaption ? "0px" : "8px",
+            borderBottomRightRadius: hasCaption ? "0px" : "8px",
+          }}
+        />
+      );
     } else if (message.mediaType === "video") {
       if (process.env.NODE_ENV === "development")
         console.log("🎥 Renderizando como vídeo");
@@ -2057,6 +1977,9 @@ const MessagesList = ({
                 className={clsx(classes.messageLeft, {
                   [classes.messageWithReaction]:
                     message.reactions && message.reactions.length > 0,
+                  [classes.messageWithMedia]:
+                    message.mediaType === "image" ||
+                    message.mediaType === "video",
                 })}
                 title={message.queueId && message.queue?.name}
                 onDoubleClick={(e) => hanldeReplyMessage(e, message)}
@@ -2074,16 +1997,6 @@ const MessagesList = ({
                 {showSelectMessageCheckbox && (
                   <SelectMessageCheckbox message={message} />
                 )}
-                {/* <IconButton
-                  variant="contained"
-                  size="small"
-                  id="messageActionsButton"
-                  disabled={message.isDeleted}
-                  className={classes.messageActionsButton}
-                  onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
-                >
-                  <ExpandMore />
-                </IconButton> */}
 
                 <IconButton
                   variant="contained"
@@ -2136,58 +2049,127 @@ const MessagesList = ({
                   </div>
                 )}
 
+                {/* Container da imagem/mídia */}
                 {(message.mediaUrl ||
                   message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
                   message.mediaType === "contactMessage" ||
                   isSticker(message) ||
                   message.mediaType === "template" ||
-                  message.mediaType === "adMetaPreview") &&
-                  checkMessageMedia(message)}
-
-                {(!isSticker(message) || message.quotedMsg) && (
+                  message.mediaType === "adMetaPreview") && (
                   <div
-                    className={clsx(classes.textContentItem, {
-                      [classes.textContentItemDeleted]: message.isDeleted,
-                    })}
-                  >
-                    {message.quotedMsg && renderQuotedMessage(message)}
-
-                    {message.mediaType !== "adMetaPreview" &&
-                      ((message.mediaUrl !== null &&
+                    style={{
+                      marginBottom: 0,
+                      paddingBottom: 0,
+                      display: "flex",
+                      lineHeight: 0,
+                      fontSize: 0,
+                      borderBottomLeftRadius:
                         (message.mediaType === "image" ||
                           message.mediaType === "video") &&
-                        getBasename(message.mediaUrl).trim() !==
-                          message.body.trim()) ||
-                        (message.mediaType !== "audio" &&
-                          message.mediaType !== "image" &&
-                          message.mediaType !== "video" &&
-                          !isSticker(message) &&
-                          message.mediaType !== "reactionMessage" &&
-                          message.mediaType !== "locationMessage" &&
-                          message.mediaType !== "contactMessage" &&
-                          message.mediaType !== "template")) && (
-                        <>
-                          {xmlRegex.test(message.body) && (
-                            <span>{message.body}</span>
-                          )}
-                          {!xmlRegex.test(message.body) && (
-                            <MarkdownWrapper>
-                              {lgpdDeleteMessage && message.isDeleted
-                                ? "🚫 _Mensagem apagada_ "
-                                : message.body}
-                            </MarkdownWrapper>
-                          )}
-                        </>
-                      )}
-                    <span className={classes.timestamp}>
-                      {message.isEdited
-                        ? "Editada " +
-                          format(parseISO(message.createdAt), "HH:mm")
-                        : format(parseISO(message.createdAt), "HH:mm")}
-                    </span>
+                        message.body &&
+                        message.body.trim() !== "" &&
+                        message.body !== getBasename(message.mediaUrl)
+                          ? "0px"
+                          : "8px",
+                      borderBottomRightRadius:
+                        (message.mediaType === "image" ||
+                          message.mediaType === "video") &&
+                        message.body &&
+                        message.body.trim() !== "" &&
+                        message.body !== getBasename(message.mediaUrl)
+                          ? "0px"
+                          : "8px",
+                    }}
+                  >
+                    {checkMessageMedia(message)}
                   </div>
                 )}
+
+                {(!isSticker(message) || message.quotedMsg) && (
+                  <>
+                    {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
+                    {!(
+                      message.mediaType === "image" &&
+                      (!message.body ||
+                        message.body.trim() === "" ||
+                        message.body === getBasename(message.mediaUrl))
+                    ) && (
+                      <div
+                        className={clsx(
+                          // Remove padding superior quando vem após imagem/vídeo
+                          (message.mediaType === "image" ||
+                            message.mediaType === "video") &&
+                            message.body &&
+                            message.body.trim() !== "" &&
+                            message.body !== getBasename(message.mediaUrl)
+                            ? classes.textContentItemAfterMedia
+                            : classes.textContentItem,
+                          {
+                            [classes.textContentItemDeleted]: message.isDeleted,
+                          },
+                        )}
+                      >
+                        {message.quotedMsg && renderQuotedMessage(message)}
+
+                        {!message._isMediaOptimistic && (
+                          <>
+                            {((message.mediaType === "image" ||
+                              message.mediaType === "video") &&
+                              getBasename(message.mediaUrl) === message.body) ||
+                              (message.mediaType !== "audio" &&
+                                !isSticker(message) &&
+                                message.mediaType !== "reactionMessage" &&
+                                message.mediaType !== "locationMessage" &&
+                                message.mediaType !== "contactMessage" &&
+                                message.mediaType !== "template" && (
+                                  <>
+                                    {xmlRegex.test(message.body) && (
+                                      <div>{formatXml(message.body)}</div>
+                                    )}
+                                    {!xmlRegex.test(message.body) && (
+                                      <MarkdownWrapper>
+                                        {message.body}
+                                      </MarkdownWrapper>
+                                    )}
+                                  </>
+                                ))}
+                          </>
+                        )}
+
+                        {/* Timestamp normal dentro do container */}
+                        <span className={classes.timestamp}>
+                          {message.isEdited
+                            ? "Editada " +
+                              format(parseISO(message.createdAt), "HH:mm")
+                            : format(parseISO(message.createdAt), "HH:mm")}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
+                    {message.mediaType === "image" &&
+                      (!message.body ||
+                        message.body.trim() === "" ||
+                        message.body === getBasename(message.mediaUrl)) && (
+                        <span
+                          className={classes.timestampMedia}
+                          style={{
+                            position: "absolute",
+                            bottom: 8,
+                            right: 8,
+                            zIndex: 100,
+                          }}
+                        >
+                          {message.isEdited
+                            ? "Editada " +
+                              format(parseISO(message.createdAt), "HH:mm")
+                            : format(parseISO(message.createdAt), "HH:mm")}
+                        </span>
+                      )}
+                  </>
+                )}
+
                 {renderReactions(message)}
               </div>
             </React.Fragment>
@@ -2272,61 +2254,579 @@ const MessagesList = ({
                   </div>
                 )}
 
+                {/* Container da imagem/mídia */}
                 {(message.mediaUrl ||
                   message._isMediaOptimistic ||
                   message.mediaType === "locationMessage" ||
                   isSticker(message) ||
                   message.mediaType === "contactMessage" ||
-                  message.mediaType === "template") &&
-                  checkMessageMedia(message)}
-
-                {(!isSticker(message) || message.quotedMsg) && (
+                  message.mediaType === "template") && (
                   <div
-                    className={clsx(classes.textContentItem, {
-                      [classes.textContentItemDeleted]: message.isDeleted,
-                    })}
-                  >
-                    {message.quotedMsg && renderQuotedMessage(message)}
-
-                    {!message._isMediaOptimistic && (
-                      <>
-                        {((message.mediaType === "image" ||
+                    style={{
+                      marginBottom: 0,
+                      paddingBottom: 0,
+                      display: "flex",
+                      lineHeight: 0,
+                      fontSize: 0,
+                      borderBottomLeftRadius:
+                        (message.mediaType === "image" ||
                           message.mediaType === "video") &&
-                          getBasename(message.mediaUrl) === message.body) ||
-                          (message.mediaType !== "audio" &&
-                            !isSticker(message) &&
-                            message.mediaType !== "reactionMessage" &&
-                            message.mediaType !== "locationMessage" &&
-                            message.mediaType !== "contactMessage" &&
-                            message.mediaType !== "template" && (
-                              <>
-                                {xmlRegex.test(message.body) && (
-                                  <div>{formatXml(message.body)}</div>
-                                )}
-                                {!xmlRegex.test(message.body) && (
-                                  <MarkdownWrapper>
-                                    {message.body}
-                                  </MarkdownWrapper>
-                                )}
-                              </>
-                            ))}
-                      </>
-                    )}
-
-                    <span className={classes.timestamp}>
-                      {message.isEdited
-                        ? "Editada " +
-                          format(parseISO(message.createdAt), "HH:mm")
-                        : format(parseISO(message.createdAt), "HH:mm")}
-                      {renderMessageAck(message)}
-                    </span>
+                        message.body &&
+                        message.body.trim() !== "" &&
+                        message.body !== getBasename(message.mediaUrl)
+                          ? "0px"
+                          : "8px",
+                      borderBottomRightRadius:
+                        (message.mediaType === "image" ||
+                          message.mediaType === "video") &&
+                        message.body &&
+                        message.body.trim() !== "" &&
+                        message.body !== getBasename(message.mediaUrl)
+                          ? "0px"
+                          : "8px",
+                    }}
+                  >
+                    {checkMessageMedia(message)}
                   </div>
                 )}
+
+                {(!isSticker(message) || message.quotedMsg) && (
+                  <>
+                    {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
+                    {!(
+                      message.mediaType === "image" &&
+                      (!message.body ||
+                        message.body.trim() === "" ||
+                        message.body === getBasename(message.mediaUrl))
+                    ) && (
+                      <div
+                        className={clsx(
+                          // Remove padding superior quando vem após imagem/vídeo
+                          (message.mediaType === "image" ||
+                            message.mediaType === "video") &&
+                            message.body &&
+                            message.body.trim() !== "" &&
+                            message.body !== getBasename(message.mediaUrl)
+                            ? classes.textContentItemAfterMedia
+                            : classes.textContentItem,
+                          {
+                            [classes.textContentItemDeleted]: message.isDeleted,
+                          },
+                        )}
+                      >
+                        {message.quotedMsg && renderQuotedMessage(message)}
+
+                        {!message._isMediaOptimistic && (
+                          <>
+                            {((message.mediaType === "image" ||
+                              message.mediaType === "video") &&
+                              getBasename(message.mediaUrl) === message.body) ||
+                              (message.mediaType !== "audio" &&
+                                !isSticker(message) &&
+                                message.mediaType !== "reactionMessage" &&
+                                message.mediaType !== "locationMessage" &&
+                                message.mediaType !== "contactMessage" &&
+                                message.mediaType !== "template" && (
+                                  <>
+                                    {xmlRegex.test(message.body) && (
+                                      <div>{formatXml(message.body)}</div>
+                                    )}
+                                    {!xmlRegex.test(message.body) && (
+                                      <MarkdownWrapper>
+                                        {message.body}
+                                      </MarkdownWrapper>
+                                    )}
+                                  </>
+                                ))}
+                          </>
+                        )}
+
+                        {/* Timestamp normal dentro do container */}
+                        <span className={classes.timestamp}>
+                          {message.isEdited
+                            ? "Editada " +
+                              format(parseISO(message.createdAt), "HH:mm")
+                            : format(parseISO(message.createdAt), "HH:mm")}
+                          {renderMessageAck(message)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
+                    {message.mediaType === "image" &&
+                      (!message.body ||
+                        message.body.trim() === "" ||
+                        message.body === getBasename(message.mediaUrl)) && (
+                        <span
+                          className={classes.timestampMedia}
+                          style={{
+                            position: "absolute",
+                            bottom: 8,
+                            right: 8,
+                            zIndex: 100,
+                          }}
+                        >
+                          {message.isEdited
+                            ? "Editada " +
+                              format(parseISO(message.createdAt), "HH:mm")
+                            : format(parseISO(message.createdAt), "HH:mm")}
+                          {renderMessageAck(message)}
+                        </span>
+                      )}
+                  </>
+                )}
+
                 {renderReactions(message)}
               </div>
             </React.Fragment>
           );
         }
+
+        // if (!message.fromMe) {
+        //   return (
+        //     <React.Fragment key={message.id}>
+        //       {renderDailyTimestamps(message, index)}
+        //       {renderTicketsSeparator(message, index)}
+        //       {renderMessageDivider(message, index)}
+        //       <div
+        //         data-message-container
+        //         data-message-id={message.id}
+        //         className={clsx(classes.messageLeft, {
+        //           [classes.messageWithReaction]:
+        //             message.reactions && message.reactions.length > 0,
+        //           [classes.messageWithMedia]:
+        //             message.mediaType === "image" ||
+        //             message.mediaType === "video",
+        //         })}
+        //         title={message.queueId && message.queue?.name}
+        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+        //         style={{
+        //           // 🔴 BORDA VERMELHA - Container principal
+        //           border:
+        //             isSticker(message) && !message.quotedMsg
+        //               ? {}
+        //               : "3px solid red",
+        //           outline: "1px dashed red",
+        //           backgroundColor:
+        //             isSticker(message) && !message.quotedMsg
+        //               ? {}
+        //               : "rgba(255,0,0,0.05)",
+        //         }}
+        //       >
+        //         {showSelectMessageCheckbox && (
+        //           <SelectMessageCheckbox message={message} />
+        //         )}
+
+        //         <IconButton
+        //           variant="contained"
+        //           size="small"
+        //           id="messageActionsButton"
+        //           disabled={message.isDeleted}
+        //           className={classes.messageActionsButton}
+        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+        //         >
+        //           <ExpandMore />
+        //         </IconButton>
+
+        //         <div
+        //           className={classes.reactionButton}
+        //           onClick={(e) => {
+        //             e.stopPropagation();
+        //             openReactionBar(message, e.currentTarget);
+        //           }}
+        //         >
+        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
+        //         </div>
+
+        //         {message.isForwarded && (
+        //           <div>
+        //             <span className={classes.forwardMessage}>
+        //               <Reply
+        //                 style={{ color: "grey", transform: "scaleX(-1)" }}
+        //               />{" "}
+        //               Encaminhada
+        //             </span>
+        //             <br />
+        //           </div>
+        //         )}
+
+        //         {isGroup && (
+        //           <span className={classes.messageContactName}>
+        //             {message.contact?.name}
+        //           </span>
+        //         )}
+
+        //         {isYouTubeLink(message.body) && (
+        //           <YouTubePreview videoUrl={message.body} />
+        //         )}
+
+        //         {!lgpdDeleteMessage && message.isDeleted && (
+        //           <div>
+        //             <span className={classes.deletedMessage}>
+        //               🚫 Essa mensagem foi apagada pelo contato &nbsp;
+        //             </span>
+        //           </div>
+        //         )}
+
+        //         {/* 🔵 Container da imagem/mídia - Imagem ocupa tudo */}
+        //         {(message.mediaUrl ||
+        //           message._isMediaOptimistic ||
+        //           message.mediaType === "locationMessage" ||
+        //           message.mediaType === "contactMessage" ||
+        //           isSticker(message) ||
+        //           message.mediaType === "template" ||
+        //           message.mediaType === "adMetaPreview") && (
+        //           <div
+        //             style={{
+        //               border: "3px solid blue",
+        //               outline: "1px dashed blue",
+        //               backgroundColor: "rgba(0,0,255,0.05)",
+        //               marginBottom: 0,
+        //               paddingBottom: 0,
+        //               display: "flex", // ← ADD
+        //               lineHeight: 0, // ← ADD
+        //               fontSize: 0,
+        //               // Quando tem texto embaixo, remove border-radius inferior
+        //               borderBottomLeftRadius:
+        //                 (message.mediaType === "image" ||
+        //                   message.mediaType === "video") &&
+        //                 message.body &&
+        //                 message.body.trim() !== "" &&
+        //                 message.body !== getBasename(message.mediaUrl)
+        //                   ? "0px"
+        //                   : "8px",
+        //               borderBottomRightRadius:
+        //                 (message.mediaType === "image" ||
+        //                   message.mediaType === "video") &&
+        //                 message.body &&
+        //                 message.body.trim() !== "" &&
+        //                 message.body !== getBasename(message.mediaUrl)
+        //                   ? "0px"
+        //                   : "8px",
+        //             }}
+        //           >
+        //             {checkMessageMedia(message)}
+        //           </div>
+        //         )}
+
+        //         {(!isSticker(message) || message.quotedMsg) && (
+        //           <>
+        //             {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
+        //             {!(
+        //               message.mediaType === "image" &&
+        //               (!message.body ||
+        //                 message.body.trim() === "" ||
+        //                 message.body === getBasename(message.mediaUrl))
+        //             ) && (
+        //               /* 🟢 BORDA VERDE - Container de texto */
+        //               <div
+        //                 className={clsx(
+        //                   // Remove padding superior quando vem após imagem/vídeo
+        //                   (message.mediaType === "image" ||
+        //                     message.mediaType === "video") &&
+        //                     message.body &&
+        //                     message.body.trim() !== "" &&
+        //                     message.body !== getBasename(message.mediaUrl)
+        //                     ? classes.textContentItemAfterMedia
+        //                     : classes.textContentItem,
+        //                   {
+        //                     [classes.textContentItemDeleted]: message.isDeleted,
+        //                   },
+        //                 )}
+        //                 style={{
+        //                   border: "3px solid green",
+        //                   outline: "1px dashed green",
+        //                   backgroundColor: "rgba(0,255,0,0.05)",
+        //                   marginTop: "0px",
+        //                   paddingTop: "0px",
+        //                 }}
+        //               >
+        //                 {message.quotedMsg && renderQuotedMessage(message)}
+
+        //                 {!message._isMediaOptimistic && (
+        //                   <>
+        //                     {((message.mediaType === "image" ||
+        //                       message.mediaType === "video") &&
+        //                       getBasename(message.mediaUrl) === message.body) ||
+        //                       (message.mediaType !== "audio" &&
+        //                         !isSticker(message) &&
+        //                         message.mediaType !== "reactionMessage" &&
+        //                         message.mediaType !== "locationMessage" &&
+        //                         message.mediaType !== "contactMessage" &&
+        //                         message.mediaType !== "template" && (
+        //                           <>
+        //                             {xmlRegex.test(message.body) && (
+        //                               <div>{formatXml(message.body)}</div>
+        //                             )}
+        //                             {!xmlRegex.test(message.body) && (
+        //                               <MarkdownWrapper>
+        //                                 {message.body}
+        //                               </MarkdownWrapper>
+        //                             )}
+        //                           </>
+        //                         ))}
+        //                   </>
+        //                 )}
+
+        //                 {/* 🟠 BORDA LARANJA - Timestamp */}
+        //                 <span
+        //                   className={classes.timestamp}
+        //                   style={{
+        //                     border: "2px solid orange",
+        //                     outline: "1px dashed orange",
+        //                     backgroundColor: "rgba(255,165,0,0.1)",
+        //                     display: "inline-block",
+        //                   }}
+        //                 >
+        //                   {message.isEdited
+        //                     ? "Editada " +
+        //                       format(parseISO(message.createdAt), "HH:mm")
+        //                     : format(parseISO(message.createdAt), "HH:mm")}
+        //                 </span>
+        //               </div>
+        //             )}
+
+        //             {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
+        //             {message.mediaType === "image" &&
+        //               (!message.body ||
+        //                 message.body.trim() === "" ||
+        //                 message.body === getBasename(message.mediaUrl)) && (
+        //                 <span
+        //                   className={classes.timestampMedia}
+        //                   style={{
+        //                     position: "absolute",
+        //                     bottom: 8,
+        //                     right: 8,
+        //                     zIndex: 100,
+        //                     border: "2px solid yellow",
+        //                     outline: "1px dashed yellow",
+        //                     backgroundColor: "rgba(255,255,0,0.3)",
+        //                   }}
+        //                 >
+        //                   {message.isEdited
+        //                     ? "Editada " +
+        //                       format(parseISO(message.createdAt), "HH:mm")
+        //                     : format(parseISO(message.createdAt), "HH:mm")}
+        //                 </span>
+        //               )}
+        //           </>
+        //         )}
+
+        //         {renderReactions(message)}
+        //       </div>
+        //     </React.Fragment>
+        //   );
+        // } else {
+        //   return (
+        //     <React.Fragment key={message.id}>
+        //       {renderDailyTimestamps(message, index)}
+        //       {renderTicketsSeparator(message, index)}
+        //       {renderMessageDivider(message, index)}
+        //       <div
+        //         data-message-container
+        //         data-message-id={message.id}
+        //         className={clsx(
+        //           message.isPrivate
+        //             ? classes.messageRightPrivate
+        //             : classes.messageRight,
+        //           {
+        //             [classes.messageWithReaction]:
+        //               message.reactions && message.reactions.length > 0,
+        //           },
+        //         )}
+        //         title={message.queueId && message.queue?.name}
+        //         onDoubleClick={(e) => hanldeReplyMessage(e, message)}
+        //         style={{
+        //           // 🔴 BORDA VERMELHA - Container principal
+        //           border:
+        //             isSticker(message) && !message.quotedMsg
+        //               ? {}
+        //               : "3px solid red",
+        //           outline: "1px dashed red",
+        //           backgroundColor:
+        //             isSticker(message) && !message.quotedMsg
+        //               ? {}
+        //               : "rgba(255,0,0,0.05)",
+        //         }}
+        //       >
+        //         {showSelectMessageCheckbox && (
+        //           <SelectMessageCheckbox message={message} />
+        //         )}
+
+        //         <IconButton
+        //           variant="contained"
+        //           size="small"
+        //           id="messageActionsButton"
+        //           disabled={message.isDeleted}
+        //           className={classes.messageActionsButton}
+        //           onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
+        //         >
+        //           <ExpandMore />
+        //         </IconButton>
+
+        //         <div
+        //           className={classes.reactionButtonRight}
+        //           onClick={(e) => {
+        //             e.stopPropagation();
+        //             openReactionBar(message, e.currentTarget);
+        //           }}
+        //         >
+        //           <EmojiEmotionsOutlinedIcon fontSize="small" />
+        //         </div>
+
+        //         {message.isForwarded && (
+        //           <div>
+        //             <span className={classes.forwardMessage}>
+        //               <Reply
+        //                 style={{ color: "grey", transform: "scaleX(-1)" }}
+        //               />{" "}
+        //               Encaminhada
+        //             </span>
+        //             <br />
+        //           </div>
+        //         )}
+
+        //         {isYouTubeLink(message.body) && (
+        //           <YouTubePreview videoUrl={message.body} />
+        //         )}
+
+        //         {!lgpdDeleteMessage && message.isDeleted && (
+        //           <div>
+        //             <span className={classes.deletedMessage}>
+        //               🚫 Essa mensagem foi apagada &nbsp;
+        //             </span>
+        //           </div>
+        //         )}
+
+        //         {/* 🔵 BORDA AZUL - Container da imagem/mídia */}
+        //         {(message.mediaUrl ||
+        //           message._isMediaOptimistic ||
+        //           message.mediaType === "locationMessage" ||
+        //           isSticker(message) ||
+        //           message.mediaType === "contactMessage" ||
+        //           message.mediaType === "template") && (
+        //           <div
+        //             style={{
+        //               border: "3px solid blue",
+        //               outline: "1px dashed blue",
+        //               backgroundColor: "rgba(0,0,255,0.05)",
+        //               marginBottom: "0px",
+        //             }}
+        //           >
+        //             {checkMessageMedia(message)}
+        //           </div>
+        //         )}
+
+        //         {(!isSticker(message) || message.quotedMsg) && (
+        //           <>
+        //             {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
+        //             {!(
+        //               message.mediaType === "image" &&
+        //               (!message.body ||
+        //                 message.body.trim() === "" ||
+        //                 message.body === getBasename(message.mediaUrl))
+        //             ) && (
+        //               /* 🟢 BORDA VERDE - Container de texto */
+        //               <div
+        //                 className={clsx(
+        //                   // Remove padding superior quando vem após imagem/vídeo
+        //                   (message.mediaType === "image" ||
+        //                     message.mediaType === "video") &&
+        //                     message.body &&
+        //                     message.body.trim() !== "" &&
+        //                     message.body !== getBasename(message.mediaUrl)
+        //                     ? classes.textContentItemAfterMedia
+        //                     : classes.textContentItem,
+        //                   {
+        //                     [classes.textContentItemDeleted]: message.isDeleted,
+        //                   },
+        //                 )}
+        //                 style={{
+        //                   border: "3px solid green",
+        //                   outline: "1px dashed green",
+        //                   backgroundColor: "rgba(0,255,0,0.05)",
+        //                   marginTop: "0px",
+        //                   paddingTop: "0px",
+        //                 }}
+        //               >
+        //                 {message.quotedMsg && renderQuotedMessage(message)}
+
+        //                 {!message._isMediaOptimistic && (
+        //                   <>
+        //                     {((message.mediaType === "image" ||
+        //                       message.mediaType === "video") &&
+        //                       getBasename(message.mediaUrl) === message.body) ||
+        //                       (message.mediaType !== "audio" &&
+        //                         !isSticker(message) &&
+        //                         message.mediaType !== "reactionMessage" &&
+        //                         message.mediaType !== "locationMessage" &&
+        //                         message.mediaType !== "contactMessage" &&
+        //                         message.mediaType !== "template" && (
+        //                           <>
+        //                             {xmlRegex.test(message.body) && (
+        //                               <div>{formatXml(message.body)}</div>
+        //                             )}
+        //                             {!xmlRegex.test(message.body) && (
+        //                               <MarkdownWrapper>
+        //                                 {message.body}
+        //                               </MarkdownWrapper>
+        //                             )}
+        //                           </>
+        //                         ))}
+        //                   </>
+        //                 )}
+
+        //                 {/* 🟠 BORDA LARANJA - Timestamp */}
+        //                 <span
+        //                   className={classes.timestamp}
+        //                   style={{
+        //                     border: "2px solid orange",
+        //                     outline: "1px dashed orange",
+        //                     backgroundColor: "rgba(255,165,0,0.1)",
+        //                     display: "inline-block",
+        //                   }}
+        //                 >
+        //                   {message.isEdited
+        //                     ? "Editada " +
+        //                       format(parseISO(message.createdAt), "HH:mm")
+        //                     : format(parseISO(message.createdAt), "HH:mm")}
+        //                   {renderMessageAck(message)}
+        //                 </span>
+        //               </div>
+        //             )}
+
+        //             {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
+        //             {message.mediaType === "image" &&
+        //               (!message.body ||
+        //                 message.body.trim() === "" ||
+        //                 message.body === getBasename(message.mediaUrl)) && (
+        //                 <span
+        //                   className={classes.timestampMedia}
+        //                   style={{
+        //                     position: "absolute",
+        //                     bottom: 8,
+        //                     right: 8,
+        //                     zIndex: 100,
+        //                     border: "2px solid yellow",
+        //                     outline: "1px dashed yellow",
+        //                     backgroundColor: "rgba(255,255,0,0.3)",
+        //                   }}
+        //                 >
+        //                   {message.isEdited
+        //                     ? "Editada " +
+        //                       format(parseISO(message.createdAt), "HH:mm")
+        //                     : format(parseISO(message.createdAt), "HH:mm")}
+        //                   {renderMessageAck(message)}
+        //                 </span>
+        //               )}
+        //           </>
+        //         )}
+
+        //         {renderReactions(message)}
+        //       </div>
+        //     </React.Fragment>
+        //   );
+        // }
       });
       return viewMessagesList;
     } else {

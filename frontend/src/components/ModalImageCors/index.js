@@ -12,7 +12,7 @@ const useStyles = makeStyles((theme) => ({
     display: "block",
     position: "relative",
     zIndex: 10,
-    marginBottom: 18,
+    marginBottom: 4,
   },
   overlay: {
     position: "fixed",
