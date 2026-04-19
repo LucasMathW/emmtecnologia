@@ -993,7 +993,9 @@ const MessagesList = ({
     const onAppMessageMessagesList = (data) => {
       // Presença — tratado aqui também, sem segundo listener
       if (data.action === "presence:update") {
-        if (data.ticketId && String(data.ticketId) !== String(ticketId)) return;
+        // Mesmo filtro que mensagens usam: ticket.uuid === ticketId (param da rota)
+        if (!data.ticket || data.ticket.uuid !== ticketId) return;
+
         setContactPresence(data.status || null);
         if (data.status) {
           clearTimeout(presenceTimeoutRef.current);
@@ -1004,6 +1006,7 @@ const MessagesList = ({
           scrollToBottom();
         } else {
           clearTimeout(presenceTimeoutRef.current);
+          setContactPresence(null);
         }
         return;
       }

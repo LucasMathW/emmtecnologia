@@ -5614,18 +5614,13 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
-    if (process.env.NODE_ENV == "development") {
-      console.log("🔥 PRESENCE RECEBIDO:", JSON.stringify(data, null, 2));
-    }
     const presences = data.presences || {};
 
     for (const remoteJid in presences) {
       const presence = presences[remoteJid];
-
       if (!presence.lastKnownPresence) continue;
 
       let status: "typing" | "recording" | "paused" | "online" | "offline";
-
       switch (presence.lastKnownPresence) {
         case "composing":
           status = "typing";
@@ -5643,10 +5638,10 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           status = "offline";
       }
 
-      // 🔥 Joga isso para o mesmo sistema de socket que já existe
       await handlePresenceUpdate({
         remoteJid,
         companyId,
+        whatsappId: wbot.id, // ← chip que recebeu o evento
         status
       });
     }

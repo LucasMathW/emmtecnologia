@@ -130,34 +130,15 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "UPDATE_TICKET_PRESENCE") {
-    const { contactId, status } = action.payload;
+    const { ticketId, contactId, status } = action.payload;
 
-    // console.log("[REDUCER][UPDATE_TICKET_PRESENCE] recebido por contactId:", {
-    //   contactId,
-    //   status,
-    // });
-
-    // Atualiza TODOS os tickets desse contato que estiverem no estado
-    // (pode ter mais de um em abas diferentes, todos ficam sincronizados)
-    const affected = state.filter((t) => t.contactId === contactId);
-
-    if (affected.length === 0) {
-      if (process.env.NODE_ENV === "development") {
-        // console.log(
-        //   "[REDUCER][UPDATE_TICKET_PRESENCE] contato não encontrado nesta instância:",
-        //   { contactId },
-        // );
+    return state.map((t) => {
+      // Filtra pelo ticketId exato — mesmo ticket, mesma fila, mesmo chip
+      if (t.id === ticketId) {
+        return { ...t, presence: status };
       }
-      return state;
-    }
-
-    console.log(
-      `[REDUCER][UPDATE_TICKET_PRESENCE] ✅ atualizando ${affected.length} ticket(s) do contato ${contactId} → ${status}`,
-    );
-
-    return state.map((t) =>
-      t.contactId === contactId ? { ...t, presence: status } : t,
-    );
+      return t;
+    });
   }
 
   if (action.type === "LOAD_TICKETS") {
@@ -634,30 +615,29 @@ const TicketsListCustom = (props) => {
       }
 
       if (data.action === "presence:update") {
-        const contactId = data.contactId; // ← agora usa contactId
-        const presenceStatus = data.status;
+        const { ticket: presenceTicket, status: presenceStatus } = data;
 
-        if (!contactId) {
-          console.warn(
-            "[SOCKET][presence:update] ⚠️ contactId ausente, ignorando.",
-          );
-          return;
-        }
+        if (!presenceTicket) return;
 
-        if (presenceStatus) {
-          presenceCacheRef.current[`contact-${contactId}`] = presenceStatus;
-        } else {
-          delete presenceCacheRef.current[`contact-${contactId}`];
-          console.log(
-            "[SOCKET][presence:update] 🗑️ removido do cache para contato:",
-            contactId,
-          );
-        }
-
+        // Atualiza pelo ticketId específico — mesmo critério que UPDATE_TICKET usa
         dispatch({
           type: "UPDATE_TICKET_PRESENCE",
-          payload: { contactId, status: presenceStatus },
+          payload: {
+            ticketId: presenceTicket.id,
+            contactId: presenceTicket.contactId,
+            status: presenceStatus,
+          },
         });
+
+        // Atualiza cache por contactId para sobreviver ao RESET/LOAD
+        if (presenceStatus) {
+          presenceCacheRef.current[`contact-${presenceTicket.contactId}`] =
+            presenceStatus;
+        } else {
+          delete presenceCacheRef.current[
+            `contact-${presenceTicket.contactId}`
+          ];
+        }
         return;
       }
 
