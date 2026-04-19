@@ -387,7 +387,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
           body: `\u200e${bodyMessage}`,
           ticket: contactAndTicket,
           quotedMsg,
-          type: 'text',
+          type: "text",
           media: null,
           vCard: null
         });
@@ -599,7 +599,9 @@ export const indexImage = async (
         // Baixa a imagem por URL e envia via API Oficial
         const axios = (await import("axios")).default;
         const response = await axios.get(url, { responseType: "arraybuffer" });
-        const contentType = response.headers["content-type"] || "image/jpeg";
+        const contentType = String(
+          response.headers["content-type"] || "image/jpeg"
+        );
         const extension = contentType.includes("png")
           ? ".png"
           : contentType.includes("jpeg")
