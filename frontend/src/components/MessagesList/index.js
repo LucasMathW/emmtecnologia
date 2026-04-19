@@ -615,6 +615,15 @@ const reducer = (state, action) => {
     const messages = action.payload;
     const newMessages = [];
 
+    console.log("📦 [LOAD_MESSAGES]", {
+      incoming: messages.length,
+      currentState: state.length,
+      firstMsg: messages[0]?.id,
+      lastMsg: messages[messages.length - 1]?.id,
+      firstCreatedAt: messages[0]?.createdAt,
+      lastCreatedAt: messages[messages.length - 1]?.createdAt,
+    });
+
     messages.forEach((message) => {
       const messageIndex = state.findIndex((m) => m.id === message.id);
       if (messageIndex !== -1) {
@@ -734,6 +743,7 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
+    console.log("🔴 [RESET] state tinha:", state.length, "mensagens");
     return [];
   }
 };
@@ -756,6 +766,7 @@ const MessagesList = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const history = useHistory();
   const lastMessageRef = useRef();
+  const pageNumberRef = useRef(1);
   const messageRef = useRef(null);
   const messageRight = useRef(null);
   const presenceTimeoutRef = useRef(null);
@@ -857,10 +868,11 @@ const MessagesList = ({
   }, []);
 
   useEffect(() => {
+    console.log("🔄 [RESET EFFECT] ticketId mudou para:", ticketId);
+    pageNumberRef.current = 1; // síncrono, imediato
+    setPageNumber(1); // para forçar re-render
     dispatch({ type: "RESET" });
-    setPageNumber(1);
     currentTicketId.current = ticketId;
-    ticketNumericIdRef.current = null;
   }, [ticketId, selectedQueuesMessage]);
 
   useEffect(() => {
@@ -875,15 +887,43 @@ const MessagesList = ({
     };
   }, []);
 
+  const loadingTicketRef = useRef(null);
+
+  useEffect(() => {
+    console.log("🔄 [RESET EFFECT] ticketId mudou para:", ticketId);
+    dispatch({ type: "RESET" });
+    setPageNumber(1);
+    setHasMore(false);
+    currentTicketId.current = ticketId;
+    loadingTicketRef.current = ticketId; // marca qual ticket deve carregar
+  }, [ticketId, selectedQueuesMessage]);
+
   useEffect(() => {
     let active = true;
+
+    // 🔥 GUARDA: só executa se este ticketId ainda é o que deve ser carregado
+    if (loadingTicketRef.current !== ticketId) {
+      console.warn(
+        "⚠️ [LOAD BLOQUEADO] ticketId stale:",
+        ticketId,
+        "esperado:",
+        loadingTicketRef.current,
+      );
+      return;
+    }
+
+    // 🔥 GUARDA: pageNumber deve ser coerente com o ticket atual
+    // Se o ticketId mudou recentemente, só aceita pageNumber === 1
+    if (ticketId !== currentTicketId.current) {
+      console.warn("⚠️ [LOAD BLOQUEADO] currentTicketId não bate");
+      return;
+    }
 
     const delayDebounceFn = setTimeout(async () => {
       if (ticketId === "undefined") {
         history.push("/tickets");
         return;
       }
-
       if (isNil(ticketId)) return;
 
       try {
@@ -896,31 +936,38 @@ const MessagesList = ({
           },
         });
 
-        if (data.messages.length > 0) {
-          ticketNumericIdRef.current = data.messages[0].ticketId;
-        }
-
         if (!active) return;
 
-        if (currentTicketId.current === ticketId) {
-          dispatch({
-            type: "LOAD_MESSAGES",
-            payload: data.messages,
-          });
-
-          setHasMore(data.hasMore);
-          setLoading(false);
-          setLoadingMore(false);
+        // 🔥 GUARDA PÓS-FETCH: ticket pode ter mudado durante o await
+        if (loadingTicketRef.current !== ticketId) {
+          console.warn(
+            "⚠️ [LOAD DESCARTADO pós-fetch] ticket mudou durante request",
+          );
+          return;
         }
 
+        console.log(
+          "✅ [LOAD OK] pageNumber:",
+          pageNumber,
+          "msgs recebidas:",
+          data.messages.length,
+          {
+            hasMore: data.hasMore,
+            firstMsg: data.messages[0]?.createdAt,
+            lastMsg: data.messages[data.messages.length - 1]?.createdAt,
+          },
+        );
+
+        dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
+        setHasMore(data.hasMore);
+        setLoading(false);
+        setLoadingMore(false);
+
         if (pageNumber === 1 && data.messages.length > 1) {
-          setTimeout(() => {
-            if (active) scrollToBottom();
-          }, 100);
+          scrollToBottom();
         }
       } catch (err) {
         if (!active) return;
-
         setLoading(false);
         setLoadingMore(false);
         toastError(err);
@@ -969,22 +1016,29 @@ const MessagesList = ({
         return;
       }
 
+      // const msg = data.message;
+      // if (!msg) return;
+
+      // const chatTicketUuid = ticketId;
+      // const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
+      // const msgTicketId = String(msg.ticketId || msg.ticket?.id || "");
+      // const numericId = ticketNumericIdRef.current
+      //   ? String(ticketNumericIdRef.current)
+      //   : null;
+
+      // const isSameChat =
+      //   String(msgTicketUuid) === String(chatTicketUuid) ||
+      //   msgTicketId === String(chatTicketUuid) ||
+      //   (numericId && msgTicketId === numericId); // ← chave do fix
+
+      // if (!isSameChat) return;
+
       const msg = data.message;
       if (!msg) return;
 
-      const chatTicketUuid = ticketId;
       const msgTicketUuid = msg.ticket?.uuid || msg.ticketUuid || null;
-      const msgTicketId = String(msg.ticketId || msg.ticket?.id || "");
-      const numericId = ticketNumericIdRef.current
-        ? String(ticketNumericIdRef.current)
-        : null;
 
-      const isSameChat =
-        String(msgTicketUuid) === String(chatTicketUuid) ||
-        msgTicketId === String(chatTicketUuid) ||
-        (numericId && msgTicketId === numericId); // ← chave do fix
-
-      if (!isSameChat) return;
+      if (msgTicketUuid && msgTicketUuid !== ticketId) return;
 
       if (data.action === "create") {
         setContactPresence(null);
@@ -1013,6 +1067,8 @@ const MessagesList = ({
     socket.on("connect", connectEventMessagesList);
     socket.on(eventAppMessage, onAppMessageMessagesList);
 
+    console.log("teste");
+
     if (socket.connected) {
       connectEventMessagesList();
     }
@@ -1025,15 +1081,8 @@ const MessagesList = ({
     };
   }, [ticketId, user.companyId]); // ← remover o segundo useEffect de presença
 
-  // Forçar entrada na sala quando o socket já está conectado ao montar
-  // useEffect(() => {
-  //   if (!ticketId || ticketId === "undefined") return;
-  //   if (socket?.connected) {
-  //     socket.emit("joinChatBox", `${ticketId}`);
-  //   }
-  // }, [ticketId]);
-
   useEffect(() => {
+    loadingTicketRef;
     return () => {
       if (dragTimeout) {
         clearTimeout(dragTimeout);
@@ -1098,9 +1147,12 @@ const MessagesList = ({
 
   const loadMore = () => {
     if (loadingMore) return;
+    // 🔥 Só permite loadMore se o ticket atual é o mesmo que está carregado
+    if (currentTicketId.current !== ticketId) return;
     setLoadingMore(true);
     setPageNumber((prevPageNumber) => prevPageNumber + 1);
   };
+  console.log("teste");
 
   const isAtBottom = () => {
     const el = document.getElementById("messagesList");
@@ -1110,12 +1162,19 @@ const MessagesList = ({
   };
 
   const scrollToBottom = () => {
+    console.log(
+      "⬇️ [scrollToBottom] chamado, lastMessageRef existe?",
+      !!lastMessageRef.current,
+    );
     setTimeout(() => {
       if (lastMessageRef.current) {
+        console.log("⬇️ [scrollToBottom] executando scrollIntoView");
         lastMessageRef.current.scrollIntoView({});
       }
     }, 100);
   };
+
+  // console.log("teste");
 
   const handleScroll = (e) => {
     if (!hasMore) return;
@@ -1207,12 +1266,12 @@ const MessagesList = ({
 
   const checkMessageMedia = (message) => {
     if (process.env.NODE_ENV === "development") {
-      console.log(
-        "checkMessageMedia:",
-        message.id,
-        "mediaType:",
-        message.mediaType,
-      );
+      // console.log(
+      //   "checkMessageMedia:",
+      //   message.id,
+      //   "mediaType:",
+      //   message.mediaType,
+      // );
     }
     // 🔥 Mensagem otimista de mídia: exibe placeholder animado enquanto aguarda
     if (message._isMediaOptimistic) {
@@ -1611,6 +1670,17 @@ const MessagesList = ({
         );
       }
     } else if (index === messagesList.length - 1) {
+      console.log(
+        "📌 [lastMessageRef] atribuído à msg index:",
+        index,
+        "id:",
+        message.id,
+        "createdAt:",
+        message.createdAt,
+        "total msgs:",
+        messagesList.length,
+      );
+
       return (
         <div
           key={`ref-${message.id}`}
