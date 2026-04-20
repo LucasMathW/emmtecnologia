@@ -4,7 +4,7 @@ import { makeStyles } from "@material-ui/core/styles";
 const useStyles = makeStyles((theme) => ({
   messageMedia: {
     objectFit: "cover",
-    width: 250,
+    width: "100%",
     height: "auto",
     maxHeight: 300,
     borderRadius: 8,
