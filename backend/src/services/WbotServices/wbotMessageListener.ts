@@ -5614,6 +5614,12 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
+    // data.id = JID do CHAT onde o evento ocorreu
+    // data.presences = { [membroJid]: { lastKnownPresence } }
+
+    const chatJid = data.id;
+    const isGroupPresence = chatJid?.endsWith("@g.us");
+
     const presences = data.presences || {};
 
     for (const remoteJid in presences) {
@@ -5639,9 +5645,13 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       }
 
       await handlePresenceUpdate({
-        remoteJid,
+        remoteJid: isGroupPresence ? chatJid : remoteJid,
+        // ↑ Se é grupo, usa o JID do grupo (para achar o ticket do grupo)
+        // Se é individual, usa o JID do contato (comportamento atual)
+        memberJid: isGroupPresence ? remoteJid : null,
+        // ↑ Passa quem digitou dentro do grupo (para log/futuro uso)
         companyId,
-        whatsappId: wbot.id, // ← chip que recebeu o evento
+        whatsappId: wbot.id,
         status
       });
     }

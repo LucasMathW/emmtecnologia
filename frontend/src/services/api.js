@@ -21,7 +21,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      if (error.response.status === 401 || error.response.status === 403) {
+      if (error.response.status === 401) {
         console.warn("Sessão expirada ou logout detectado");
 
         localStorage.removeItem("token");

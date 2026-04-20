@@ -142,7 +142,6 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     searchOnMessages
   });
 
-
   return res.status(200).json({ tickets, count, hasMore });
 };
 
@@ -304,18 +303,15 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     if (err.statusCode === 409) {
       const existingTicket = JSON.parse(err.message);
 
-      // Verificar se o usuário que está tentando criar é o dono do ticket existente
       if (existingTicket.userId === userId) {
-        // É o mesmo usuário, retornar o ticket existente
         return res.status(200).json(existingTicket);
       } else {
-        // É outro usuário, retornar erro 403 (Forbidden)
         return res.status(403).json({
           error: "Ticket já existe",
-          message: `Este contato já está sendo atendido por outro usuário: ${
+          message: `Este contato já está sendo atendido por: ${
             existingTicket.user?.name || "Desconhecido"
           }`,
-          ticket: existingTicket
+          ticket: existingTicket // agora user e queue estarão presentes
         });
       }
     }

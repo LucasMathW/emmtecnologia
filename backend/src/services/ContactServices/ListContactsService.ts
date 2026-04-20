@@ -32,8 +32,10 @@ const buildWhereCondition = async ({
   isGroup,
   userId
 }: Request): Promise<Filterable["where"]> => {
-
-  const userProfile = await User.findOne({ where: { id: userId }, attributes: ["profile"] });
+  const userProfile = await User.findOne({
+    where: { id: userId },
+    attributes: ["profile", "showContacts"] // ← adicionar aqui
+  });
 
   const settings = await FindCompanySettingsService({
     companyId
@@ -41,10 +43,14 @@ const buildWhereCondition = async ({
 
   const DirectTicketsToWallets = settings.DirectTicketsToWallets;
 
+  const showContactsEnabled = userProfile?.showContacts === "enabled";
+
   let whereCondition: Filterable["where"] = { companyId };
 
   if (searchParam) {
-    const sanitizedSearchParam = removeAccents(searchParam.toLocaleLowerCase().trim());
+    const sanitizedSearchParam = removeAccents(
+      searchParam.toLocaleLowerCase().trim()
+    );
     whereCondition = {
       ...whereCondition,
       [Op.or]: [
@@ -66,8 +72,10 @@ const buildWhereCondition = async ({
       attributes: ["contactId"]
     });
 
-    const contactTagsIntersection = intersection(contactTags.map(t => t.contactId));
-    
+    const contactTagsIntersection = intersection(
+      contactTags.map(t => t.contactId)
+    );
+
     whereCondition = {
       ...whereCondition,
       id: {
@@ -76,14 +84,22 @@ const buildWhereCondition = async ({
     };
   }
 
-  if (DirectTicketsToWallets && userProfile && userProfile.profile === "user" && userId) {
+  if (
+    DirectTicketsToWallets &&
+    !showContactsEnabled &&
+    userProfile &&
+    userProfile.profile === "user" &&
+    userId
+  ) {
     whereCondition = {
       ...whereCondition,
       [Op.and]: [
         whereCondition,
         {
           id: {
-            [Op.in]: Sequelize.literal(`(SELECT "contactId" FROM "ContactWallets" WHERE "walletId" = ${userId} AND "companyId" = ${companyId})`)
+            [Op.in]: Sequelize.literal(
+              `(SELECT "contactId" FROM "ContactWallets" WHERE "walletId" = ${userId} AND "companyId" = ${companyId})`
+            )
           }
         }
       ]
@@ -108,7 +124,6 @@ const ListContactsService = async ({
   isGroup,
   userId
 }: Request): Promise<Response> => {
-
   const whereCondition = await buildWhereCondition({
     searchParam,
     companyId,

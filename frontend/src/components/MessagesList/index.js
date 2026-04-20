@@ -58,7 +58,7 @@ import { useParams, useHistory } from "react-router-dom";
 import { downloadResource } from "../../utils";
 import Template from "./templates";
 import { usePdfViewer } from "../../hooks/usePdfViewer";
-import { getEffectiveConstraintOfTypeParameter, NewLineKind } from "typescript";
+// import { getEffectiveConstraintOfTypeParameter, NewLineKind } from "typescript";
 import EmojiEmotionsOutlinedIcon from "@material-ui/icons/EmojiEmotionsOutlined";
 import Box from "@material-ui/core/Box";
 import ForwardMessageBar from "../ForwardMessageBar";
@@ -784,7 +784,13 @@ const MessagesList = ({
   const [videoError, setVideoError] = useState(false);
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
   // Presença do contato (digitando, gravando, etc.)
-  const [contactPresence, setContactPresence] = useState(null);
+  // const [contactPresence, setContactPresence] = useState(null);
+
+  const [contactPresence, setContactPresence] = useState({
+    status: null,
+    memberName: null,
+  });
+
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
   const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
   const { showSelectMessageCheckbox, setForwardMessageModalOpen } = useContext(
@@ -993,20 +999,23 @@ const MessagesList = ({
     const onAppMessageMessagesList = (data) => {
       // Presença — tratado aqui também, sem segundo listener
       if (data.action === "presence:update") {
-        // Mesmo filtro que mensagens usam: ticket.uuid === ticketId (param da rota)
         if (!data.ticket || data.ticket.uuid !== ticketId) return;
 
-        setContactPresence(data.status || null);
+        setContactPresence({
+          status: data.status || null,
+          memberName: data.ticket?.memberName || null,
+        });
+
         if (data.status) {
           clearTimeout(presenceTimeoutRef.current);
           presenceTimeoutRef.current = setTimeout(
-            () => setContactPresence(null),
+            () => setContactPresence({ status: null, memberName: null }),
             10_000,
           );
           scrollToBottom();
         } else {
           clearTimeout(presenceTimeoutRef.current);
-          setContactPresence(null);
+          setContactPresence({ status: null, memberName: null });
         }
         return;
       }
@@ -1044,7 +1053,7 @@ const MessagesList = ({
       if (msgTicketUuid && msgTicketUuid !== ticketId) return;
 
       if (data.action === "create") {
-        setContactPresence(null);
+        setContactPresence({ status: null, memberName: null });
         clearTimeout(presenceTimeoutRef.current);
         dispatch({ type: "ADD_MESSAGE", payload: msg });
         scrollToBottom();
@@ -1094,15 +1103,16 @@ const MessagesList = ({
   }, [dragTimeout]);
 
   const renderPresenceIndicator = () => {
-    if (!contactPresence) return null;
+    if (!contactPresence?.status) return null;
 
-    const isRecording =
-      contactPresence === "recording" || contactPresence === "recording_audio";
-
-    const isTyping =
-      contactPresence === "composing" || contactPresence === "typing";
+    const isRecording = contactPresence.status === "recording";
+    const isTyping = contactPresence.status === "typing";
 
     if (!isTyping && !isRecording) return null;
+
+    const displayName = contactPresence.memberName
+      ? `${contactPresence.memberName} `
+      : "";
 
     return (
       <div
@@ -1122,7 +1132,9 @@ const MessagesList = ({
                 <span className={`${classes.dot} ${classes.dot2}`} />
                 <span className={`${classes.dot} ${classes.dot3}`} />
               </div>
-              <span className={classes.presenceText}>digitando...</span>
+              <span className={classes.presenceText}>
+                {displayName}digitando...
+              </span>
             </>
           ) : (
             <>
@@ -1140,7 +1152,9 @@ const MessagesList = ({
                 <span className={`${classes.audioBar} ${classes.audioBar4}`} />
                 <span className={`${classes.audioBar} ${classes.audioBar5}`} />
               </div>
-              <span className={classes.presenceText}>gravando áudio...</span>
+              <span className={classes.presenceText}>
+                {displayName}gravando áudio...
+              </span>
             </>
           )}
         </div>

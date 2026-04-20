@@ -1140,27 +1140,29 @@ const MessageInput = ({
       isPrivate: privateMessage || isTicketPending() ? "true" : "false",
     };
 
-    const tempId = `temp-${Date.now()}`;
+    if (!editingMessage) {
+      const tempId = `temp-${Date.now()}`;
 
-    const optimisticMessage = {
-      id: tempId,
-      body: message.body,
-      fromMe: true,
-      mediaUrl: "",
-      createdAt: new Date().toISOString(),
-      ack: 0,
-      isDeleted: false,
-      reactions: [],
-      quotedMsg: replyingMessage || null,
-      ticketId: ticketId,
-      // texto não leva _isMediaOptimistic
-    };
+      const optimisticMessage = {
+        id: tempId,
+        body: message.body,
+        fromMe: true,
+        mediaUrl: "",
+        createdAt: new Date().toISOString(),
+        ack: 0,
+        isDeleted: false,
+        reactions: [],
+        quotedMsg: replyingMessage || null,
+        ticketId: ticketId,
+        // texto não leva _isMediaOptimistic
+      };
 
-    window.dispatchEvent(
-      new CustomEvent("optimistic-message", {
-        detail: optimisticMessage,
-      }),
-    );
+      window.dispatchEvent(
+        new CustomEvent("optimistic-message", {
+          detail: optimisticMessage,
+        }),
+      );
+    }
 
     console.log("MESSAGE:", message);
 

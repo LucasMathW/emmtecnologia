@@ -109,17 +109,17 @@ const reducer = (state, action) => {
 const useStyles = makeStyles((theme) => ({
   root: {
     backgroundColor: theme.palette.background.default,
-    minHeight: '100vh',
+    minHeight: "100vh",
   },
   mainContainer: {
     maxWidth: 1200,
-    margin: '0 auto',
+    margin: "0 auto",
     padding: theme.spacing(3),
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(1),
     },
   },
-  
+
   mainPaper: {
     flex: 1,
     padding: theme.spacing(2),
@@ -130,7 +130,7 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(2),
     border: `1px solid ${theme.palette.divider}`,
   },
-  
+
   header: {
     backgroundColor: theme.palette.background.paper,
     boxShadow: theme.shadows[1],
@@ -138,19 +138,19 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(3),
     marginBottom: theme.spacing(3),
     border: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(2),
       marginBottom: theme.spacing(2),
       borderRadius: 12,
     },
   },
   title: {
-    fontSize: '1.75rem',
+    fontSize: "1.75rem",
     fontWeight: 700,
     color: theme.palette.text.primary,
     margin: 0,
-    [theme.breakpoints.down('sm')]: {
-      fontSize: '1.5rem',
+    [theme.breakpoints.down("sm")]: {
+      fontSize: "1.5rem",
     },
   },
   searchContainer: {
@@ -160,32 +160,39 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(3),
     boxShadow: theme.shadows[1],
     border: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(1.5),
       marginBottom: theme.spacing(2),
       borderRadius: 12,
     },
   },
   searchField: {
-    '& .MuiOutlinedInput-root': {
-      backgroundColor: theme.palette.type === 'dark' ? theme.palette.grey[800] : theme.palette.grey[50],
+    "& .MuiOutlinedInput-root": {
+      backgroundColor:
+        theme.palette.type === "dark"
+          ? theme.palette.grey[800]
+          : theme.palette.grey[50],
       borderRadius: 12,
-      '& fieldset': {
-        border: 'none',
+      "& fieldset": {
+        border: "none",
       },
-      '&:hover': {
-        backgroundColor: theme.palette.type === 'dark' ? theme.palette.grey[700] : theme.palette.grey[100],
+      "&:hover": {
+        backgroundColor:
+          theme.palette.type === "dark"
+            ? theme.palette.grey[700]
+            : theme.palette.grey[100],
       },
-      '&.Mui-focused': {
+      "&.Mui-focused": {
         backgroundColor: theme.palette.background.paper,
-        boxShadow: theme.palette.type === 'dark' 
-          ? '0 0 0 3px rgba(144, 202, 249, 0.16)' 
-          : '0 0 0 3px rgba(25, 118, 210, 0.12)',
+        boxShadow:
+          theme.palette.type === "dark"
+            ? "0 0 0 3px rgba(144, 202, 249, 0.16)"
+            : "0 0 0 3px rgba(25, 118, 210, 0.12)",
       },
     },
-    '& .MuiInputBase-input': {
+    "& .MuiInputBase-input": {
       color: theme.palette.text.primary,
-      fontSize: '0.95rem',
+      fontSize: "0.95rem",
     },
   },
   flowCard: {
@@ -193,26 +200,26 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: 16,
     marginBottom: theme.spacing(2),
     border: `1px solid ${theme.palette.divider}`,
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    cursor: 'pointer',
-    '&:hover': {
-      transform: 'translateY(-2px)',
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    cursor: "pointer",
+    "&:hover": {
+      transform: "translateY(-2px)",
       boxShadow: theme.shadows[4],
       borderColor: theme.palette.primary.light,
     },
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       marginBottom: theme.spacing(1.5),
       borderRadius: 12,
     },
   },
   flowCardContent: {
     padding: theme.spacing(3),
-    '&:last-child': {
+    "&:last-child": {
       paddingBottom: theme.spacing(3),
     },
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(2),
-      '&:last-child': {
+      "&:last-child": {
         paddingBottom: theme.spacing(2),
       },
     },
@@ -222,46 +229,46 @@ const useStyles = makeStyles((theme) => ({
     height: 48,
     backgroundColor: theme.palette.primary.main,
     borderRadius: 12,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: theme.spacing(2),
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       width: 40,
       height: 40,
       marginRight: theme.spacing(1.5),
     },
   },
   flowName: {
-    fontSize: '1.125rem',
+    fontSize: "1.125rem",
     fontWeight: 600,
     color: theme.palette.text.primary,
     lineHeight: 1.4,
-    [theme.breakpoints.down('sm')]: {
-      fontSize: '1rem',
+    [theme.breakpoints.down("sm")]: {
+      fontSize: "1rem",
     },
   },
   flowActions: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     gap: theme.spacing(1),
     marginTop: theme.spacing(2),
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       marginTop: theme.spacing(1.5),
     },
   },
   statusChip: {
     fontWeight: 500,
     borderRadius: 8,
-    '&.active': {
-      backgroundColor: theme.palette.type === 'dark' ? '#1b5e20' : '#e8f5e8',
-      color: theme.palette.type === 'dark' ? '#4caf50' : '#2e7d32',
-      border: `1px solid ${theme.palette.type === 'dark' ? '#2e7d32' : '#c8e6c9'}`,
+    "&.active": {
+      backgroundColor: theme.palette.type === "dark" ? "#1b5e20" : "#e8f5e8",
+      color: theme.palette.type === "dark" ? "#4caf50" : "#2e7d32",
+      border: `1px solid ${theme.palette.type === "dark" ? "#2e7d32" : "#c8e6c9"}`,
     },
-    '&.inactive': {
-      backgroundColor: theme.palette.type === 'dark' ? '#b71c1c' : '#ffebee',
-      color: theme.palette.type === 'dark' ? '#f44336' : '#c62828',
-      border: `1px solid ${theme.palette.type === 'dark' ? '#c62828' : '#ffcdd2'}`,
+    "&.inactive": {
+      backgroundColor: theme.palette.type === "dark" ? "#b71c1c" : "#ffebee",
+      color: theme.palette.type === "dark" ? "#f44336" : "#c62828",
+      border: `1px solid ${theme.palette.type === "dark" ? "#c62828" : "#ffcdd2"}`,
     },
   },
   actionButton: {
@@ -270,11 +277,11 @@ const useStyles = makeStyles((theme) => ({
     height: 40,
     borderRadius: 10,
     color: theme.palette.text.secondary,
-    '&:hover': {
+    "&:hover": {
       backgroundColor: theme.palette.action.hover,
       color: theme.palette.primary.main,
     },
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       minWidth: 36,
       width: 36,
       height: 36,
@@ -287,18 +294,18 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: 10,
     color: theme.palette.text.secondary,
     border: `1px solid ${theme.palette.divider}`,
-    '&:hover': {
+    "&:hover": {
       backgroundColor: theme.palette.action.hover,
       borderColor: theme.palette.text.secondary,
     },
   },
   emptyState: {
-    textAlign: 'center',
+    textAlign: "center",
     padding: theme.spacing(6),
     backgroundColor: theme.palette.background.paper,
     borderRadius: 16,
     border: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(4),
     },
   },
@@ -308,34 +315,34 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(2),
   },
   emptyTitle: {
-    fontSize: '1.25rem',
+    fontSize: "1.25rem",
     fontWeight: 600,
     color: theme.palette.text.primary,
     marginBottom: theme.spacing(1),
   },
   emptyDescription: {
     color: theme.palette.text.secondary,
-    fontSize: '0.95rem',
+    fontSize: "0.95rem",
   },
   addButton: {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
     borderRadius: 12,
     padding: theme.spacing(1.5, 3),
-    textTransform: 'none',
+    textTransform: "none",
     fontWeight: 600,
-    fontSize: '0.95rem',
+    fontSize: "0.95rem",
     boxShadow: theme.shadows[3],
-    '&:hover': {
+    "&:hover": {
       backgroundColor: theme.palette.primary.dark,
       boxShadow: theme.shadows[6],
     },
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       padding: theme.spacing(1.2, 2.5),
     },
   },
   fab: {
-    position: 'fixed',
+    position: "fixed",
     bottom: theme.spacing(3),
     right: theme.spacing(3),
     backgroundColor: theme.palette.primary.main,
@@ -343,11 +350,11 @@ const useStyles = makeStyles((theme) => ({
     width: 64,
     height: 64,
     boxShadow: theme.shadows[6],
-    '&:hover': {
+    "&:hover": {
       backgroundColor: theme.palette.primary.dark,
       boxShadow: theme.shadows[12],
     },
-    [theme.breakpoints.down('sm')]: {
+    [theme.breakpoints.down("sm")]: {
       bottom: theme.spacing(2),
       right: theme.spacing(2),
       width: 56,
@@ -355,27 +362,27 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   loadingContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
     minHeight: 200,
     backgroundColor: theme.palette.background.paper,
     borderRadius: 16,
     border: `1px solid ${theme.palette.divider}`,
   },
   menu: {
-    '& .MuiPaper-root': {
+    "& .MuiPaper-root": {
       borderRadius: 12,
       border: `1px solid ${theme.palette.divider}`,
       boxShadow: theme.shadows[8],
       minWidth: 180,
       backgroundColor: theme.palette.background.paper,
     },
-    '& .MuiMenuItem-root': {
+    "& .MuiMenuItem-root": {
       padding: theme.spacing(1.5, 2),
-      fontSize: '0.9rem',
+      fontSize: "0.9rem",
       color: theme.palette.text.primary,
-      '&:hover': {
+      "&:hover": {
         backgroundColor: theme.palette.action.hover,
       },
     },
@@ -384,7 +391,7 @@ const useStyles = makeStyles((theme) => ({
 
 function HideOnScroll({ children }) {
   const trigger = useScrollTrigger();
-  
+
   return (
     <Slide appear={false} direction="up" in={!trigger}>
       {children}
@@ -392,10 +399,17 @@ function HideOnScroll({ children }) {
   );
 }
 
-function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) {
+function FlowCard({
+  flow,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onNavigate,
+  classes,
+}) {
   const [anchorEl, setAnchorEl] = useState(null);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleMenuOpen = (event) => {
     event.stopPropagation();
@@ -416,7 +430,10 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
 
   const handleCardClick = (event) => {
     // Verifica se o clique foi em um botão de ação
-    if (event.target.closest('button') || event.target.closest('[role="button"]')) {
+    if (
+      event.target.closest("button") ||
+      event.target.closest('[role="button"]')
+    ) {
       return;
     }
     onNavigate(flow.id);
@@ -437,24 +454,27 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
       <CardContent className={classes.flowCardContent}>
         <Stack direction="row" alignItems="flex-start" spacing={2}>
           <div className={classes.flowIcon}>
-            <DevicesFold style={{ color: theme.palette.primary.contrastText, fontSize: isMobile ? 20 : 24 }} />
+            <DevicesFold
+              style={{
+                color: theme.palette.primary.contrastText,
+                fontSize: isMobile ? 20 : 24,
+              }}
+            />
           </div>
-          
+
           <Box flex={1}>
-            <Typography className={classes.flowName}>
-              {flow.name}
-            </Typography>
-            
+            <Typography className={classes.flowName}>{flow.name}</Typography>
+
             <div className={classes.flowActions}>
               <Chip
                 size="small"
                 label={flow.active ? "Ativo" : "Inativo"}
-                className={`${classes.statusChip} ${flow.active ? 'active' : 'inactive'}`}
+                className={`${classes.statusChip} ${flow.active ? "active" : "inactive"}`}
                 icon={flow.active ? <PlayArrow /> : <Pause />}
               />
-              
+
               <Box flex={1} />
-              
+
               <IconButton
                 className={classes.actionButton}
                 onClick={handleEditClick}
@@ -462,7 +482,7 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
               >
                 <Edit fontSize="small" />
               </IconButton>
-              
+
               <IconButton
                 className={classes.actionButton}
                 onClick={handleDuplicateClick}
@@ -470,7 +490,7 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
               >
                 <ContentCopy fontSize="small" />
               </IconButton>
-              
+
               <IconButton
                 className={classes.menuButton}
                 onClick={handleMenuOpen}
@@ -481,34 +501,49 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
             </div>
           </Box>
         </Stack>
-        
+
         <Menu
           className={classes.menu}
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem onClick={(event) => {
-            event.stopPropagation();
-            handleAction(() => onNavigate(flow.id));
-          }}>
-            <Build fontSize="small" style={{ marginRight: 12, color: theme.palette.text.secondary }} />
+          <MenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              handleAction(() => onNavigate(flow.id));
+            }}
+          >
+            <Build
+              fontSize="small"
+              style={{ marginRight: 12, color: theme.palette.text.secondary }}
+            />
             Abrir fluxo
           </MenuItem>
           <Divider />
-          <MenuItem onClick={(event) => {
-            event.stopPropagation();
-            handleAction(() => onEdit());
-          }}>
-            <Edit fontSize="small" style={{ marginRight: 12, color: theme.palette.text.secondary }} />
+          <MenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              handleAction(() => onEdit());
+            }}
+          >
+            <Edit
+              fontSize="small"
+              style={{ marginRight: 12, color: theme.palette.text.secondary }}
+            />
             Editar fluxo
           </MenuItem>
           <Divider />
-          <MenuItem onClick={(event) => {
-            event.stopPropagation();
-            handleAction(() => onDelete());
-          }}>
-            <Delete fontSize="small" style={{ marginRight: 12, color: theme.palette.error.main }} />
+          <MenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              handleAction(() => onDelete());
+            }}
+          >
+            <Delete
+              fontSize="small"
+              style={{ marginRight: 12, color: theme.palette.error.main }}
+            />
             Excluir fluxo
           </MenuItem>
         </Menu>
@@ -520,7 +555,7 @@ function FlowCard({ flow, onEdit, onDuplicate, onDelete, onNavigate, classes }) 
 const FlowBuilder = () => {
   const classes = useStyles();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const history = useHistory();
 
   const [loading, setLoading] = useState(false);
@@ -649,8 +684,8 @@ const FlowBuilder = () => {
     }
   };
 
-  const filteredWebhooks = webhooks.filter(webhook =>
-    webhook.name.toLowerCase().includes(searchParam.toLowerCase())
+  const filteredWebhooks = webhooks.filter((webhook) =>
+    webhook.name.toLowerCase().includes(searchParam.toLowerCase()),
   );
 
   return (
@@ -663,7 +698,7 @@ const FlowBuilder = () => {
           handleCloseOrOpenTicket(ticket);
         }}
       />
-      
+
       <FlowBuilderModal
         open={contactModalOpen}
         onClose={handleCloseContactModal}
@@ -672,7 +707,7 @@ const FlowBuilder = () => {
         nameWebhook={selectedWebhookName}
         onSave={() => setReloadData((old) => !old)}
       />
-      
+
       <ConfirmationModal
         title={
           deletingContact
@@ -691,7 +726,7 @@ const FlowBuilder = () => {
           ? `Esta ação não pode ser desfeita. Todas as integrações relacionadas serão perdidas.`
           : `${i18n.t("contacts.confirmationModal.importMessage")}`}
       </ConfirmationModal>
-      
+
       <ConfirmationModal
         title={
           deletingContact
@@ -752,15 +787,16 @@ const FlowBuilder = () => {
           <div className={classes.emptyState}>
             <DevicesFold className={classes.emptyIcon} />
             <Typography className={classes.emptyTitle}>
-              {searchParam ? 'Nenhum fluxo encontrado' : 'Nenhum fluxo criado ainda'}
+              {searchParam
+                ? "Nenhum fluxo encontrado"
+                : "Nenhum fluxo criado ainda"}
             </Typography>
             <Typography className={classes.emptyDescription}>
-              {searchParam 
-                ? 'Tente usar outros termos de pesquisa'
-                : 'Crie seu primeiro fluxo de conversa para automatizar atendimentos'
-              }
+              {searchParam
+                ? "Tente usar outros termos de pesquisa"
+                : "Crie seu primeiro fluxo de conversa para automatizar atendimentos"}
             </Typography>
-            
+
             {!searchParam && (
               <Button
                 className={classes.addButton}
@@ -794,7 +830,10 @@ const FlowBuilder = () => {
 
             {loading && webhooks.length > 0 && (
               <Box display="flex" justifyContent="center" p={3}>
-                <CircularProgress size={24} style={{ color: theme.palette.primary.main }} />
+                <CircularProgress
+                  size={24}
+                  style={{ color: theme.palette.primary.main }}
+                />
               </Box>
             )}
           </Stack>
