@@ -1012,6 +1012,7 @@ const messages = {
           message: {
             location: "Localização",
             contact: "Contato",
+            sticker: "Figurinha",
           },
           notRegister: "Nenhum registro",
           refresh: "Atualizar",
@@ -1297,25 +1298,25 @@ const messages = {
           deleted: "Registro excluído",
         },
       },
-              campaignReport: {
-          title: "Relatório de",
-          inactive: "Inativa",
-          scheduled: "Programada",
-          process: "Em Andamento",
-          cancelled: "Cancelada",
-          finished: "Finalizada",
-          campaign: "Campanha",
-          validContacts: "Contatos Válidos",
-          confirmationsRequested: "Confirmações Solicitadas",
-          confirmations: "Confirmações",
-          deliver: "Entregues",
-          connection: "Conexão",
-          contactLists: "Lista de Contatos",
-          schedule: "Agendamento",
-          conclusion: "Conclusão",
-          fetchError: "Erro ao buscar dados do relatório",
-          backButton: "Voltar",
-        },
+      campaignReport: {
+        title: "Relatório de",
+        inactive: "Inativa",
+        scheduled: "Programada",
+        process: "Em Andamento",
+        cancelled: "Cancelada",
+        finished: "Finalizada",
+        campaign: "Campanha",
+        validContacts: "Contatos Válidos",
+        confirmationsRequested: "Confirmações Solicitadas",
+        confirmations: "Confirmações",
+        deliver: "Entregues",
+        connection: "Conexão",
+        contactLists: "Lista de Contatos",
+        schedule: "Agendamento",
+        conclusion: "Conclusão",
+        fetchError: "Erro ao buscar dados do relatório",
+        backButton: "Voltar",
+      },
       announcements: {
         title: "Informativos",
         searchPlaceholder: "Pesquisa",
@@ -1724,7 +1725,7 @@ const messages = {
             showNotificationPending:
               "Mostrar notificação para tickets pendentes",
             copyContactPrefix: "Sigla para Cópia de Contatos",
-            copyContactPrefixPlaceholder: "Ex: COPIA_"
+            copyContactPrefixPlaceholder: "Ex: COPIA_",
           },
           customMessages: {
             sendQueuePositionMessage: "Mensagem de posição na fila",
@@ -2105,7 +2106,7 @@ const messages = {
           cancel: "Cancelar",
         },
       },
-whitelabel: {
+      whitelabel: {
         primaryColorLight: "Cor Primária (Tema Claro)",
         primaryColorDark: "Cor Primária (Tema Escuro)",
         appName: "Nome da Aplicação",
@@ -2122,14 +2123,17 @@ whitelabel: {
 
         sections: {
           general: "Configurações Gerais",
-          generalDescription: "Configure o nome e informações básicas da aplicação",
+          generalDescription:
+            "Configure o nome e informações básicas da aplicação",
           colors: "Cores e Temas",
-          colorsDescription: "Personalize as cores primárias para temas claro e escuro",
+          colorsDescription:
+            "Personalize as cores primárias para temas claro e escuro",
           logos: "Logos e Imagens",
           logosDescription: "Carregue os logos e imagens de fundo da aplicação",
           languages: "Idiomas Disponíveis",
-          languagesDescription: "Selecione quais idiomas estarão disponíveis no sistema"
-        }
+          languagesDescription:
+            "Selecione quais idiomas estarão disponíveis no sistema",
+        },
       },
     },
   },

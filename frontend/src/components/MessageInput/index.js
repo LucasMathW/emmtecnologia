@@ -2055,7 +2055,7 @@ const MessageInput = ({
                   </div>
                 ) : null}
 
-                <Tooltip title="Stickers">
+                {/* <Tooltip title="Stickers">
                   <IconButton
                     aria-label="stickerPicker"
                     component="span"
@@ -2092,7 +2092,7 @@ const MessageInput = ({
                       />
                     </svg>
                   </IconButton>
-                </Tooltip>
+                </Tooltip> */}
 
                 <StickerPicker
                   anchorEl={stickerAnchorEl}

@@ -33,6 +33,7 @@ import {
   WhatsApp,
 } from "@material-ui/icons";
 import LockIcon from "@material-ui/icons/Lock";
+import ModalVideoCors from "../ModalVideoCors";
 import MarkdownWrapper from "../MarkdownWrapper";
 import VcardPreview from "../VcardPreview";
 import LocationPreview from "../LocationPreview";
@@ -1529,29 +1530,6 @@ const MessagesList = ({
               borderRadius: 8,
             }}
           />
-          <span
-            style={{
-              position: "absolute",
-              bottom: 4,
-              right: 4,
-              fontSize: 11,
-              color: "#fff",
-              backgroundColor: "rgba(0,0,0,0.45)",
-              borderRadius: 6,
-              padding: "2px 4px",
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              pointerEvents: "none",
-            }}
-          >
-            {format(parseISO(message.createdAt), "HH:mm")}
-            {message.fromMe && (
-              <span style={{ display: "flex", alignItems: "center" }}>
-                {renderMessageAck(message)}
-              </span>
-            )}
-          </span>
         </div>
       );
     } else if (message.mediaType === "image") {
@@ -1575,107 +1553,7 @@ const MessagesList = ({
     } else if (message.mediaType === "video") {
       if (process.env.NODE_ENV === "development")
         console.log("🎥 Renderizando como vídeo");
-      return (
-        <div
-          style={{
-            maxWidth: "400px",
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          {videoLoading && !videoError && (
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                zIndex: 2,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <CircularProgress size={30} />
-              <Typography variant="caption" color="textSecondary">
-                Carregando vídeo...
-              </Typography>
-            </div>
-          )}
-
-          <video
-            className={classes.messageMedia}
-            src={message.mediaUrl}
-            controls
-            preload="metadata"
-            playsInline
-            style={{
-              width: "100%",
-              height: "auto",
-              maxHeight: "300px",
-              borderRadius: "8px",
-              backgroundColor: "#f0f0f0",
-              opacity: videoLoading ? 0.3 : 1,
-              transition: "opacity 0.3s ease",
-            }}
-            onLoadStart={() => {
-              console.log("⏳ Iniciando carregamento do vídeo");
-              setVideoLoading(true);
-              setVideoError(false);
-            }}
-            onLoadedData={() => {
-              console.log("✅ Vídeo carregado e pronto");
-              setVideoLoading(false);
-            }}
-            onCanPlay={() => {
-              console.log("✅ Vídeo pronto para reprodução");
-              setVideoLoading(false);
-            }}
-            onError={(e) => {
-              console.error("❌ Erro ao carregar vídeo:", e);
-              console.log("🔗 URL do vídeo:", message.mediaUrl);
-              setVideoLoading(false);
-              setVideoError(true);
-            }}
-          >
-            <source src={message.mediaUrl} type="video/mp4" />
-            <source src={message.mediaUrl} type="video/webm" />
-            <source src={message.mediaUrl} type="video/ogg" />
-            Seu navegador não suporta reprodução de vídeo.
-          </video>
-
-          {videoError && (
-            <div
-              style={{
-                padding: "20px",
-                textAlign: "center",
-                backgroundColor: "#f5f5f5",
-                borderRadius: "8px",
-                color: "#666",
-                marginTop: "8px",
-              }}
-            >
-              <Typography variant="body2" style={{ marginBottom: "12px" }}>
-                ❌ Erro ao carregar vídeo
-              </Typography>
-              <Button
-                startIcon={<GetApp />}
-                onClick={() => {
-                  const link = document.createElement("a");
-                  link.href = message.mediaUrl;
-                  link.download = message.body || "video.mp4";
-                  link.click();
-                }}
-                variant="outlined"
-                size="small"
-              >
-                Baixar Vídeo
-              </Button>
-            </div>
-          )}
-        </div>
-      );
+      return <ModalVideoCors videoUrl={message.mediaUrl} message={message} />;
     } else if (message.mediaUrl) {
       console.log("📎 Renderizando como download genérico");
       return (
@@ -2126,6 +2004,7 @@ const MessagesList = ({
                           boxShadow: "none",
                           padding: 0,
                           minWidth: "unset",
+                          display: "inline-block",
                         }
                       : (message.mediaType === "image" ||
                             message.mediaType === "video") &&
@@ -2162,6 +2041,21 @@ const MessagesList = ({
                   </div>
 
                   {message.mediaType === "image" && (
+                    <div
+                      className={classes.forwardImageButton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessages([message]);
+                        setForwardMessageModalOpen(true);
+                      }}
+                    >
+                      <Reply
+                        style={{ fontSize: 16, transform: "scaleX(-1)" }}
+                      />
+                    </div>
+                  )}
+
+                  {message.mediaType === "video" && (
                     <div
                       className={classes.forwardImageButton}
                       onClick={(e) => {
@@ -2338,7 +2232,74 @@ const MessagesList = ({
                     </>
                   )}
 
-                  {renderReactions(message)}
+                  {/* ✅ Timestamp externo para stickers sem quotedMsg FROM ME */}
+                  {isSticker(message) && !message.quotedMsg && (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        padding: "2px 4px 4px 0px",
+                        position: "relative",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#555",
+                          backgroundColor: "#fff",
+                          borderRadius: 8,
+                          padding: "2px 6px",
+                          boxShadow: "0 1px 1px rgba(0,0,0,0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        {format(parseISO(message.createdAt), "HH:mm")}
+                      </span>
+
+                      {/* ✅ Reação flutuando sobre o mini balão */}
+                      {message.reactions && message.reactions.length > 0 && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: -16,
+                            right: 8,
+                            display: "inline-flex",
+                            gap: 6,
+                            background: "#fff",
+                            borderRadius: 16,
+                            padding: "2px 6px",
+                            fontSize: 13,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                          }}
+                        >
+                          {message.reactions.map((reaction) => (
+                            <span
+                              key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}
+                            >
+                              {reaction.emoji}
+                            </span>
+                          ))}
+                          {message.reactions.length > 1 && (
+                            <span
+                              style={{
+                                marginLeft: 4,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "#555",
+                              }}
+                            >
+                              {message.reactions.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(!isSticker(message) || message.quotedMsg) &&
+                    renderReactions(message)}
                 </div>
               </div>
             </React.Fragment>
@@ -2386,6 +2347,7 @@ const MessagesList = ({
                           boxShadow: "none",
                           padding: 0,
                           minWidth: "unset",
+                          display: "inline-block",
                         }
                       : (message.mediaType === "image" ||
                             message.mediaType === "video") &&
@@ -2422,6 +2384,21 @@ const MessagesList = ({
                   </div>
 
                   {message.mediaType === "image" && (
+                    <div
+                      className={classes.forwardImageButtonLeft}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessages([message]);
+                        setForwardMessageModalOpen(true);
+                      }}
+                    >
+                      <Reply
+                        style={{ fontSize: 16, transform: "scaleX(-1)" }}
+                      />
+                    </div>
+                  )}
+
+                  {message.mediaType === "video" && (
                     <div
                       className={classes.forwardImageButtonLeft}
                       onClick={(e) => {
@@ -2588,7 +2565,43 @@ const MessagesList = ({
                     </>
                   )}
 
-                  {renderReactions(message)}
+                  {/* ✅ Timestamp externo para stickers sem quotedMsg */}
+                  {isSticker(message) && !message.quotedMsg && (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        padding: "2px 4px 4px 0px",
+                        position: "relative",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#555",
+                          backgroundColor: "#fff",
+                          borderRadius: 8,
+                          padding: "2px 6px",
+                          boxShadow: "0 1px 1px rgba(0,0,0,0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                        }}
+                      >
+                        {format(parseISO(message.createdAt), "HH:mm")}
+                        <span style={{ display: "flex", alignItems: "center" }}>
+                          {renderMessageAck(message)}
+                        </span>
+                      </span>
+                      <div
+                        style={{ position: "absolute", bottom: 5, right: 8 }}
+                      >
+                        {renderReactions(message)}
+                      </div>
+                    </div>
+                  )}
+                  {(!isSticker(message) || message.quotedMsg) &&
+                    renderReactions(message)}
                 </div>
               </div>
             </React.Fragment>
