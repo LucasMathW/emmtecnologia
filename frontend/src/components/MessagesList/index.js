@@ -74,7 +74,6 @@ const useStyles = makeStyles((theme) => ({
   messageWithMedia: {
     paddingTop: 0, // Remove padding superior quando tem imagem
     marginTop: 0, // Remove margem superior
-    width: "fit-content",
     display: "inline-block",
   },
 
@@ -281,6 +280,18 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "center",
     marginLeft: "0px",
   },
+
+  messageWrapper: {
+    display: "flex",
+    position: "relative",
+    "&:hover #messageActionsButton": {
+      display: "flex",
+      position: "absolute",
+      top: 0,
+      right: 0,
+    },
+  },
+
   messagesList: {
     backgroundImage:
       theme.mode === "light"
@@ -322,7 +333,7 @@ const useStyles = makeStyles((theme) => ({
     marginRight: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: "min(310px, 90vw)",
+    maxWidth: "min(400px, 90vw)",
     height: "auto",
     display: "inline-block",
     position: "relative",
@@ -385,7 +396,7 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: "min(310px, 90vw)",
+    maxWidth: "min(400px, 90vw)",
     height: "auto",
     display: "inline-block",
     position: "relative",
@@ -541,6 +552,47 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "center",
   },
+
+  forwardImageButton: {
+    display: "flex",
+    position: "absolute",
+    bottom: 8,
+    right: -36,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    zIndex: 20,
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.secondary,
+    borderRadius: "50%",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
+
+  forwardImageButtonLeft: {
+    display: "flex",
+    position: "absolute",
+    bottom: 8,
+    left: -36,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    zIndex: 20,
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.secondary,
+    borderRadius: "50%",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
+
   dailyTimestamp: {
     alignItems: "center",
     textAlign: "center",
@@ -795,9 +847,11 @@ const MessagesList = ({
 
   const { selectedQueuesMessage } = useContext(QueueSelectedContext);
   const { downloadPdf, extractPdfInfoFromMessage, isPdfUrl } = usePdfViewer();
-  const { showSelectMessageCheckbox, setForwardMessageModalOpen } = useContext(
-    ForwardMessageContext,
-  );
+  const {
+    showSelectMessageCheckbox,
+    setForwardMessageModalOpen,
+    setSelectedMessages,
+  } = useContext(ForwardMessageContext);
   const { user, socket } = useContext(AuthContext);
   const companyId = user.companyId;
   const lastReadRef = useRef(null);
@@ -1269,6 +1323,8 @@ const MessagesList = ({
 
   const handleCloseMessageOptionsMenu = (e) => {
     setAnchorEl(null);
+    const btn = document.querySelector("#messageActionsButton");
+    if (btn) btn.style.display = "";
   };
 
   const hanldeReplyMessage = (e, message) => {
@@ -1281,6 +1337,18 @@ const MessagesList = ({
     const cleanPath = filepath.split("?")[0].split("#")[0];
     const segments = cleanPath.split("/");
     return segments[segments.length - 1];
+  };
+
+  const isAudioType = (message) => {
+    if (message.mediaType === "audio" || message.mediaType === "ptt")
+      return true;
+    if (message.mediaUrl) {
+      const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
+      return audioExtensions.some((ext) =>
+        message.mediaUrl.toLowerCase().includes(ext),
+      );
+    }
+    return false;
   };
 
   const checkMessageMedia = (message) => {
@@ -2027,10 +2095,8 @@ const MessagesList = ({
               {renderMessageDivider(message, index)}
 
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-start",
-                }}
+                className={classes.messageWrapper}
+                style={{ justifyContent: "flex-start" }}
               >
                 <div
                   data-message-container
@@ -2039,6 +2105,18 @@ const MessagesList = ({
                     [classes.messageWithReaction]:
                       message.reactions && message.reactions.length > 0,
                   })}
+                  onMouseEnter={(e) => {
+                    const btn = e.currentTarget.querySelector(
+                      "#messageActionsButton",
+                    );
+                    if (btn) btn.style.display = "flex";
+                  }}
+                  onMouseLeave={(e) => {
+                    const btn = e.currentTarget.querySelector(
+                      "#messageActionsButton",
+                    );
+                    if (btn) btn.style.display = "none";
+                  }}
                   title={message.queueId && message.queue?.name}
                   onDoubleClick={(e) => hanldeReplyMessage(e, message)}
                   style={
@@ -2083,6 +2161,21 @@ const MessagesList = ({
                     <EmojiEmotionsOutlinedIcon fontSize="small" />
                   </div>
 
+                  {message.mediaType === "image" && (
+                    <div
+                      className={classes.forwardImageButton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessages([message]);
+                        setForwardMessageModalOpen(true);
+                      }}
+                    >
+                      <Reply
+                        style={{ fontSize: 16, transform: "scaleX(-1)" }}
+                      />
+                    </div>
+                  )}
+
                   {message.isForwarded && (
                     <div>
                       <span className={classes.forwardMessage}>
@@ -2100,7 +2193,6 @@ const MessagesList = ({
                       {message.contact?.name}
                     </span>
                   )}
-
                   {isYouTubeLink(message.body) && (
                     <YouTubePreview videoUrl={message.body} />
                   )}
@@ -2113,7 +2205,6 @@ const MessagesList = ({
                     </div>
                   )}
 
-                  {/* Container da imagem/mídia */}
                   {(message.mediaUrl ||
                     message._isMediaOptimistic ||
                     message.mediaType === "locationMessage" ||
@@ -2126,8 +2217,8 @@ const MessagesList = ({
                         marginBottom: 0,
                         paddingBottom: 0,
                         display: "flex",
-                        lineHeight: 0,
-                        fontSize: 0,
+                        lineHeight: isAudioType(message) ? "normal" : 0,
+                        fontSize: isAudioType(message) ? "inherit" : 0,
                         borderBottomLeftRadius:
                           (message.mediaType === "image" ||
                             message.mediaType === "video") &&
@@ -2152,7 +2243,6 @@ const MessagesList = ({
 
                   {(!isSticker(message) || message.quotedMsg) && (
                     <>
-                      {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
                       {!(
                         message.mediaType === "image" &&
                         (!message.body ||
@@ -2175,7 +2265,6 @@ const MessagesList = ({
                           )}
                         >
                           {message.quotedMsg && renderQuotedMessage(message)}
-
                           {!message._isMediaOptimistic && (
                             <>
                               {((message.mediaType === "image" ||
@@ -2208,7 +2297,7 @@ const MessagesList = ({
                                           <span
                                             style={{
                                               display: "inline-block",
-                                              width: message.fromMe ? 72 : 52,
+                                              width: message.fromMe ? 28 : 15,
                                               height: 1,
                                               verticalAlign: "bottom",
                                             }}
@@ -2219,8 +2308,6 @@ const MessagesList = ({
                                   ))}
                             </>
                           )}
-
-                          {/* Timestamp normal dentro do container */}
                           <span className={classes.timestamp}>
                             {message.isEdited
                               ? "Editada " +
@@ -2229,8 +2316,6 @@ const MessagesList = ({
                           </span>
                         </div>
                       )}
-
-                      {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
                       {message.mediaType === "image" &&
                         (!message.body ||
                           message.body.trim() === "" ||
@@ -2265,10 +2350,8 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                }}
+                className={classes.messageWrapper}
+                style={{ justifyContent: "flex-end" }}
               >
                 <div
                   data-message-container
@@ -2282,6 +2365,18 @@ const MessagesList = ({
                         message.reactions && message.reactions.length > 0,
                     },
                   )}
+                  onMouseEnter={(e) => {
+                    const btn = e.currentTarget.querySelector(
+                      "#messageActionsButton",
+                    );
+                    if (btn) btn.style.display = "flex";
+                  }}
+                  onMouseLeave={(e) => {
+                    const btn = e.currentTarget.querySelector(
+                      "#messageActionsButton",
+                    );
+                    if (btn) btn.style.display = "none";
+                  }}
                   title={message.queueId && message.queue?.name}
                   onDoubleClick={(e) => hanldeReplyMessage(e, message)}
                   style={
@@ -2304,6 +2399,7 @@ const MessagesList = ({
                   {showSelectMessageCheckbox && (
                     <SelectMessageCheckbox message={message} />
                   )}
+
                   <IconButton
                     variant="contained"
                     size="small"
@@ -2314,6 +2410,7 @@ const MessagesList = ({
                   >
                     <ExpandMore />
                   </IconButton>
+
                   <div
                     className={classes.reactionButtonRight}
                     onClick={(e) => {
@@ -2323,6 +2420,22 @@ const MessagesList = ({
                   >
                     <EmojiEmotionsOutlinedIcon fontSize="small" />
                   </div>
+
+                  {message.mediaType === "image" && (
+                    <div
+                      className={classes.forwardImageButtonLeft}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessages([message]);
+                        setForwardMessageModalOpen(true);
+                      }}
+                    >
+                      <Reply
+                        style={{ fontSize: 16, transform: "scaleX(-1)" }}
+                      />
+                    </div>
+                  )}
+
                   {message.isForwarded && (
                     <div>
                       <span className={classes.forwardMessage}>
@@ -2334,9 +2447,11 @@ const MessagesList = ({
                       <br />
                     </div>
                   )}
+
                   {isYouTubeLink(message.body) && (
                     <YouTubePreview videoUrl={message.body} />
                   )}
+
                   {!lgpdDeleteMessage && message.isDeleted && (
                     <div>
                       <span className={classes.deletedMessage}>
@@ -2344,7 +2459,7 @@ const MessagesList = ({
                       </span>
                     </div>
                   )}
-                  {/* Container da imagem/mídia */}
+
                   {(message.mediaUrl ||
                     message._isMediaOptimistic ||
                     message.mediaType === "locationMessage" ||
@@ -2355,9 +2470,9 @@ const MessagesList = ({
                       style={{
                         marginBottom: 0,
                         paddingBottom: 0,
-                        display: "flex",
-                        lineHeight: 0,
-                        fontSize: 0,
+                        display: isAudioType(message) ? "block" : "flex",
+                        lineHeight: isAudioType(message) ? "normal" : 0,
+                        fontSize: isAudioType(message) ? "inherit" : 0,
                         borderBottomLeftRadius:
                           (message.mediaType === "image" ||
                             message.mediaType === "video") &&
@@ -2382,7 +2497,6 @@ const MessagesList = ({
 
                   {(!isSticker(message) || message.quotedMsg) && (
                     <>
-                      {/* Container de texto/legenda - só aparece se imagem tiver legenda */}
                       {!(
                         message.mediaType === "image" &&
                         (!message.body ||
@@ -2405,7 +2519,6 @@ const MessagesList = ({
                           )}
                         >
                           {message.quotedMsg && renderQuotedMessage(message)}
-
                           {!message._isMediaOptimistic && (
                             <>
                               {((message.mediaType === "image" ||
@@ -2432,7 +2545,7 @@ const MessagesList = ({
                                           <span
                                             style={{
                                               display: "inline-block",
-                                              width: 72,
+                                              width: 28,
                                               height: 1,
                                               verticalAlign: "bottom",
                                             }}
@@ -2443,8 +2556,6 @@ const MessagesList = ({
                                   ))}
                             </>
                           )}
-
-                          {/* Timestamp normal dentro do container */}
                           <span className={classes.timestamp}>
                             {message.isEdited
                               ? "Editada " +
@@ -2454,8 +2565,6 @@ const MessagesList = ({
                           </span>
                         </div>
                       )}
-
-                      {/* Timestamp sobreposto na imagem QUANDO não tem legenda */}
                       {message.mediaType === "image" &&
                         (!message.body ||
                           message.body.trim() === "" ||

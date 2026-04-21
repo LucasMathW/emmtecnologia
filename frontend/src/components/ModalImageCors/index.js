@@ -11,7 +11,7 @@ const useStyles = makeStyles((theme) => ({
     cursor: "zoom-in",
     display: "block",
     position: "relative",
-    zIndex: 10,
+    zIndex: 0,
     marginBottom: 4,
   },
   overlay: {
@@ -236,11 +236,12 @@ const ModalImageCors = ({ imageUrl }) => {
         alt="imagem"
         className={classes.messageMedia}
         onClick={(e) => {
-          e.stopPropagation();
+          // e.stopPropagation();
           e.preventDefault();
           setOpen(true);
         }}
         onError={(e) => console.error("Erro ao carregar imagem:", imageUrl)}
+        style={{ pointerEvents: "auto" }} // mantém clique
       />
 
       {open && (
