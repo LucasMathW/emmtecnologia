@@ -149,7 +149,7 @@ const CustomLink = ({ children, ...props }) => (
   </a>
 );
 
-const MarkdownWrapper = ({ children }) => {
+const MarkdownWrapper = ({ children, suffix }) => {
   const boldRegex = /\*(.*?)\*/g;
   const tildaRegex = /~(.*?)~/g;
 
@@ -170,12 +170,19 @@ const MarkdownWrapper = ({ children }) => {
   if (children && tildaRegex.test(children)) {
     children = children.replace(tildaRegex, "~~$1~~");
   }
+
   const options = React.useMemo(() => {
     const markdownOptions = {
       disableParsingRawHTML: true,
-      forceInline: true,
+      forceInline: false, // ← MUDE PARA false (permite quebras de linha!)
       overrides: {
         a: { component: CustomLink },
+        // ✅ Garanta que parágrafos não criem margens extras
+        p: {
+          props: {
+            style: { margin: 0, display: "inline" },
+          },
+        },
       },
     };
 
@@ -190,7 +197,12 @@ const MarkdownWrapper = ({ children }) => {
 
   if (!children) return null;
 
-  return <Markdown options={options}>{children}</Markdown>;
+  return (
+    <>
+      <Markdown options={options}>{children}</Markdown>
+      {suffix}
+    </>
+  );
 };
 
 export default MarkdownWrapper;

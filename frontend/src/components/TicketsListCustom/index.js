@@ -130,12 +130,16 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "UPDATE_TICKET_PRESENCE") {
-    const { ticketId, contactId, status } = action.payload;
+    const { ticketId, contactId, status, memberName } = action.payload;
 
     return state.map((t) => {
       // Filtra pelo ticketId exato — mesmo ticket, mesma fila, mesmo chip
       if (t.id === ticketId) {
-        return { ...t, presence: status };
+        return {
+          ...t,
+          presence: status,
+          presenceMemberName: memberName || null,
+        };
       }
       return t;
     });
@@ -560,18 +564,17 @@ const TicketsListCustom = (props) => {
         }
         dispatch({
           type: "UPDATE_TICKET_UNREAD_MESSAGES", // ← Mudou aqui
-          payload: data.ticket,
+          payload: {
+            ...data.ticket,
+            mediaType:
+              data.ticket?.lastMessageMediaType ||
+              data.ticket?.mediaType ||
+              null,
+          },
           status,
           sortDir: sortTickets,
         });
         return;
-        // dispatch({
-        //   type: "UPDATE_TICKET",
-        //   payload: data.ticket,
-        //   status,
-        //   sortDir: sortTickets,
-        // });
-        // return;
       }
 
       if (data.action === "update" && notBelongsToUserQueues(data.ticket)) {
@@ -626,6 +629,7 @@ const TicketsListCustom = (props) => {
             ticketId: presenceTicket.id,
             contactId: presenceTicket.contactId,
             status: presenceStatus,
+            memberName: presenceTicket.memberName || null,
           },
         });
 
@@ -692,6 +696,8 @@ const TicketsListCustom = (props) => {
         const ticketPayload = {
           ...data.ticket,
           status: incomingTicketStatus || status,
+          mediaType: data.message?.mediaType || data.ticket?.mediaType || null,
+          lastMessage: data.message?.body || data.ticket?.lastMessage,
         };
 
         console.log(
@@ -755,6 +761,7 @@ const TicketsListCustom = (props) => {
             payload: {
               id: data.message.ticketId,
               lastMessage: data.message.body,
+              mediaType: data.message.mediaType || null,
             },
             sortDir: sortTickets,
           });

@@ -872,6 +872,9 @@ export const refreshProfilePic = async (
 
     return res.status(200).json({ contact, updated });
   } catch (error: any) {
-    throw new AppError(error.message || "Erro ao atualizar foto de perfil", 500);
+    throw new AppError(
+      error.message || "Erro ao atualizar foto de perfil",
+      500
+    );
   }
 };

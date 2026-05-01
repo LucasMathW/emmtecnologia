@@ -1013,6 +1013,7 @@ const messages = {
             location: "Localização",
             contact: "Contato",
             sticker: "Figurinha",
+            image: "Foto",
           },
           notRegister: "Nenhum registro",
           refresh: "Atualizar",

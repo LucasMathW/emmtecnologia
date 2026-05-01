@@ -3,16 +3,16 @@ import { makeStyles } from "@material-ui/core/styles";
 
 const useStyles = makeStyles((theme) => ({
   messageMedia: {
-    objectFit: "cover",
-    width: "100%",
-    height: "auto",
-    maxHeight: 300,
+    maxWidth: 246, // ← Container
+    width: "auto",
+    height: "auto", // ← Sem altura fixa
+    objectFit: "contain",
+    display: "block",
     borderRadius: 8,
     cursor: "zoom-in",
-    display: "block",
     position: "relative",
     zIndex: 0,
-    marginBottom: 4,
+    marginBottom: -1,
   },
   overlay: {
     position: "fixed",
@@ -73,15 +73,36 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const ModalImageCors = ({ imageUrl }) => {
+const ModalImageCors = ({ imageUrl, onDimensions }) => {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  const [imgStyle, setImgStyle] = useState({ width: null, height: null });
+
   const dragStart = useRef(null);
   const positionRef = useRef({ x: 0, y: 0 });
+  const dragDirection = useRef(null);
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    const isVertical = naturalHeight > naturalWidth;
+
+    const MAX_WIDTH = isVertical ? 220 : 320;
+    const MAX_HEIGHT = isVertical ? 320 : 200;
+
+    const widthRatio = MAX_WIDTH / naturalWidth;
+    const heightRatio = MAX_HEIGHT / naturalHeight;
+    const ratio = Math.min(widthRatio, heightRatio, 1);
+
+    const w = Math.round(naturalWidth * ratio);
+    const h = Math.round(naturalHeight * ratio);
+
+    setImgStyle({ width: w, height: h });
+    if (onDimensions) onDimensions(w);
+  };
 
   // Fechar com ESC
   useEffect(() => {
@@ -113,35 +134,30 @@ const ModalImageCors = ({ imageUrl }) => {
 
     const handleMouseMove = (e) => {
       if (!dragStart.current) return;
-
       const dx = e.clientX - dragStart.current.x;
       const dy = e.clientY - dragStart.current.y;
 
-      // Detecta direção dominante após 5px de movimento
       if (!dragDirection.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         dragDirection.current =
           Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
       }
-
       if (!dragDirection.current) return;
 
       const newPos = {
         x:
           dragDirection.current === "horizontal"
             ? positionRef.current.x + dx
-            : positionRef.current.x, // ← trava X se vertical
+            : positionRef.current.x,
         y:
           dragDirection.current === "vertical"
             ? positionRef.current.y + dy
-            : positionRef.current.y, // ← trava Y se horizontal
+            : positionRef.current.y,
       };
-
       setPosition(newPos);
     };
 
     const handleMouseUp = (e) => {
       if (!dragStart.current) return;
-
       const dx = e.clientX - dragStart.current.x;
       const dy = e.clientY - dragStart.current.y;
 
@@ -155,7 +171,6 @@ const ModalImageCors = ({ imageUrl }) => {
             ? positionRef.current.y + dy
             : positionRef.current.y,
       };
-
       dragStart.current = null;
       dragDirection.current = null;
       setDragging(false);
@@ -169,12 +184,10 @@ const ModalImageCors = ({ imageUrl }) => {
     };
   }, [open]);
 
-  const dragDirection = useRef(null); // ← novo
-
   const handleMouseDown = (e) => {
     e.preventDefault();
     dragStart.current = { x: e.clientX, y: e.clientY };
-    dragDirection.current = null; // ← reseta direção
+    dragDirection.current = null;
     setDragging(true);
   };
 
@@ -191,17 +204,14 @@ const ModalImageCors = ({ imageUrl }) => {
     e.stopPropagation();
     setZoom((z) => Math.min(5, z + 0.25));
   };
-
   const handleZoomOut = (e) => {
     e.stopPropagation();
     setZoom((z) => Math.max(0.3, z - 0.25));
   };
-
   const handleRotate = (e) => {
     e.stopPropagation();
     setRotation((r) => r + 90);
   };
-
   const handleReset = (e) => {
     e.stopPropagation();
     setZoom(1);
@@ -227,28 +237,45 @@ const ModalImageCors = ({ imageUrl }) => {
       console.error("Erro ao baixar imagem:", err);
     }
   };
+
   if (!imageUrl) return null;
 
   return (
     <>
-      <img
-        src={imageUrl}
-        alt="imagem"
-        className={classes.messageMedia}
-        onClick={(e) => {
-          // e.stopPropagation();
-          e.preventDefault();
-          setOpen(true);
+      <div
+        style={{
+          display: "inline-block",
+          maxWidth: "100%",
+          margin: "0px 0px 0 0px",
+          padding: 0,
+          boxSizing: "border-box",
+          lineHeight: 0,
         }}
-        onError={(e) => console.error("Erro ao carregar imagem:", imageUrl)}
-        style={{ pointerEvents: "auto" }} // mantém clique
-      />
+      >
+        <img
+          src={imageUrl}
+          alt="imagem"
+          className={classes.messageMedia}
+          onLoad={handleImageLoad}
+          style={{
+            display: "block",
+            width: imgStyle.width ? `${imgStyle.width}px` : "100%",
+            height: imgStyle.height ? `${imgStyle.height}px` : "auto",
+            maxWidth: "100%",
+            borderRadius: 7.5,
+            cursor: "zoom-in",
+            objectFit: "contain",
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            setOpen(true);
+          }}
+        />
+      </div>
 
       {open && (
         <div className={classes.overlay} onClick={handleClose}>
-          {/* Toolbar no topo */}
           <div className={classes.toolbar} onClick={(e) => e.stopPropagation()}>
-            {/* Zoom out */}
             <button
               className={classes.toolBtn}
               onClick={handleZoomOut}
@@ -267,11 +294,7 @@ const ModalImageCors = ({ imageUrl }) => {
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
             </button>
-
-            {/* Zoom label */}
             <span className={classes.zoomLabel}>{Math.round(zoom * 100)}%</span>
-
-            {/* Zoom in */}
             <button
               className={classes.toolBtn}
               onClick={handleZoomIn}
@@ -291,10 +314,7 @@ const ModalImageCors = ({ imageUrl }) => {
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
             </button>
-
             <div className={classes.divider} />
-
-            {/* Resetar */}
             <button
               className={classes.toolBtn}
               onClick={handleReset}
@@ -312,8 +332,6 @@ const ModalImageCors = ({ imageUrl }) => {
                 <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
               </svg>
             </button>
-
-            {/* Rotacionar */}
             <button
               className={classes.toolBtn}
               onClick={handleRotate}
@@ -331,8 +349,6 @@ const ModalImageCors = ({ imageUrl }) => {
                 <path d="M20.49 15a9 9 0 1 1-.49-4.95" />
               </svg>
             </button>
-
-            {/* Download */}
             <button
               className={classes.toolBtn}
               onClick={handleDownload}
@@ -351,10 +367,7 @@ const ModalImageCors = ({ imageUrl }) => {
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             </button>
-
             <div className={classes.divider} />
-
-            {/* Fechar */}
             <button
               className={classes.toolBtn}
               onClick={handleClose}
@@ -374,7 +387,6 @@ const ModalImageCors = ({ imageUrl }) => {
             </button>
           </div>
 
-          {/* Imagem */}
           <img
             src={imageUrl}
             alt="imagem expandida"

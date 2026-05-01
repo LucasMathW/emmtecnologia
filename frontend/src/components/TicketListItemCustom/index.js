@@ -528,10 +528,19 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
   // Função para renderizar a mensagem com base na permissão - MOVIDA PARA DEPOIS DE TODAS AS FUNÇÕES
   const renderLastMessage = () => {
+    console.log(
+      "ticket.mediaType:",
+      ticket.mediaType,
+      "lastMessage:",
+      ticket.lastMessage,
+    );
+
     if (ticket.presence === "typing") {
       return (
         <Typography style={{ color: "green", fontSize: 16 }}>
-          Digitando...
+          {ticket.isGroup && ticket.presenceMemberName
+            ? `${ticket.presenceMemberName} está digitando...`
+            : "digitando..."}
         </Typography>
       );
     }
@@ -539,7 +548,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     if (ticket.presence === "recording") {
       return (
         <Typography style={{ color: "green", fontSize: 16 }}>
-          Gravando áudio...
+          {ticket.isGroup && ticket.presenceMemberName
+            ? `${ticket.presenceMemberName} está gravando áudio...`
+            : "gravando áudio..."}
         </Typography>
       );
     }
@@ -605,6 +616,39 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
           </svg>
 
           <span>{i18n.t("mainDrawer.appBar.message.sticker")}</span>
+        </span>
+      );
+    }
+
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
+
+    const isImageMessage =
+      ticket.mediaType === "image" ||
+      imageExtensions.some((ext) =>
+        ticket.lastMessage?.toLowerCase().endsWith(ext),
+      );
+
+    if (isImageMessage) {
+      const isFilename = imageExtensions.some((ext) =>
+        ticket.lastMessage?.toLowerCase().endsWith(ext),
+      );
+
+      return (
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="currentColor"
+            style={{ flexShrink: 0, opacity: 0.7 }}
+          >
+            <path d="M12 15.2A3.2 3.2 0 1 1 15.2 12 3.2 3.2 0 0 1 12 15.2zm7-12h-1.8l-1.2-2H8l-1.2 2H5A3 3 0 0 0 2 6.2v11.6A3 3 0 0 0 5 21h14a3 3 0 0 0 3-3.2V6.2A3 3 0 0 0 19 3.2z" />
+          </svg>
+          <span>
+            {!isFilename && ticket.lastMessage
+              ? truncate(ticket.lastMessage, 30)
+              : i18n.t("mainDrawer.appBar.message.image")}
+          </span>
         </span>
       );
     }
