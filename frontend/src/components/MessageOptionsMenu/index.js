@@ -185,7 +185,7 @@ const MessageOptionsMenu = ({
         anchorEl={anchorEl}
         getContentAnchorEl={null}
         anchorOrigin={{
-          vertical: "bottom",
+          vertical: "top",
           horizontal: "right",
         }}
         transformOrigin={{
