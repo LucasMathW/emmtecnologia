@@ -105,6 +105,8 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
     alignItems: "center",
     borderTop: "1px solid rgba(0, 0, 0, 0.12)",
+    position: "relative",
+    zIndex: 10,
     [theme.breakpoints.down("sm")]: {
       position: "fixed",
       bottom: 0,
@@ -139,6 +141,8 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     padding: "7px",
     alignItems: "center",
+    position: "relative",
+    zIndex: 10,
   },
   messageInputWrapper: {
     padding: 6,
@@ -216,6 +220,7 @@ const useStyles = makeStyles((theme) => ({
     bottom: 63,
     width: 40,
     borderTop: "1px solid #e8e8e8",
+    zIndex: 9999,
   },
   circleLoading: {
     color: green[500],
@@ -2041,11 +2046,14 @@ const MessageInput = ({
                   <Mood className={classes.sendMessageIcons} />
                 </IconButton>
                 {showEmoji ? (
-                  <div className={classes.emojiBox}>
+                  <div
+                    className={classes.emojiBox}
+                    style={{ zIndex: 9999, position: "absolute", bottom: 63 }}
+                  >
                     <ClickAwayListener onClickAway={(e) => setShowEmoji(true)}>
                       <Picker
                         perLine={16}
-                        theme={"dark"}
+                        theme={theme.mode === "dark" ? "dark" : "light"}
                         i18n={i18n}
                         showPreview={true}
                         showSkinTones={false}

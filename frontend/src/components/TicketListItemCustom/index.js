@@ -121,7 +121,7 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-end",
     textAlign: "right",
     position: "relative",
-    top: -30,
+    top: -18,
     marginRight: "1px",
     color: theme.mode === "light" ? "black" : grey[400],
   },
@@ -130,7 +130,7 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-end",
     textAlign: "right",
     position: "relative",
-    top: -30,
+    top: -18,
     color: "green",
     fontWeight: "bold",
     marginRight: "1px",
@@ -147,6 +147,7 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: "0%",
     marginLeft: "5px",
     color: theme.mode === "light" ? "black" : grey[400],
+    marginBottom: 2,
   },
 
   contactLastMessageUnread: {
@@ -184,6 +185,7 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "nowrap",
     flexDirection: "row",
     alignContent: "flex-start",
+    marginTop: 4,
   },
   ticketInfo1: {
     position: "relative",

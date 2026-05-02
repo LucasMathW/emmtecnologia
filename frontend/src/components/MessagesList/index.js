@@ -15,6 +15,7 @@ import {
   Typography,
   IconButton,
   makeStyles,
+  useTheme,
   ClickAwayListener,
 } from "@material-ui/core";
 import Popover from "@mui/material/Popover";
@@ -63,6 +64,28 @@ import Box from "@material-ui/core/Box";
 import ForwardMessageBar from "../ForwardMessageBar";
 
 const useStyles = makeStyles((theme) => ({
+  emojiPickerFullOverride: {
+    "& .emoji-mart": {
+      width: "100% !important",
+      backgroundColor: `${theme.palette.background.paper} !important`,
+      borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
+      color: `${theme.palette.text.primary} !important`,
+    },
+    "& .emoji-mart-bar": {
+      borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
+      backgroundColor: `${theme.palette.background.paper} !important`,
+    },
+    "& .emoji-mart-search input": {
+      backgroundColor: `${theme.mode === "dark" ? "#2d3b43" : "#f2f2f2"} !important`,
+      color: `${theme.palette.text.primary} !important`,
+      borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
+    },
+    "& .emoji-mart-category-label span": {
+      backgroundColor: `${theme.palette.background.paper} !important`,
+      color: `${theme.mode === "dark" ? "#aaa" : "#888"} !important`,
+    },
+  },
+
   emojiPickerOverride: {
     "& .emoji-mart": {
       width: "100% !important",
@@ -218,9 +241,7 @@ const useStyles = makeStyles((theme) => ({
     padding: 0,
     boxSizing: "border-box",
     backgroundColor:
-      theme.palette.mode === "dark"
-        ? theme.palette.grey[700]
-        : theme.palette.grey[300],
+      theme.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[300],
     color: theme.palette.text.primary,
     transition: "background-color 0.15s ease, transform 0.1s ease",
     "&:hover": {
@@ -261,7 +282,8 @@ const useStyles = makeStyles((theme) => ({
   },
 
   reactionEmojiActive: {
-    backgroundColor: "#e4e6eb",
+    backgroundColor:
+      theme.mode === "dark" ? "rgba(255,255,255,0.2)" : "#e4e6eb",
     transform: "scale(1.15)",
     boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
   },
@@ -908,7 +930,6 @@ const MessagesList = ({
   const messageRef = useRef(null);
   const messageRight = useRef(null);
   const presenceTimeoutRef = useRef(null);
-  const ticketNumericIdRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState({});
   const { setReplyingMessage } = useContext(ReplyMessageContext);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -921,8 +942,8 @@ const MessagesList = ({
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
-  // Presença do contato (digitando, gravando, etc.)
-  // const [contactPresence, setContactPresence] = useState(null);
+
+  const theme = useTheme();
 
   const [contactPresence, setContactPresence] = useState({
     status: null,
@@ -1982,7 +2003,8 @@ const MessagesList = ({
           display: "inline-flex",
           alignItems: "center",
           gap: 4,
-          background: "#fff",
+          background: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           borderRadius: 16,
           padding: "2px 6px",
           fontSize: 13,
@@ -2084,7 +2106,7 @@ const MessagesList = ({
             <div
               style={{
                 float: "right",
-                marginTop: "-15px", // ← Ajuste fino: sobe mais
+                marginTop: "-12px", // ← Ajuste fino: sobe mais
                 marginBottom: "0px",
                 marginLeft: message.isEdited ? "-15px" : "-5px",
                 marginRight: "-5px",
@@ -2368,9 +2390,11 @@ const MessagesList = ({
                     justifyContent: "flex-end",
                     gap: 4,
                     alignSelf: "center", // ← alinha na base do balão
-                    marginLeft: -14, // ← colado na mensagem
-                    marginBottom: 4,
+                    marginLeft: -14,
+                    marginBottom: -2,
                     paddingBottom: message.reactions?.length > 0 ? 20 : 0,
+                    zIndex: 30,
+                    position: "relative",
                   }}
                 >
                   {/* Botão encaminhar — só imagem/vídeo */}
@@ -2462,9 +2486,11 @@ const MessagesList = ({
                     justifyContent: "flex-end",
                     gap: 4,
                     alignSelf: "center", // ← alinha na base do balão
-                    marginRight: -14, // ← colado na mensagem
-                    marginBottom: 4,
+                    marginRight: -14,
+                    marginBottom: -2,
                     paddingBottom: message.reactions?.length > 0 ? 20 : 0,
+                    zIndex: 30,
+                    position: "relative",
                   }}
                 >
                   {/* Botão reação */}
@@ -2748,16 +2774,18 @@ const MessagesList = ({
           vertical: "bottom",
           horizontal: "center",
         }}
-        sx={{
+        sx={(muiTheme) => ({
           "& .MuiPaper-root": {
-            borderRadius: 28,
+            borderRadius: "28px",
             padding: "6px 8px",
             display: "flex",
             alignItems: "center",
             gap: 1,
             overflow: "hidden",
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[4],
           },
-        }}
+        })}
       >
         {(() => {
           const reactionMessage = Array.isArray(messagesList)
@@ -2860,7 +2888,10 @@ const MessagesList = ({
 
           return (
             <ClickAwayListener onClickAway={() => setReactionPicker(null)}>
-              <div style={{ width: "100%", height: "100%" }}>
+              <div
+                className={classes.emojiPickerFullOverride}
+                style={{ width: "100%", height: "100%" }}
+              >
                 <Picker
                   perLine={9}
                   emojiSize={22}
@@ -2869,6 +2900,7 @@ const MessagesList = ({
                   title=""
                   emoji=""
                   native
+                  theme="light"
                   style={{
                     width: "100%",
                     height: "100%",
