@@ -418,7 +418,7 @@ const useStyles = makeStyles((theme) => ({
     // ✅ Padding interno ajustado: o timestamp usa float, então não precisa de paddingRight extra aqui
     paddingLeft: 2,
     paddingRight: 2,
-    paddingTop: 0,
+    paddingTop: 2,
     paddingBottom: 0,
     // ✅ boxSizing: border-box ESSENCIAL para padding contar na largura total
     boxSizing: "border-box",
@@ -467,7 +467,7 @@ const useStyles = makeStyles((theme) => ({
     borderBottomRightRadius: 7.5,
     paddingLeft: 2,
     paddingRight: 2,
-    paddingTop: 0,
+    paddingTop: 2,
     paddingBottom: 0,
     // ✅ boxSizing: border-box ESSENCIAL
     boxSizing: "border-box",
@@ -1611,8 +1611,8 @@ const MessagesList = ({
             src={message.mediaUrl}
             alt="sticker"
             style={{
-              width: 150,
-              height: 150,
+              width: 190,
+              height: 190,
               objectFit: "contain",
               display: "block",
               background: "transparent",
