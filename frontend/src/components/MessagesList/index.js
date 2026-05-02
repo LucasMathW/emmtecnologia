@@ -97,7 +97,7 @@ const useStyles = makeStyles((theme) => ({
   },
 
   timestamp: {
-    fontSize: 11,
+    fontSize: 12,
     position: "absolute", // Mude para absolute
     bottom: 2,
     right: 6,
@@ -418,7 +418,7 @@ const useStyles = makeStyles((theme) => ({
     // ✅ Padding interno ajustado: o timestamp usa float, então não precisa de paddingRight extra aqui
     paddingLeft: 2,
     paddingRight: 2,
-    paddingTop: 2,
+    paddingTop: 0,
     paddingBottom: 0,
     // ✅ boxSizing: border-box ESSENCIAL para padding contar na largura total
     boxSizing: "border-box",
@@ -428,7 +428,6 @@ const useStyles = makeStyles((theme) => ({
 
   messageRight: {
     position: "relative",
-
     marginLeft: 20,
     marginTop: 2,
     overflow: "visible",
@@ -468,7 +467,7 @@ const useStyles = makeStyles((theme) => ({
     borderBottomRightRadius: 7.5,
     paddingLeft: 2,
     paddingRight: 2,
-    paddingTop: 2,
+    paddingTop: 0,
     paddingBottom: 0,
     // ✅ boxSizing: border-box ESSENCIAL
     boxSizing: "border-box",
@@ -598,15 +597,15 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 
-  timestamp: {
-    fontSize: 11,
-    bottom: 0,
-    right: 5,
-    color: "#999",
-  },
+  // timestamp: {
+  //   fontSize: 11,
+  //   bottom: 0,
+  //   right: 5,
+  //   color: "#999",
+  // },
   // Adicione após a classe "timestamp" existente:
   timestampMedia: {
-    fontSize: 11,
+    fontSize: 12,
     position: "absolute",
     bottom: 6,
     right: 6,
@@ -1242,69 +1241,6 @@ const MessagesList = ({
       }
     };
   }, [dragTimeout]);
-
-  // const TimestampWithAutoSpacing = ({
-  //   time,
-  //   isEdited,
-  //   showAck,
-  //   ackIcon,
-  //   fromMe,
-  //   onWidthMeasured, // ← callback opcional para avisar a largura medida
-  // }) => {
-  //   const timestampRef = useRef(null);
-  //   const [spacing, setSpacing] = useState(fromMe ? 72 : 52); // fallback seguro
-
-  //   useEffect(() => {
-  //     if (timestampRef.current) {
-  //       // Aguarda renderização para medir largura real
-  //       const measure = () => {
-  //         const width = timestampRef.current?.offsetWidth;
-  //         if (width) {
-  //           const safeSpacing = width + 8; // +8px de margem de segurança
-  //           setSpacing(safeSpacing);
-  //           onWidthMeasured?.(safeSpacing); // avisa o pai se precisar
-  //         }
-  //       };
-  //       // Tenta medir imediatamente e também após font carregar
-  //       measure();
-  //       if (document.fonts?.ready) {
-  //         document.fonts.ready.then(measure);
-  //       }
-  //     }
-  //   }, [time, isEdited, showAck, fromMe, onWidthMeasured]);
-
-  //   return (
-  //     <>
-  //       {/* Espaço reservado para o texto NÃO cobrir o timestamp */}
-  //       <div style={{ display: "none" }} data-timestamp-spacing={spacing} />
-
-  //       {/* Timestamp real com float */}
-  //       <div
-  //         ref={timestampRef}
-  //         style={{
-  //           float: "right",
-  //           marginTop: "-17px", // alinha com última linha do texto
-  //           marginBottom: "-3px",
-  //           marginLeft: "4px",
-  //           display: "flex",
-  //           alignItems: "center",
-  //           gap: 3,
-  //           fontSize: 11,
-  //           color: fromMe ? "rgba(0,0,0,0.45)" : "#999",
-  //           whiteSpace: "nowrap",
-  //           pointerEvents: "none",
-  //           zIndex: 10,
-  //         }}
-  //       >
-  //         {isEdited && (
-  //           <span style={{ fontSize: 10, opacity: 0.8 }}>Editada</span>
-  //         )}
-  //         <span>{time}</span>
-  //         {showAck && ackIcon}
-  //       </div>
-  //     </>
-  //   );
-  // };
 
   const renderPresenceIndicator = () => {
     if (!contactPresence?.status) return null;
@@ -2106,7 +2042,7 @@ const MessagesList = ({
       <div
         style={{
           position: "relative",
-          padding: "4px 7px 0px 9px",
+          padding: "6px 7px 4px 9px",
           boxSizing: "border-box",
           width: "100%",
           minWidth: 0,
@@ -2122,7 +2058,7 @@ const MessagesList = ({
             <div
               style={{
                 fontSize: "14px",
-                lineHeight: "15px",
+                lineHeight: "19px",
                 overflowWrap: "break-word",
                 whiteSpace: "pre-wrap",
                 unicodeBidi: "isolate",
@@ -2131,10 +2067,10 @@ const MessagesList = ({
                 paddingRight: message.fromMe
                   ? message.isEdited
                     ? "105px"
-                    : "60px" // Right: mais espaço
+                    : "62px" // Right: mais espaço
                   : message.isEdited
                     ? "80px"
-                    : "38px",
+                    : "40px",
               }}
             >
               {xmlRegex.test(message.body) ? (
@@ -2148,14 +2084,14 @@ const MessagesList = ({
             <div
               style={{
                 float: "right",
-                marginTop: "-10px", // ← Ajuste fino: sobe mais
+                marginTop: "-15px", // ← Ajuste fino: sobe mais
                 marginBottom: "0px",
                 marginLeft: message.isEdited ? "-15px" : "-5px",
                 marginRight: "-5px",
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontSize: 13,
+                fontSize: 12,
                 lineHeight: "15px",
                 color: message.fromMe ? "rgba(0,0,0,0.6)" : "#999",
                 whiteSpace: "nowrap",
@@ -2392,7 +2328,7 @@ const MessagesList = ({
                       >
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "#999",
                             backgroundColor: "rgba(255,255,255,0.85)",
                             borderRadius: 8,
@@ -2709,7 +2645,7 @@ const MessagesList = ({
                       >
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "#999",
                             backgroundColor: "rgba(220,248,198,0.9)",
                             borderRadius: 8,

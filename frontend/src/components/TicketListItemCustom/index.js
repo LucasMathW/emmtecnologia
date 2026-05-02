@@ -560,9 +560,84 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
       const isFromMe = reactionUserId === user?.id;
 
+      // ✅ Detectar se o preview é um nome de arquivo de imagem
+      const imageExtensions = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".bmp",
+      ];
+      const isImagePreview = imageExtensions.some((ext) =>
+        messagePreview?.toLowerCase().endsWith(ext),
+      );
+
+      const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
+      const isAudioPreview = audioExtensions.some((ext) =>
+        messagePreview?.toLowerCase().endsWith(ext),
+      );
+
+      const videoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
+      const isVideoPreview = videoExtensions.some((ext) =>
+        messagePreview?.toLowerCase().endsWith(ext),
+      );
+
+      // ✅ Substituir nome de arquivo pelo label amigável
+      const friendlyPreview = isImagePreview
+        ? `"📷 ${i18n.t("mainDrawer.appBar.message.image")}"`
+        : isAudioPreview
+          ? `"🎵 ${i18n.t("mainDrawer.appBar.message.audio")}"`
+          : isVideoPreview
+            ? `"🎥 "${i18n.t("mainDrawer.appBar.message.video")}"`
+            : messagePreview === "sticker"
+              ? `"🖼️ "${i18n.t("mainDrawer.appBar.message.sticker")}"`
+              : `"${messagePreview}"`;
+
+      const stickerLabel = (
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            style={{ flexShrink: 0, opacity: 0.7 }}
+          >
+            <path
+              d="M6 2h10c1.1 0 2 .9 2 2v8l-6 6H6c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 18c0-2.5 2.5-5 5-5"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          {i18n.t("mainDrawer.appBar.message.sticker")}
+        </span>
+      );
+
+      const reactionLabel =
+        messagePreview === "sticker" ? (
+          stickerLabel
+        ) : (
+          <span>
+            {isImagePreview
+              ? `📷 ${i18n.t("mainDrawer.appBar.message.image")}`
+              : isAudioPreview
+                ? `🎵 ${i18n.t("mainDrawer.appBar.message.audio")}`
+                : isVideoPreview
+                  ? `🎥 ${i18n.t("mainDrawer.appBar.message.video")}`
+                  : `"${messagePreview}"`}
+          </span>
+        );
+
       const text = isFromMe
-        ? `Você reagiu com ${emoji} a: "${messagePreview}"`
-        : `Reagiu com ${emoji} a: "${messagePreview}"`;
+        ? `Você reagiu com ${emoji} a: ${friendlyPreview}`
+        : `Reagiu com ${emoji} a: ${friendlyPreview}`;
 
       return <MarkdownWrapper>{truncate(text, 40)}</MarkdownWrapper>;
     }
