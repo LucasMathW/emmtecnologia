@@ -32,7 +32,13 @@ import ShowTicketOpen from "../ShowTicketOpenModal";
 import FinalizacaoVendaModal from "../FinalizacaoVendaModal";
 import { isNil } from "lodash";
 import { toast } from "react-toastify";
-import { Done, HighlightOff, SwapHoriz, Add } from "@material-ui/icons";
+import {
+  Done,
+  HighlightOff,
+  SwapHoriz,
+  Add,
+  BorderLeft,
+} from "@material-ui/icons";
 import VisibilityIcon from "@material-ui/icons/Visibility"; // Ícone de spy
 import useCompanySettings from "../../hooks/useSettings/companySettings";
 import NewTicketModal from "../NewTicketModal";
@@ -81,10 +87,10 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-end",
     textAlign: "right",
     position: "relative",
-    top: 0,
+    top: 8,
     color: "green",
     fontWeight: "bold",
-    marginRight: "10px",
+    marginRight: "-15px",
     borderRadius: 0,
   },
   noTicketsText: {
@@ -121,7 +127,7 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-end",
     textAlign: "right",
     position: "relative",
-    top: -18,
+    top: -28,
     marginRight: "1px",
     color: theme.mode === "light" ? "black" : grey[400],
   },
@@ -130,7 +136,7 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-end",
     textAlign: "right",
     position: "relative",
-    top: -18,
+    top: -28,
     color: "green",
     fontWeight: "bold",
     marginRight: "1px",

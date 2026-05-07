@@ -2050,7 +2050,7 @@ const MessageInput = ({
                     className={classes.emojiBox}
                     style={{ zIndex: 9999, position: "absolute", bottom: 63 }}
                   >
-                    <ClickAwayListener onClickAway={(e) => setShowEmoji(true)}>
+                    <ClickAwayListener onClickAway={(e) => setShowEmoji(false)}>
                       <Picker
                         perLine={16}
                         theme={theme.mode === "dark" ? "dark" : "light"}

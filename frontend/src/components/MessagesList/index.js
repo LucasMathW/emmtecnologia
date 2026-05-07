@@ -13,6 +13,7 @@ import {
   Button,
   Divider,
   Typography,
+  Tooltip,
   IconButton,
   makeStyles,
   useTheme,
@@ -67,13 +68,18 @@ const useStyles = makeStyles((theme) => ({
   emojiPickerFullOverride: {
     "& .emoji-mart": {
       width: "100% !important",
-      backgroundColor: `${theme.palette.background.paper} !important`,
+      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
       color: `${theme.palette.text.primary} !important`,
+      // ← ADICIONE ISSO: Sobrescreve a variável CSS do hover
+      "--color-border":
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.15) !important" // Hover sutil no escuro
+          : "rgba(0, 0, 0, 0.1) !important", // Hover sutil no claro
     },
     "& .emoji-mart-bar": {
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
-      backgroundColor: `${theme.palette.background.paper} !important`,
+      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
     },
     "& .emoji-mart-search input": {
       backgroundColor: `${theme.mode === "dark" ? "#2d3b43" : "#f2f2f2"} !important`,
@@ -81,7 +87,7 @@ const useStyles = makeStyles((theme) => ({
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
     },
     "& .emoji-mart-category-label span": {
-      backgroundColor: `${theme.palette.background.paper} !important`,
+      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
       color: `${theme.mode === "dark" ? "#aaa" : "#888"} !important`,
     },
   },
@@ -348,14 +354,24 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.palette.background.paper,
+
+    // NO MODO ESCURO: Cor sólida cinza (sem transparência)
+    // NO MODO CLARO: Cor padrão ou fundo branco
+    backgroundColor:
+      theme.mode === "dark" ? "#161717" : theme.palette.background.paper,
+
     borderRadius: "50%",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+
+    // SEM SOMBRA NO ESCURO (para não parecer flutuante demais)
+    boxShadow: theme.mode === "dark" ? "none" : "0 1px 3px rgba(0,0,0,0.2)",
+
     cursor: "pointer",
     flexShrink: 0,
     "&:hover": {
       opacity: "1 !important",
-      backgroundColor: theme.palette.action.hover,
+      // Hover um pouco mais claro no escuro
+      backgroundColor:
+        theme.mode === "dark" ? "#4a5568" : theme.palette.action.hover,
     },
   },
 
@@ -419,6 +435,7 @@ const useStyles = makeStyles((theme) => ({
       bottom: -8,
       left: -20,
       right: -20,
+      pointerEvents: "none",
     },
     "&:hover #messageActionsButton": {
       display: "flex",
@@ -470,6 +487,7 @@ const useStyles = makeStyles((theme) => ({
       bottom: -8,
       left: -20,
       right: -20,
+      pointerEvents: "none",
     },
     "&:hover #messageActionsButton": {
       display: "flex",
@@ -480,6 +498,7 @@ const useStyles = makeStyles((theme) => ({
     "&:hover $reactionButtonRight": {
       display: "flex",
     },
+
     whiteSpace: "pre-wrap",
     backgroundColor: theme.mode === "light" ? "#dcf8c6" : "#005c4b",
     color: theme.mode === "light" ? "#303030" : "#ffffff",
@@ -916,8 +935,10 @@ const MessagesList = ({
   const classes = useStyles();
   const [reactionBar, setReactionBar] = useState(null);
   // const [hoveredMessageId, setHoveredMessageId] = useState(null);
+  // Adicione este helper no início do componente (junto aos outros estados)
   const [imageDimensions, setImageDimensions] = useState({});
   const [reactionPicker, setReactionPicker] = useState(null);
+
   const [messagesList, dispatch] = useReducer(reducer, []);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -942,6 +963,9 @@ const MessagesList = ({
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
   const [lgpdDeleteMessage, setLGPDDeleteMessage] = useState(false);
+
+  // const isAnyPopoverOpen =
+  //   Boolean(reactionBar) || Boolean(reactionPicker) || messageOptionsMenuOpen;
 
   const theme = useTheme();
 
@@ -1374,22 +1398,12 @@ const MessagesList = ({
   };
 
   const openReactionBar = (message, anchorElement) => {
-    if (!canSendReaction()) {
-      toastError("Aceite o ticket para enviar reações.");
-      return;
-    }
-
     if (!anchorElement) return;
-
-    // Busca o balão pelo data-message-id como âncora estável
-    const balloonEl = document.querySelector(
-      `[data-message-id="${message.id}"]`,
-    );
 
     setReactionBar({
       messageId: message.id,
       messageWid: message.wid,
-      anchorEl: balloonEl || anchorElement,
+      anchorEl: anchorElement,
     });
   };
 
@@ -2002,38 +2016,65 @@ const MessagesList = ({
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 4,
-          background: theme.palette.background.paper,
+          gap: 2,
+          backgroundColor:
+            theme.mode === "dark"
+              ? "rgb(36, 38, 38)"
+              : theme.palette.background.paper,
           color: theme.palette.text.primary,
-          borderRadius: 16,
-          padding: "2px 6px",
-          fontSize: 13,
-          boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+          borderRadius: "50px",
+          height: "24px",
+          padding: "0 4px",
+          fontSize: "14px", // Aumentei um pouco
+          lineHeight: "24px",
           cursor: "pointer",
+          border: `1px solid ${theme.mode === "dark" ? "rgb(22, 23, 23)" : "rgba(0,0,0,0.1)"}`,
+          boxShadow:
+            theme.mode === "dark"
+              ? "rgba(0, 0, 0, 0.07) 0px 1px 0px 0px, rgba(0, 0, 0, 0.04) 0px 0px 3px 0px"
+              : "0 1px 1px #b3b3b3",
+          userSelect: "none",
+          // ✅ ANTI-ALIASING PARA EMOJIS NÍTIDOS
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          textRendering: "optimizeLegibility",
         }}
       >
         {orderedReactions.map((reaction) => (
-          <span key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}>
+          <span
+            key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}
+            style={{
+              fontSize: "16px", // Tamanho direto, SEM SCALE
+              lineHeight: "24px",
+              height: "20px",
+              width: "20px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              // ✅ REMOVA O transform: scale()!
+              // ✅ ADICIONE ISSO PARA NITIDEZ:
+              imageRendering: "-webkit-optimize-contrast",
+              WebkitFontSmoothing: "antialiased",
+            }}
+          >
             {reaction.emoji}
           </span>
         ))}
         {total > 1 && (
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              color: theme.mode === "dark" ? "rgba(255,255,255,0.6)" : "#555",
+              lineHeight: "24px",
+            }}
+          >
             {total}
           </span>
         )}
       </div>
     );
   };
-
-  // // ─── helper fora do renderMessages ───────────────────────────────────────────
-  // const getTimestampSpacerWidth = (message) => {
-  //   // "HH:mm" ≈ 34px + gaps
-  //   let w = 38;
-  //   if (message.fromMe) w += 20; // ack icon
-  //   if (message.isEdited) w += 46; // "Editada "
-  //   return w;
-  // };
 
   const renderTextBlock = (message, isAfterMedia = false) => {
     const isImageOrVideo =
@@ -2115,7 +2156,13 @@ const MessagesList = ({
                 gap: 3,
                 fontSize: 12,
                 lineHeight: "15px",
-                color: message.fromMe ? "rgba(0,0,0,0.6)" : "#999",
+                color: message.fromMe
+                  ? theme.mode === "dark"
+                    ? "rgba(255,255,255,0.6)" // Branco translúcido no dark mode
+                    : "rgba(0,0,0,0.6)" // Preto translúcido no light mode
+                  : theme.mode === "dark"
+                    ? "rgba(255,255,255,0.5)" // Branco mais sutil para recebidas no dark
+                    : "#999", // Cinza para recebidas no light
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
                 zIndex: 10,
@@ -2203,7 +2250,7 @@ const MessagesList = ({
                 className={classes.messageWrapper}
                 style={{ justifyContent: "flex-start" }}
               >
-                {/* ── BALÃO ── */}
+                {/* ── BALÃO MESSAGE LEFT !fromME── */}
                 <div
                   data-message-container
                   data-message-id={message.id}
@@ -2379,9 +2426,9 @@ const MessagesList = ({
                     </>
                   )}
                 </div>
-                {/* ── fim balão ── */}
+                {/* ── fim balão !fromMe ── */}
 
-                {/* Área de ações — irmã do balão, à direita */}
+                {/* Área de ações — irmã do balão, à direita do balao*/}
                 <div
                   style={{
                     display: "flex",
@@ -2393,7 +2440,6 @@ const MessagesList = ({
                     marginLeft: -14,
                     marginBottom: -2,
                     paddingBottom: message.reactions?.length > 0 ? 20 : 0,
-                    zIndex: 30,
                     position: "relative",
                   }}
                 >
@@ -2401,7 +2447,7 @@ const MessagesList = ({
                   {isImageOrVideo && !isStickerOnly && (
                     <div
                       className={classes.reactionActionBtn}
-                      style={{ opacity: 1 }} // ← força sempre visível
+                      style={{ opacity: 1 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMessages([message]);
@@ -2412,30 +2458,38 @@ const MessagesList = ({
                         style={{
                           fontSize: 16,
                           transform: "scaleX(-1)",
-                          color: "#555",
+                          color: theme.mode === "dark" ? "#a2a2a2" : "#555",
                         }}
                       />
                     </div>
                   )}
 
                   {/* Botão reação */}
-                  <div
-                    className={classes.reactionActionBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openReactionBar(
-                        message,
-                        document.querySelector(
-                          `[data-message-id="${message.id}"]`,
-                        ),
-                      );
-                    }}
+                  <Tooltip
+                    title={
+                      !canSendReaction() ? "Aceite o ticket para reagir" : ""
+                    }
+                    placement="top"
                   >
-                    <EmojiEmotionsOutlinedIcon
-                      fontSize="small"
-                      style={{ color: "#555" }}
-                    />
-                  </div>
+                    <div
+                      className={classes.reactionActionBtn}
+                      onClick={(e) => {
+                        if (!canSendReaction()) return;
+                        e.stopPropagation();
+                        openReactionBar(message, e.currentTarget);
+                      }}
+                      style={{
+                        cursor: canSendReaction() ? "pointer" : "default", // ← MUDE AQUI
+                      }}
+                    >
+                      <EmojiEmotionsOutlinedIcon
+                        fontSize="small"
+                        style={{
+                          color: theme.mode === "dark" ? "#a2a2a2" : "#555",
+                        }}
+                      />
+                    </div>
+                  </Tooltip>
                 </div>
 
                 {/* ── REAÇÕES — abaixo do balão ── */}
@@ -2477,45 +2531,56 @@ const MessagesList = ({
                 className={classes.messageWrapper}
                 style={{ justifyContent: "flex-end" }}
               >
-                {/* Área de ações — irmã do balão, à esquerda */}
+                {/* Área de ações — irmã do balão, à esquerda do balao*/}
                 <div
                   style={{
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
-                    justifyContent: "flex-end",
+                    justifyContent: "flex-start",
                     gap: 4,
                     alignSelf: "center", // ← alinha na base do balão
                     marginRight: -14,
                     marginBottom: -2,
                     paddingBottom: message.reactions?.length > 0 ? 20 : 0,
-                    zIndex: 30,
                     position: "relative",
                   }}
                 >
-                  {/* Botão reação */}
-                  <div
-                    className={classes.reactionActionBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openReactionBar(
-                        message,
-                        document.querySelector(
-                          `[data-message-id="${message.id}"]`,
-                        ),
-                      );
-                    }}
+                  {/* Botão reação à esquerda do balao*/}
+
+                  <Tooltip
+                    title={
+                      !canSendReaction() ? "Aceite o ticket para reagir" : ""
+                    }
+                    placement="top"
+                    disableHoverListener={canSendReaction()}
                   >
-                    <EmojiEmotionsOutlinedIcon
-                      fontSize="small"
-                      style={{ color: "#555" }}
-                    />
-                  </div>
+                    <span>
+                      <div
+                        className={classes.reactionActionBtn}
+                        onClick={(e) => {
+                          if (!canSendReaction()) return;
+                          e.stopPropagation();
+                          openReactionBar(message, e.currentTarget);
+                        }}
+                        style={{
+                          cursor: canSendReaction() ? "pointer" : "default", // ← MUDE AQUI
+                        }}
+                      >
+                        <EmojiEmotionsOutlinedIcon
+                          fontSize="small"
+                          style={{
+                            color: theme.mode === "dark" ? "#a2a2a2" : "#555",
+                          }}
+                        />
+                      </div>
+                    </span>
+                  </Tooltip>
+
                   {/* Botão encaminhar — só imagem/vídeo */}
                   {isImageOrVideo && !isStickerOnly && (
                     <div
                       className={classes.reactionActionBtn}
-                      style={{ opacity: 1 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMessages([message]);
@@ -2526,14 +2591,14 @@ const MessagesList = ({
                         style={{
                           fontSize: 16,
                           transform: "scaleX(-1)",
-                          color: "#555",
+                          color: theme.mode === "dark" ? "#a2a2a2" : "#555",
                         }}
                       />
                     </div>
                   )}
                 </div>
 
-                {/* ── BALÃO ── */}
+                {/* ── BALÃO messageRight FROMME ── */}
                 <div
                   data-message-container
                   data-message-id={message.id}
@@ -2760,6 +2825,7 @@ const MessagesList = ({
         whatsappId={whatsappId}
         queueId={queueId}
         onReact={openReactionBar}
+        ticketStatus={ticketStatus}
       />
 
       <Popover
@@ -2900,7 +2966,7 @@ const MessagesList = ({
                   title=""
                   emoji=""
                   native
-                  theme="light"
+                  theme={theme.mode === "dark" ? "dark" : "light"}
                   style={{
                     width: "100%",
                     height: "100%",

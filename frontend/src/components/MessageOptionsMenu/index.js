@@ -36,6 +36,7 @@ const MessageOptionsMenu = ({
   queueId,
   whatsappId,
   onReact,
+  ticketStatus,
 }) => {
   const theme = useTheme();
   const { setReplyingMessage } = useContext(ReplyMessageContext);
@@ -55,6 +56,8 @@ const MessageOptionsMenu = ({
     acceptTicketWithouSelectQueueOpen,
     setAcceptTicketWithouSelectQueueOpen,
   ] = useState(false);
+
+  const canReact = ticketStatus === "open" || ticketStatus === "group";
 
   const [ticketOpen, setTicketOpen] = useState(null);
 
@@ -235,9 +238,19 @@ const MessageOptionsMenu = ({
               ),
             );
           }}
+          disabled={!canReact}
+          style={{
+            opacity: canReact ? 1 : 0.5,
+            cursor: canReact ? "pointer" : "default",
+          }}
         >
           <ListItemIcon>
-            <EmojiEmotionsOutlinedIcon fontSize="small" />
+            <EmojiEmotionsOutlinedIcon
+              fontSize="small"
+              style={{
+                color: canReact ? undefined : "rgba(0,0,0,0.26)", // ← Ícone cinza quando desabilitado
+              }}
+            />
           </ListItemIcon>
           <ListItemText primary="Reagir" />
         </MenuItem>
