@@ -565,10 +565,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
     if (ticket.reactionPreview) {
       const { emoji, messagePreview, reactionUserId } = ticket.reactionPreview;
-
       const isFromMe = reactionUserId === user?.id;
 
-      // ✅ Detectar se o preview é um nome de arquivo de imagem
       const imageExtensions = [
         ".jpg",
         ".jpeg",
@@ -577,79 +575,41 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         ".webp",
         ".bmp",
       ];
+      const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
+      const videoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
+
       const isImagePreview = imageExtensions.some((ext) =>
         messagePreview?.toLowerCase().endsWith(ext),
       );
-
-      const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
       const isAudioPreview = audioExtensions.some((ext) =>
         messagePreview?.toLowerCase().endsWith(ext),
       );
-
-      const videoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
       const isVideoPreview = videoExtensions.some((ext) =>
         messagePreview?.toLowerCase().endsWith(ext),
       );
 
-      // ✅ Substituir nome de arquivo pelo label amigável
       const friendlyPreview = isImagePreview
-        ? `"📷 ${i18n.t("mainDrawer.appBar.message.image")}"`
+        ? `📷 ${i18n.t("mainDrawer.appBar.message.image")}`
         : isAudioPreview
-          ? `"🎵 ${i18n.t("mainDrawer.appBar.message.audio")}"`
+          ? `🎵 ${i18n.t("mainDrawer.appBar.message.audio")}`
           : isVideoPreview
-            ? `"🎥 "${i18n.t("mainDrawer.appBar.message.video")}"`
+            ? `🎥 ${i18n.t("mainDrawer.appBar.message.video")}`
             : messagePreview === "sticker"
-              ? `"🖼️ "${i18n.t("mainDrawer.appBar.message.sticker")}"`
+              ? `🖼️ ${i18n.t("mainDrawer.appBar.message.sticker")}`
               : `"${messagePreview}"`;
 
-      const stickerLabel = (
+      const actionText = isFromMe ? "Você reagiu com" : "Reagiu com";
+      const previewText = truncate(`a: ${friendlyPreview}`, 30);
+
+      return (
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            style={{ flexShrink: 0, opacity: 0.7 }}
-          >
-            <path
-              d="M6 2h10c1.1 0 2 .9 2 2v8l-6 6H6c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M12 18c0-2.5 2.5-5 5-5"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          {i18n.t("mainDrawer.appBar.message.sticker")}
+          <span style={{ fontSize: 14 }}>{actionText}</span>
+          {/* ← emoji separado com fontSize maior */}
+          <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
+          <span style={{ fontSize: 14 }}>{previewText}</span>
         </span>
       );
-
-      const reactionLabel =
-        messagePreview === "sticker" ? (
-          stickerLabel
-        ) : (
-          <span>
-            {isImagePreview
-              ? `📷 ${i18n.t("mainDrawer.appBar.message.image")}`
-              : isAudioPreview
-                ? `🎵 ${i18n.t("mainDrawer.appBar.message.audio")}`
-                : isVideoPreview
-                  ? `🎥 ${i18n.t("mainDrawer.appBar.message.video")}`
-                  : `"${messagePreview}"`}
-          </span>
-        );
-
-      const text = isFromMe
-        ? `Você reagiu com ${emoji} a: ${friendlyPreview}`
-        : `Reagiu com ${emoji} a: ${friendlyPreview}`;
-
-      return <MarkdownWrapper>{truncate(text, 40)}</MarkdownWrapper>;
     }
-
     if (shouldBlurMessages) {
       return (
         <MarkdownWrapper>
