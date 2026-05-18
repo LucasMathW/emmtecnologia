@@ -1,4 +1,3 @@
-
 export const colorBack = () => {
   return "#065183";
 };
@@ -28,7 +27,7 @@ export const colorLineTable = () => {
 };
 
 export const colorLineTableHover = () => {
-  return '#07074a';
+  return "#07074a";
 };
 
 export const colorTopbar = () => {

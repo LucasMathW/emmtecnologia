@@ -2001,6 +2001,7 @@ const MessagesList = ({
   const renderReactions = (message) => {
     if (!message.reactions || message.reactions.length === 0) return null;
 
+    // Agrupa por emoji mantendo ordem: minhas reações primeiro
     const myReactions = message.reactions.filter(
       (r) => String(r.userId) === String(user.id),
     );
@@ -2010,63 +2011,62 @@ const MessagesList = ({
     const orderedReactions = [...myReactions, ...contactReactions];
     const total = orderedReactions.length;
 
-    // ✅ SEM position absolute aqui — o pai controla o posicionamento
+    // Agrupa emojis iguais e conta
+    const grouped = orderedReactions.reduce((acc, reaction) => {
+      if (!reaction.emoji) return acc;
+      if (!acc[reaction.emoji]) acc[reaction.emoji] = 0;
+      acc[reaction.emoji]++;
+      return acc;
+    }, {});
+
     return (
       <div
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 2,
           backgroundColor:
-            theme.mode === "dark"
-              ? "rgb(36, 38, 38)"
-              : theme.palette.background.paper,
-          color: theme.palette.text.primary,
+            theme.mode === "dark" ? "rgb(36, 38, 38)" : "#ffffff",
           borderRadius: "50px",
           height: "24px",
           padding: "0 4px",
-          fontSize: "14px", // Aumentei um pouco
-          lineHeight: "24px",
           cursor: "pointer",
-          border: `1px solid ${theme.mode === "dark" ? "rgb(22, 23, 23)" : "rgba(0,0,0,0.1)"}`,
+          border: `1px solid ${theme.mode === "dark" ? "rgb(22, 23, 23)" : "rgb(245, 241, 235)"}`,
           boxShadow:
-            theme.mode === "dark"
-              ? "rgba(0, 0, 0, 0.07) 0px 1px 0px 0px, rgba(0, 0, 0, 0.04) 0px 0px 3px 0px"
-              : "0 1px 1px #b3b3b3",
+            "rgba(0, 0, 0, 0.07) 0px 1px 0px 0px, rgba(0, 0, 0, 0.04) 0px 0px 3px 0px",
           userSelect: "none",
-          // ✅ ANTI-ALIASING PARA EMOJIS NÍTIDOS
-          WebkitFontSmoothing: "antialiased",
-          MozOsxFontSmoothing: "grayscale",
-          textRendering: "optimizeLegibility",
+          gap: 0,
         }}
       >
-        {orderedReactions.map((reaction) => (
+        {/* Emojis lado a lado sem número individual */}
+        {Object.keys(grouped).map((emoji) => (
           <span
-            key={`${reaction.id}-${reaction.userId}-${reaction.emoji}`}
+            key={emoji}
             style={{
-              fontSize: "16px", // Tamanho direto, SEM SCALE
-              lineHeight: "24px",
-              height: "20px",
               width: "20px",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              // ✅ REMOVA O transform: scale()!
-              // ✅ ADICIONE ISSO PARA NITIDEZ:
-              imageRendering: "-webkit-optimize-contrast",
-              WebkitFontSmoothing: "antialiased",
+              height: "20px",
+              fontSize: "16px",
+              lineHeight: "20px",
+              textAlign: "center",
+              display: "inline-block",
             }}
           >
-            {reaction.emoji}
+            {emoji}
           </span>
         ))}
+
+        {/* Número total sempre no final */}
         {total > 1 && (
           <span
             style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              color: theme.mode === "dark" ? "rgba(255,255,255,0.6)" : "#555",
-              lineHeight: "24px",
+              fontSize: "14px",
+              color:
+                theme.mode === "dark"
+                  ? "rgba(255,255,255,0.6)"
+                  : "rgba(0,0,0,0.6)",
+              marginLeft: "4px",
+              marginRight: "2px",
+              lineHeight: "20px",
+              alignSelf: "center",
             }}
           >
             {total}
