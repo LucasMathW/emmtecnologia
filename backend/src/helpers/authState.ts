@@ -6,7 +6,7 @@ import type {
 import { BufferJSON, initAuthCreds, proto } from "baileys";
 import Whatsapp from "../models/Whatsapp";
 
-const KEY_MAP: { [T in keyof SignalDataTypeMap]: string } = {
+const KEY_MAP: Record<string, string> = {
   "pre-key": "preKeys",
   session: "sessions",
   "sender-key": "senderKeys",
@@ -30,8 +30,7 @@ const authState = async (
       await whatsapp.update({
         session: JSON.stringify({ creds, keys }, BufferJSON.replacer, 0)
       });
-    } catch (error) {
-    }
+    } catch (error) {}
   };
 
   if (whatsapp.session && whatsapp.session !== null) {
