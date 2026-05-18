@@ -92,6 +92,11 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 
+  emojiChar: {
+    fontFamily: '"Noto Color Emoji", sans-serif',
+    fontStyle: "normal",
+  },
+
   emojiPickerOverride: {
     "& .emoji-mart": {
       width: "100% !important",
@@ -2041,6 +2046,7 @@ const MessagesList = ({
         {Object.keys(grouped).map((emoji) => (
           <span
             key={emoji}
+            className={classes.emojiChar}
             style={{
               width: "20px",
               height: "20px",
