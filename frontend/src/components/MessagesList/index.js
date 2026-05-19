@@ -71,11 +71,11 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
       color: `${theme.palette.text.primary} !important`,
-      // ← ADICIONE ISSO: Sobrescreve a variável CSS do hover
+
       "--color-border":
         theme.mode === "dark"
-          ? "rgba(255, 255, 255, 0.15) !important" // Hover sutil no escuro
-          : "rgba(0, 0, 0, 0.1) !important", // Hover sutil no claro
+          ? "rgba(255, 255, 255, 0.15) !important"
+          : "rgba(0, 0, 0, 0.1) !important",
     },
     "& .emoji-mart-bar": {
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
@@ -90,6 +90,14 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
       color: `${theme.mode === "dark" ? "#aaa" : "#888"} !important`,
     },
+    "& .emoji-mart-emoji span": {
+      fontFamily:
+        '"Noto Color Emoji", "Apple Color Emoji", sans-serif !important',
+    },
+    // "& .emoji-mart-emoji": {
+    //   fontFamily:
+    //     '"Noto Color Emoji", "Apple Color Emoji",  sans-serif !important',
+    // },
   },
 
   emojiChar: {
@@ -2912,6 +2920,10 @@ const MessagesList = ({
                   <span
                     key={emoji}
                     className={`${classes.reactionEmoji} ${isActive ? classes.reactionEmojiActive : ""}`}
+                    style={{
+                      fontFamily:
+                        '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                    }}
                     onClick={() => {
                       handleSendReaction(messageForReaction, emoji);
                       setReactionBar(null);

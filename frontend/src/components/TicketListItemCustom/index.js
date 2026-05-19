@@ -676,7 +676,15 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       return (
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ fontSize: 14 }}>{actionText}</span>
-          <span style={{ fontSize: 16, lineHeight: 1 }}>{emoji}</span>
+          <span
+            style={{
+              fontSize: 16,
+              lineHeight: 1,
+              fontFamily: '"Noto Color Emoji", "Apple Color Emoji", sans-serif',
+            }}
+          >
+            {emoji}
+          </span>
           <span style={{ fontSize: 14 }}>
             {"a: "}
             {friendlyPreview}
