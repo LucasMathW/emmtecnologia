@@ -100,8 +100,8 @@
     "zustand": "^4.4.1"
   },
   "scripts": {
-    "start": "export NODE_OPTIONS='--openssl-legacy-provider' && react-scripts start",
-    "start:dev": "set NODE_OPTIONS='--openssl-legacy-provider' && react-scripts start",
+    "start": "export NODE_OPTIONS='--openssl-legacy-provider' && REACT_APP_DISABLE_OVERLAY=true react-scripts start",
+    "start:dev": "export NODE_OPTIONS='--openssl-legacy-provider' && REACT_APP_DISABLE_OVERLAY=true react-scripts start",
     "build": "export NODE_OPTIONS='--max-old-space-size=4096 --openssl-legacy-provider' && react-scripts build",
     "builddev": "export NODE_OPTIONS='--openssl-legacy-provider' && react-scripts build",
     "winBuild": "react-scripts build",

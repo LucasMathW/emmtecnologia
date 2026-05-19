@@ -565,6 +565,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
     if (ticket.reactionPreview) {
       const { emoji, messagePreview, reactionUserId } = ticket.reactionPreview;
+      console.log("reactionPreview messagePreview:", messagePreview);
       const isFromMe = reactionUserId === user?.id;
 
       const imageExtensions = [
@@ -575,38 +576,111 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         ".webp",
         ".bmp",
       ];
+
       const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
       const videoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
 
       const isImagePreview = imageExtensions.some((ext) =>
         messagePreview?.toLowerCase().endsWith(ext),
       );
-      const isAudioPreview = audioExtensions.some((ext) =>
-        messagePreview?.toLowerCase().endsWith(ext),
-      );
-      const isVideoPreview = videoExtensions.some((ext) =>
-        messagePreview?.toLowerCase().endsWith(ext),
+
+      const isAudioPreview =
+        audioExtensions.some((ext) =>
+          messagePreview?.toLowerCase().endsWith(ext),
+        ) || ["ptt", "audio", "áudio"].includes(messagePreview?.toLowerCase());
+
+      const isVideoPreview =
+        videoExtensions.some((ext) =>
+          messagePreview?.toLowerCase().endsWith(ext),
+        ) || ["video", "vídeo"].includes(messagePreview?.toLowerCase());
+
+      const StickerIcon = () => (
+        <svg
+          viewBox="0 0 24 24"
+          width={20}
+          height={20}
+          fill="currentColor"
+          style={{ verticalAlign: "middle", marginRight: 4 }}
+        >
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M12 22C13.8087 21.9781 15.5379 21.2537 16.8221 19.9799L19.8489 16.9776C21.2256 15.612 22 13.7532 22 11.8141V9.27273C22 5.25611 18.7439 2 14.7273 2H9.27273C5.25611 2 2 5.25611 2 9.27273V14.7273C2 18.7439 5.25611 22 9.27273 22H12ZM9.27273 4H14.7273C17.5736 4 19.8932 6.25535 19.9964 9.07648H19.9889V11.1248C19.9889 11.6259 19.5817 12.0315 19.0806 12.0296L16.8216 12.0208C14.1479 12.0105 11.979 14.1827 11.9935 16.8564L12.0058 19.1204C12.0081 19.5417 11.722 19.8971 11.3331 20H9.27273C6.36068 20 4 17.6393 4 14.7273V9.27273C4 6.36068 6.36068 4 9.27273 4ZM13.9744 19.5537C13.9959 19.4089 14.0066 19.2605 14.0057 19.1095L13.9935 16.8455C13.985 15.2837 15.252 14.0147 16.8138 14.0208L19.0729 14.0295C19.2275 14.0301 19.3793 14.0187 19.5274 13.996C19.2653 14.5726 18.8989 15.1029 18.4405 15.5576L15.4136 18.5599C14.9926 18.9776 14.5044 19.3124 13.9744 19.5537Z"
+          />
+        </svg>
       );
 
-      const friendlyPreview = isImagePreview
-        ? `📷 ${i18n.t("mainDrawer.appBar.message.image")}`
-        : isAudioPreview
-          ? `🎵 ${i18n.t("mainDrawer.appBar.message.audio")}`
-          : isVideoPreview
-            ? `🎥 ${i18n.t("mainDrawer.appBar.message.video")}`
-            : messagePreview === "sticker"
-              ? `🖼️ ${i18n.t("mainDrawer.appBar.message.sticker")}`
-              : `"${messagePreview}"`;
+      const ImageIcon = () => (
+        <svg
+          viewBox="0 0 24 24"
+          width={20}
+          height={20}
+          fill="currentColor"
+          style={{ verticalAlign: "middle", marginRight: 4 }}
+        >
+          <path d="M5 21C4.45 21 3.97917 20.8042 3.5875 20.4125C3.19583 20.0208 3 19.55 3 19V5C3 4.45 3.19583 3.97917 3.5875 3.5875C3.97917 3.19583 4.45 3 5 3H19C19.55 3 20.0208 3.19583 20.4125 3.5875C20.8042 3.97917 21 4.45 21 5V19C21 19.55 20.8042 20.0208 20.4125 20.4125C20.0208 20.8042 19.55 21 19 21H5ZM5 19H19V5H5V19ZM7 17H17C17.2 17 17.35 16.9083 17.45 16.725C17.55 16.5417 17.5333 16.3667 17.4 16.2L14.65 12.525C14.55 12.3917 14.4167 12.325 14.25 12.325C14.0833 12.325 13.95 12.3917 13.85 12.525L11.25 16L9.4 13.525C9.3 13.3917 9.16667 13.325 9 13.325C8.83333 13.325 8.7 13.3917 8.6 13.525L6.6 16.2C6.46667 16.3667 6.45 16.5417 6.55 16.725C6.65 16.9083 6.8 17 7 17Z" />
+        </svg>
+      );
+
+      const AudioIcon = () => (
+        <svg
+          viewBox="0 0 24 24"
+          width={20}
+          height={20}
+          fill="currentColor"
+          style={{ verticalAlign: "middle", marginRight: 4 }}
+        >
+          <path d="M5 21c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41v-7c0-1.25.24-2.42.71-3.51A9.15 9.15 0 0 1 8.5 3.7 8.7 8.7 0 0 1 12 3a8.7 8.7 0 0 1 3.51.71A9.15 9.15 0 0 1 20.3 8.5 8.7 8.7 0 0 1 21 12v7c0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59h-2c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41v-4c0-.55.2-1.02.59-1.41.39-.4.86-.59 1.41-.59h2v-1c0-1.95-.68-3.6-2.04-4.96A6.75 6.75 0 0 0 12 5c-1.95 0-3.6.68-4.96 2.04A6.75 6.75 0 0 0 5 12v1h2c.55 0 1.02.2 1.41.59.4.39.59.86.59 1.41v4c0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59H5Zm0-2h2v-4H5v4Zm12 0h2v-4h-2v4Z" />
+        </svg>
+      );
+
+      const VideoIcon = () => (
+        <svg
+          viewBox="0 0 24 24"
+          width={20}
+          height={20}
+          fill="currentColor"
+          style={{ verticalAlign: "middle", marginRight: 4 }}
+        >
+          <path d="M4 20C3.45 20 2.97917 19.8042 2.5875 19.4125C2.19583 19.0208 2 18.55 2 18V6C2 5.45 2.19583 4.97917 2.5875 4.5875C2.97917 4.19583 3.45 4 4 4H16C16.55 4 17.0208 4.19583 17.4125 4.5875C17.8042 4.97917 18 5.45 18 6V10.5L21.15 7.35C21.3167 7.18333 21.5 7.14167 21.7 7.225C21.9 7.30833 22 7.46667 22 7.7V16.3C22 16.5333 21.9 16.6917 21.7 16.775C21.5 16.8583 21.3167 16.8167 21.15 16.65L18 13.5V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H4ZM4 18H16V6H4V18Z" />
+        </svg>
+      );
+
+      const friendlyPreview = isImagePreview ? (
+        <>
+          <ImageIcon />
+          {i18n.t("mainDrawer.appBar.message.image")}
+        </>
+      ) : isAudioPreview ? (
+        <>
+          <AudioIcon />
+          {i18n.t("mainDrawer.appBar.message.audio")}
+        </>
+      ) : isVideoPreview ? (
+        <>
+          <VideoIcon />
+          {i18n.t("mainDrawer.appBar.message.video")}
+        </>
+      ) : messagePreview === "sticker" ? (
+        <>
+          <StickerIcon />
+          {i18n.t("mainDrawer.appBar.message.sticker")}
+        </>
+      ) : (
+        <>"{truncate(messagePreview, 20)}"</>
+      );
 
       const actionText = isFromMe ? "Você reagiu com" : "Reagiu com";
-      const previewText = truncate(`a: ${friendlyPreview}`, 30);
+      // const previewText = truncate(`a: ${friendlyPreview}`, 30);
 
       return (
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ fontSize: 14 }}>{actionText}</span>
-          {/* ← emoji separado com fontSize maior */}
-          <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
-          <span style={{ fontSize: 14 }}>{previewText}</span>
+          <span style={{ fontSize: 16, lineHeight: 1 }}>{emoji}</span>
+          <span style={{ fontSize: 14 }}>
+            {"a: "}
+            {friendlyPreview}
+          </span>
         </span>
       );
     }
@@ -636,28 +710,17 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
+            width={20}
+            height={20}
+            fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
-            {/* Corpo do papel já com corte grande */}
             <path
-              d="M6 2h10c1.1 0 2 .9 2 2v8l-6 6H6c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-
-            {/* Dobra bem grande */}
-            <path
-              d="M12 18c0-2.5 2.5-5 5-5"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M12 22C13.8087 21.9781 15.5379 21.2537 16.8221 19.9799L19.8489 16.9776C21.2256 15.612 22 13.7532 22 11.8141V9.27273C22 5.25611 18.7439 2 14.7273 2H9.27273C5.25611 2 2 5.25611 2 9.27273V14.7273C2 18.7439 5.25611 22 9.27273 22H12ZM9.27273 4H14.7273C17.5736 4 19.8932 6.25535 19.9964 9.07648H19.9889V11.1248C19.9889 11.6259 19.5817 12.0315 19.0806 12.0296L16.8216 12.0208C14.1479 12.0105 11.979 14.1827 11.9935 16.8564L12.0058 19.1204C12.0081 19.5417 11.722 19.8971 11.3331 20H9.27273C6.36068 20 4 17.6393 4 14.7273V9.27273C4 6.36068 6.36068 4 9.27273 4ZM13.9744 19.5537C13.9959 19.4089 14.0066 19.2605 14.0057 19.1095L13.9935 16.8455C13.985 15.2837 15.252 14.0147 16.8138 14.0208L19.0729 14.0295C19.2275 14.0301 19.3793 14.0187 19.5274 13.996C19.2653 14.5726 18.8989 15.1029 18.4405 15.5576L15.4136 18.5599C14.9926 18.9776 14.5044 19.3124 13.9744 19.5537Z"
             />
           </svg>
-
           <span>{i18n.t("mainDrawer.appBar.message.sticker")}</span>
         </span>
       );
@@ -680,18 +743,79 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width="16"
-            height="16"
+            width={20}
+            height={20}
             fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
-            <path d="M12 15.2A3.2 3.2 0 1 1 15.2 12 3.2 3.2 0 0 1 12 15.2zm7-12h-1.8l-1.2-2H8l-1.2 2H5A3 3 0 0 0 2 6.2v11.6A3 3 0 0 0 5 21h14a3 3 0 0 0 3-3.2V6.2A3 3 0 0 0 19 3.2z" />
+            <path d="M5 21C4.45 21 3.97917 20.8042 3.5875 20.4125C3.19583 20.0208 3 19.55 3 19V5C3 4.45 3.19583 3.97917 3.5875 3.5875C3.97917 3.19583 4.45 3 5 3H19C19.55 3 20.0208 3.19583 20.4125 3.5875C20.8042 3.97917 21 4.45 21 5V19C21 19.55 20.8042 20.0208 20.4125 20.4125C20.0208 20.8042 19.55 21 19 21H5ZM5 19H19V5H5V19ZM7 17H17C17.2 17 17.35 16.9083 17.45 16.725C17.55 16.5417 17.5333 16.3667 17.4 16.2L14.65 12.525C14.55 12.3917 14.4167 12.325 14.25 12.325C14.0833 12.325 13.95 12.3917 13.85 12.525L11.25 16L9.4 13.525C9.3 13.3917 9.16667 13.325 9 13.325C8.83333 13.325 8.7 13.3917 8.6 13.525L6.6 16.2C6.46667 16.3667 6.45 16.5417 6.55 16.725C6.65 16.9083 6.8 17 7 17Z" />
           </svg>
           <span>
             {!isFilename && ticket.lastMessage
               ? truncate(ticket.lastMessage, 30)
               : i18n.t("mainDrawer.appBar.message.image")}
           </span>
+        </span>
+      );
+    }
+
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
+
+    const isVideoMessage =
+      ticket.mediaType === "video" ||
+      videoExtensions.some((ext) =>
+        ticket.lastMessage?.toLowerCase().endsWith(ext),
+      );
+
+    if (isVideoMessage) {
+      return (
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <svg
+            viewBox="0 0 24 24"
+            width={20}
+            height={20}
+            fill="currentColor"
+            style={{ flexShrink: 0, opacity: 0.7 }}
+          >
+            <path d="M4 20C3.45 20 2.97917 19.8042 2.5875 19.4125C2.19583 19.0208 2 18.55 2 18V6C2 5.45 2.19583 4.97917 2.5875 4.5875C2.97917 4.19583 3.45 4 4 4H16C16.55 4 17.0208 4.19583 17.4125 4.5875C17.8042 4.97917 18 5.45 18 6V10.5L21.15 7.35C21.3167 7.18333 21.5 7.14167 21.7 7.225C21.9 7.30833 22 7.46667 22 7.7V16.3C22 16.5333 21.9 16.6917 21.7 16.775C21.5 16.8583 21.3167 16.8167 21.15 16.65L18 13.5V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H4ZM4 18H16V6H4V18Z" />
+          </svg>
+          <span>{i18n.t("mainDrawer.appBar.message.video")}</span>
+        </span>
+      );
+    }
+
+    const audioExtensionsList = [
+      ".mp3",
+      ".wav",
+      ".ogg",
+      ".m4a",
+      ".aac",
+      ".webm",
+    ];
+
+    const isAudioMessage =
+      ticket.mediaType === "audio" ||
+      ticket.mediaType === "ptt" ||
+      ticket.lastMessage === "audio" ||
+      ticket.lastMessage === "Áudio" ||
+      ticket.lastMessage === "ptt" ||
+      audioExtensionsList.some((ext) =>
+        ticket.lastMessage?.toLowerCase().endsWith(ext),
+      );
+
+    if (isAudioMessage) {
+      return (
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <svg
+            viewBox="0 0 24 24"
+            width={20}
+            height={20}
+            fill="currentColor"
+            style={{ flexShrink: 0, opacity: 0.7 }}
+          >
+            <path d="M5 21c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41v-7c0-1.25.24-2.42.71-3.51A9.15 9.15 0 0 1 8.5 3.7 8.7 8.7 0 0 1 12 3a8.7 8.7 0 0 1 3.51.71A9.15 9.15 0 0 1 20.3 8.5 8.7 8.7 0 0 1 21 12v7c0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59h-2c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41v-4c0-.55.2-1.02.59-1.41.39-.4.86-.59 1.41-.59h2v-1c0-1.95-.68-3.6-2.04-4.96A6.75 6.75 0 0 0 12 5c-1.95 0-3.6.68-4.96 2.04A6.75 6.75 0 0 0 5 12v1h2c.55 0 1.02.2 1.41.59.4.39.59.86.59 1.41v4c0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59H5Zm0-2h2v-4H5v4Zm12 0h2v-4h-2v4Z" />
+          </svg>
+          <span>{i18n.t("mainDrawer.appBar.message.audio")}</span>
         </span>
       );
     }

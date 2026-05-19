@@ -1014,6 +1014,8 @@ const messages = {
             contact: "Contato",
             sticker: "Figurinha",
             image: "Foto",
+            video: "Vídeo",
+            audio: "Áudio",
           },
           notRegister: "Nenhum registro",
           refresh: "Atualizar",

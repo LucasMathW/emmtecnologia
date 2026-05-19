@@ -188,12 +188,12 @@ const MessageOptionsMenu = ({
         anchorEl={anchorEl}
         getContentAnchorEl={null}
         anchorOrigin={{
-          vertical: "top",
-          horizontal: "right",
+          vertical: "center", // ← Centro vertical do botão
+          horizontal: "right", // ← Lado direito do botão
         }}
         transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
+          vertical: "center", // ← Centro vertical do menu
+          horizontal: "left", // ← Menu nasce pela esquerda
         }}
         open={menuOpen}
         onClose={handleClose}

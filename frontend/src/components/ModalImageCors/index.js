@@ -3,12 +3,12 @@ import { makeStyles } from "@material-ui/core/styles";
 
 const useStyles = makeStyles((theme) => ({
   messageMedia: {
-    maxWidth: 246, // ← Container
+    maxWidth: 246,
     width: "auto",
-    height: "auto", // ← Sem altura fixa
+    height: "auto",
     objectFit: "contain",
     display: "block",
-    borderRadius: 8,
+    borderRadius: 7.5,
     cursor: "zoom-in",
     position: "relative",
     zIndex: 0,
@@ -249,6 +249,7 @@ const ModalImageCors = ({ imageUrl, onDimensions }) => {
           margin: "0px 0px 0 0px",
           padding: 0,
           boxSizing: "border-box",
+          border: "2px solid rgba(0,0,0,0)",
           lineHeight: 0,
         }}
       >
@@ -262,7 +263,7 @@ const ModalImageCors = ({ imageUrl, onDimensions }) => {
             width: imgStyle.width ? `${imgStyle.width}px` : "100%",
             height: imgStyle.height ? `${imgStyle.height}px` : "auto",
             maxWidth: "100%",
-            borderRadius: 7.5,
+            borderRadius: 5,
             cursor: "zoom-in",
             objectFit: "contain",
           }}
@@ -394,7 +395,7 @@ const ModalImageCors = ({ imageUrl, onDimensions }) => {
               maxWidth: "90vw",
               maxHeight: "85vh",
               objectFit: "contain",
-              borderRadius: 4,
+              borderRadius: 6,
               boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
               transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
               transition: dragging ? "none" : "transform 0.15s ease",

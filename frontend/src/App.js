@@ -15,6 +15,13 @@ import defaultLogoFavicon from "./assets/favicon.ico";
 import useSettings from "./hooks/useSettings";
 import "./styles/animations.css";
 
+window.addEventListener("error", (event) => {
+  if (event.message?.includes("ResizeObserver loop")) {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  }
+});
+
 const queryClient = new QueryClient();
 
 const App = () => {

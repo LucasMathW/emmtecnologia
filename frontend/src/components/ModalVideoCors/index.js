@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 const useStyles = makeStyles((theme) => ({
   videoThumb: {
     width: "100%",
     height: "auto",
     maxHeight: 300,
-    borderRadius: 8,
+    borderRadius: 6,
     cursor: "pointer",
     display: "block",
     position: "relative",
@@ -16,7 +16,7 @@ const useStyles = makeStyles((theme) => ({
   thumbWrapper: {
     position: "relative",
     width: "100%",
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: "hidden",
     cursor: "pointer",
     backgroundColor: "#000",
@@ -36,7 +36,7 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "rgba(0,0,0,0.35)",
     opacity: 0.85,
     transition: "opacity 0.2s ease",
-    borderRadius: 8,
+    borderRadius: 6,
   },
   playButton: {
     width: 52,
@@ -227,6 +227,7 @@ const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
 const ModalVideoCors = ({ videoUrl, message }) => {
   const classes = useStyles();
+  const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -354,20 +355,36 @@ const ModalVideoCors = ({ videoUrl, message }) => {
 
   return (
     <>
-      {/* Thumbnail clicável na lista de mensagens */}
-      <div className={classes.thumbWrapper} onClick={handleOpen}>
-        <video
-          src={videoUrl}
-          className={classes.videoThumb}
-          preload="metadata"
-          muted
-          playsInline
-        />
-        <div className={classes.playOverlay}>
-          <div className={classes.playButton}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff">
-              <polygon points="5,3 19,12 5,21" />
-            </svg>
+      {/* === WRAPPER EXTERNO COM BORDA (igual ao ModalImageCors) === */}
+      <div
+        style={{
+          display: "inline-block",
+          maxWidth: "100%",
+          margin: "0px 0px 0 0px",
+          padding: 0,
+          boxSizing: "border-box",
+          border: "2px solid rgba(0,0,0,0)",
+          borderRadius: 4,
+          lineHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        {/* Thumbnail clicável na lista de mensagens */}
+        <div className={classes.thumbWrapper} onClick={handleOpen}>
+          <video
+            src={videoUrl}
+            className={classes.videoThumb}
+            preload="metadata"
+            muted
+            playsInline
+            style={{ borderRadius: 4 }}
+          />
+          <div className={classes.playOverlay}>
+            <div className={classes.playButton}>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff">
+                <polygon points="5,3 19,12 5,21" />
+              </svg>
+            </div>
           </div>
         </div>
       </div>

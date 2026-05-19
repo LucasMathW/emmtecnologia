@@ -459,12 +459,12 @@ const useStyles = makeStyles((theme) => ({
     borderTopRightRadius: 7.8,
     borderBottomLeftRadius: 7.8,
     borderBottomRightRadius: 7.8,
-    // ✅ Padding interno ajustado: o timestamp usa float, então não precisa de paddingRight extra aqui
+
     paddingLeft: 2,
     paddingRight: 2,
     paddingTop: 2,
     paddingBottom: 0,
-    // ✅ boxSizing: border-box ESSENCIAL para padding contar na largura total
+
     boxSizing: "border-box",
     boxShadow:
       theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
@@ -1646,7 +1646,13 @@ const MessagesList = ({
       (message.body === "sticker" && message.mediaUrl?.endsWith(".webp"))
     ) {
       return (
-        <div style={{ position: "relative", display: "inline-block" }}>
+        <div
+          style={{
+            position: "relative",
+            display: "inline-block",
+            marginTop: 12,
+          }}
+        >
           <img
             src={message.mediaUrl}
             alt="sticker"
@@ -2397,18 +2403,27 @@ const MessagesList = ({
                           justifyContent: "flex-end",
                           alignItems: "center",
                           gap: 6,
-                          marginTop: 2,
+                          marginTop: 4,
                           paddingRight: 4,
                         }}
                       >
                         <span
                           style={{
                             fontSize: 12,
-                            color: "#999",
-                            backgroundColor: "rgba(255,255,255,0.85)",
+                            color:
+                              theme.mode === "dark"
+                                ? "rgba(255,255,255,0.7)"
+                                : "#999",
+                            backgroundColor:
+                              theme.mode === "dark"
+                                ? "rgb(32, 44, 51)" // ← Fundo escuro no dark mode
+                                : "rgba(255,255,255,0.85)", // ← Fundo claro no light mode
                             borderRadius: 8,
                             padding: "2px 6px",
-                            boxShadow: "0 1px 1px rgba(0,0,0,0.12)",
+                            boxShadow:
+                              theme.mode === "dark"
+                                ? "0 1px 1px rgba(0,0,0,0.5)"
+                                : "0 1px 1px rgba(0,0,0,0.12)",
                             display: "flex",
                             alignItems: "center",
                             gap: 4,
@@ -2417,6 +2432,7 @@ const MessagesList = ({
                           {format(parseISO(message.createdAt), "HH:mm")}
                         </span>
                       </div>
+
                       {message.reactions && message.reactions.length > 0 && (
                         <div
                           style={{
@@ -2743,11 +2759,20 @@ const MessagesList = ({
                         <span
                           style={{
                             fontSize: 12,
-                            color: "#999",
-                            backgroundColor: "rgba(220,248,198,0.9)",
+                            color:
+                              theme.mode === "dark"
+                                ? "rgba(255,255,255,0.9)"
+                                : "#999",
+                            backgroundColor:
+                              theme.mode === "dark"
+                                ? "rgb(0, 92, 75)" // ← Fundo escuro no dark mode
+                                : "rgba(220,248,198,0.9)", // ← Verde claro no light mode
                             borderRadius: 8,
                             padding: "2px 6px",
-                            boxShadow: "0 1px 1px rgba(0,0,0,0.12)",
+                            boxShadow:
+                              theme.mode === "dark"
+                                ? "0 1px 1px rgba(0,0,0,0.5)"
+                                : "0 1px 1px rgba(0,0,0,0.12)",
                             display: "flex",
                             alignItems: "center",
                             gap: 4,
