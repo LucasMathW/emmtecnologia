@@ -67,6 +67,12 @@ async function deleteFolder(folder) {
 
 export const getWbot = async (whatsappId: number): Promise<Session> => {
   const whatsapp = await Whatsapp.findByPk(whatsappId);
+
+  console.log(`[DEBUG] getWbot - whatsappId: ${whatsappId}`);
+  console.log(`[DEBUG] Channel: ${whatsapp?.channel}`);
+  console.log(`[DEBUG] Sessions array length: ${sessions.length}`);
+  console.log(`[DEBUG] Sessions IDs: ${sessions.map(s => s.id).join(", ")}`);
+
   if (whatsapp.channel !== "whatsapp_oficial") {
     const sessionIndex = sessions.findIndex(s => s.id === whatsappId);
     if (sessionIndex === -1) {

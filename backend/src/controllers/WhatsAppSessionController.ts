@@ -16,7 +16,6 @@ const store = async (req: Request, res: Response): Promise<Response> => {
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
   await StartWhatsAppSession(whatsapp, companyId);
 
-
   return res.status(200).json({ message: "Starting session." });
 };
 
@@ -29,7 +28,9 @@ const update = async (req: Request, res: Response): Promise<Response> => {
   //   companyId,
   //   whatsappData: { session: "", requestQR: true }
   // });
-  const whatsapp = await Whatsapp.findOne({ where: { id: whatsappId, companyId } });
+  const whatsapp = await Whatsapp.findOne({
+    where: { id: whatsappId, companyId }
+  });
 
   await whatsapp.update({ session: "" });
 
@@ -44,7 +45,6 @@ const remove = async (req: Request, res: Response): Promise<Response> => {
   const whatsappId = getRequestParam(req.params.whatsappId, "whatsappId");
   const { companyId } = req.user;
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
-
 
   if (whatsapp.channel === "whatsapp") {
     await DeleteBaileysService(whatsappId);
