@@ -3755,7 +3755,11 @@ const handleMessage = async (
   companyId: number,
   isImported: boolean = false
 ): Promise<void> => {
-  console.count("handleMessage");
+  const tStart = Date.now();
+  console.log(
+    `[FLOW][HM-START] handleMessage iniciado | msgId: ${msg.key.id} | fromMe: ${msg.key.fromMe} | companyId: ${companyId} | ts: ${tStart}`
+  );
+
   const existingMessage = await Message.findOne({
     where: {
       wid: msg.key.id,
@@ -3764,6 +3768,12 @@ const handleMessage = async (
   });
 
   if (existingMessage) {
+    console.log(
+      `[FLOW][HM-SKIP] Mensagem já existe, ignorando | msgId: ${
+        msg.key.id
+      } | ts: ${Date.now()}`
+    );
+
     return;
   }
 
@@ -5249,6 +5259,10 @@ const handleMsgAck = async (
   msg: WAMessage,
   chat: number | null | undefined
 ) => {
+  const tStart = Date.now();
+  console.log(
+    `[FLOW][ACK-START] handleMsgAck | msgId: ${msg.key.id} | ack: ${chat} | ts: ${tStart}`
+  );
   await new Promise(r => setTimeout(r, 500));
   const io = getIO();
 
@@ -5307,8 +5321,20 @@ const handleMsgAck = async (
     });
     if (!messageToUpdate || messageToUpdate.ack >= chat) return;
 
-    // console.log("messageToUpdate", messageToUpdate.body, messageToUpdate.ack, chat)
+    console.log(
+      `[FLOW][ACK-UPDATE] Atualizando ack | msgId: ${
+        msg.key.id
+      } | ack: ${chat} | ts: ${Date.now()}`
+    );
+
     await messageToUpdate.update({ ack: chat });
+
+    console.log(
+      `[FLOW][ACK-DONE] ack atualizado | msgId: ${msg.key.id} | total: ${
+        Date.now() - tStart
+      }ms`
+    );
+
     io.of(messageToUpdate.companyId.toString())
       // .to(messageToUpdate.ticketId.toString())
       .emit(`company-${messageToUpdate.companyId}-appMessage`, {
@@ -5463,10 +5489,12 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   );
 
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
-    // console.log("messageUpsert type:", messageUpsert.type);
-
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
+
+    console.log(
+      `[FLOW][1] messages.upsert recebido | type: ${messageUpsert.type} | qtd: ${rawMessages.length} | wbot: ${wbot.id}`
+    );
 
     for (const message of rawMessages) {
       // 🔥 1️⃣ Reaction
@@ -5475,7 +5503,19 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         continue; // pula para próxima mensagem
       }
 
+      console.log(
+        `[FLOW][2] Loop1-raw | msgId: ${message.key.id} | fromMe: ${
+          message.key.fromMe
+        } | remoteJid: ${message.key.remoteJid} | ts: ${Date.now()}`
+      );
+
       await handleMessage(message, wbot, companyId);
+
+      console.log(
+        `[FLOW][2-END] Loop1-raw CONCLUIDO | msgId: ${
+          message.key.id
+        } | ts: ${Date.now()}`
+      );
     }
 
     // const messages = rawMessages.filter(filterMessages);
