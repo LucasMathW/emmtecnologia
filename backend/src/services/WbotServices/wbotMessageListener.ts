@@ -94,7 +94,7 @@ import { normalizeJid } from "../../utils";
 import { handleOpenAiFlow } from "../IntegrationsServices/OpenAiService";
 import { getJidOf } from "./getJidOf";
 import { verifyContact } from "./verifyContact";
-// import { verifyContact } from "./verifyContact";
+
 import os from "os";
 import request from "request";
 import { Session } from "../../libs/wbot";
@@ -3974,8 +3974,6 @@ const handleMessage = async (
     const contact = await verifyContact(msgContact, wbot, companyId);
 
     let unreadMessages = 0;
-
-    // 🔥 DEBUG AQUI
 
     if (msg.key.fromMe) {
       await cacheLayer.set(`contacts:${contact.id}:unreads`, "0");

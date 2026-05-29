@@ -107,14 +107,33 @@ export async function verifyContact(
   let profilePicUrl: string | undefined;
   if (!isGroup && !isLid && wbot) {
     try {
-      const fetched = await wbot.profilePictureUrl(msgContact.id, "image");
+      // const fetched = await wbot.profilePictureUrl(msgContact.id, "image");
+      // if (fetched && !fetched.includes("nopicture")) {
+      //   profilePicUrl = fetched;
+      //   logger.info(
+      //     `[PIC-VERIFY] Foto obtida para ${msgContact.id}: ${profilePicUrl}`
+      //   );
+      // } else {
+      //   logger.info(`[PIC-VERIFY] Sem foto válida para ${msgContact.id}`);
+      // }
+      const timeout = new Promise<null>(resolve =>
+        setTimeout(() => resolve(null), 3000)
+      );
+      const fetched = await Promise.race([
+        wbot.profilePictureUrl(msgContact.id, "image"),
+        timeout
+      ]);
       if (fetched && !fetched.includes("nopicture")) {
         profilePicUrl = fetched;
         logger.info(
           `[PIC-VERIFY] Foto obtida para ${msgContact.id}: ${profilePicUrl}`
         );
       } else {
-        logger.info(`[PIC-VERIFY] Sem foto válida para ${msgContact.id}`);
+        logger.info(
+          fetched === null
+            ? `[PIC-VERIFY] Timeout (3s) para ${msgContact.id} — continuando sem foto`
+            : `[PIC-VERIFY] Sem foto válida para ${msgContact.id}`
+        );
       }
     } catch (e) {
       logger.info(
