@@ -94,10 +94,6 @@ const useStyles = makeStyles((theme) => ({
       fontFamily:
         '"Noto Color Emoji", "Apple Color Emoji", sans-serif !important',
     },
-    // "& .emoji-mart-emoji": {
-    //   fontFamily:
-    //     '"Noto Color Emoji", "Apple Color Emoji",  sans-serif !important',
-    // },
   },
 
   emojiChar: {

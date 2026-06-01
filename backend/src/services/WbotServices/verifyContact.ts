@@ -107,15 +107,6 @@ export async function verifyContact(
   let profilePicUrl: string | undefined;
   if (!isGroup && !isLid && wbot) {
     try {
-      // const fetched = await wbot.profilePictureUrl(msgContact.id, "image");
-      // if (fetched && !fetched.includes("nopicture")) {
-      //   profilePicUrl = fetched;
-      //   logger.info(
-      //     `[PIC-VERIFY] Foto obtida para ${msgContact.id}: ${profilePicUrl}`
-      //   );
-      // } else {
-      //   logger.info(`[PIC-VERIFY] Sem foto válida para ${msgContact.id}`);
-      // }
       const timeout = new Promise<null>(resolve =>
         setTimeout(() => resolve(null), 3000)
       );

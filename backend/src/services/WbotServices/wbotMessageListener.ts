@@ -94,7 +94,7 @@ import { normalizeJid } from "../../utils";
 import { handleOpenAiFlow } from "../IntegrationsServices/OpenAiService";
 import { getJidOf } from "./getJidOf";
 import { verifyContact } from "./verifyContact";
-
+// import { verifyContact } from "./verifyContact";
 import os from "os";
 import request from "request";
 import { Session } from "../../libs/wbot";
@@ -5490,6 +5490,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
+    console.log(`rawMessage =>:${JSON.stringify(rawMessages)}`);
+
     console.log(
       `[FLOW][1] messages.upsert recebido | type: ${messageUpsert.type} | qtd: ${rawMessages.length} | wbot: ${wbot.id}`
     );
@@ -5654,6 +5656,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("presence.update", async data => {
     // data.id = JID do CHAT onde o evento ocorreu
     // data.presences = { [membroJid]: { lastKnownPresence } }
+
+    console.log(`[PRESENCE FLOW][1] Loop1-raw`);
 
     const chatJid = data.id;
     const isGroupPresence = chatJid?.endsWith("@g.us");

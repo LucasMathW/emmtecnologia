@@ -597,8 +597,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       const StickerIcon = () => (
         <svg
           viewBox="0 0 24 24"
-          width={20}
-          height={20}
+          width={16}
+          height={16}
           fill="currentColor"
           style={{ verticalAlign: "middle", marginRight: 4 }}
         >
@@ -613,8 +613,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       const ImageIcon = () => (
         <svg
           viewBox="0 0 24 24"
-          width={20}
-          height={20}
+          width={16}
+          height={16}
           fill="currentColor"
           style={{ verticalAlign: "middle", marginRight: 4 }}
         >
@@ -625,8 +625,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       const AudioIcon = () => (
         <svg
           viewBox="0 0 24 24"
-          width={20}
-          height={20}
+          width={16}
+          height={16}
           fill="currentColor"
           style={{ verticalAlign: "middle", marginRight: 4 }}
         >
@@ -637,8 +637,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       const VideoIcon = () => (
         <svg
           viewBox="0 0 24 24"
-          width={20}
-          height={20}
+          width={16}
+          height={16}
           fill="currentColor"
           style={{ verticalAlign: "middle", marginRight: 4 }}
         >
@@ -648,23 +648,31 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
       const friendlyPreview = isImagePreview ? (
         <>
+          {'"'}
           <ImageIcon />
           {i18n.t("mainDrawer.appBar.message.image")}
+          {'"'}
         </>
       ) : isAudioPreview ? (
         <>
+          {'"'}
           <AudioIcon />
           {i18n.t("mainDrawer.appBar.message.audio")}
+          {'"'}
         </>
       ) : isVideoPreview ? (
         <>
+          {'"'}
           <VideoIcon />
           {i18n.t("mainDrawer.appBar.message.video")}
+          {'"'}
         </>
       ) : messagePreview === "sticker" ? (
         <>
+          {'"'}
           <StickerIcon />
           {i18n.t("mainDrawer.appBar.message.sticker")}
+          {'"'}
         </>
       ) : (
         <>"{truncate(messagePreview, 20)}"</>
@@ -718,8 +726,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width={20}
-            height={20}
+            width={16}
+            height={16}
             fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
@@ -751,8 +759,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width={20}
-            height={20}
+            width={16}
+            height={16}
             fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
@@ -780,8 +788,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width={20}
-            height={20}
+            width={16}
+            height={16}
             fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
@@ -816,8 +824,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <svg
             viewBox="0 0 24 24"
-            width={20}
-            height={20}
+            width={16}
+            height={16}
             fill="currentColor"
             style={{ flexShrink: 0, opacity: 0.7 }}
           >
