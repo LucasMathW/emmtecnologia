@@ -42,6 +42,13 @@ export const RefreshTokenService = async (
 
     return { user, newToken, refreshToken };
   } catch (err) {
+    console.error("🔴 [RefreshTokenService] ERRO DETALHADO:", {
+      message: err?.message,
+      name: err?.name,
+      stack: err?.stack,
+      tokenProvided: !!token,
+      timestamp: new Date().toISOString()
+    });
     res.clearCookie("jrt");
     throw new AppError("ERR_SESSION_EXPIRED", 401);
   }
