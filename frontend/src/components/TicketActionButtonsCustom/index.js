@@ -775,6 +775,7 @@ const TicketActionButtonsCustom = ({
           queue={queueTicketOpen}
         />
       )}
+
       {acceptTicketWithouSelectQueueOpen && (
         <AcceptTicketWithouSelectQueue
           modalOpen={acceptTicketWithouSelectQueueOpen}
@@ -783,6 +784,7 @@ const TicketActionButtonsCustom = ({
           ticket={ticket}
         />
       )}
+
       {showTicketLogOpen && (
         <ShowTicketLogModal
           isOpen={showTicketLogOpen}
@@ -790,6 +792,7 @@ const TicketActionButtonsCustom = ({
           ticketId={ticket.id}
         />
       )}
+
       {openTicketMessageDialog && (
         <TicketMessagesDialog
           open={openTicketMessageDialog}
@@ -814,6 +817,19 @@ const TicketActionButtonsCustom = ({
           onClose={handleCloseNewTicketModal}
           initialContact={contact}
         />
+      )}
+
+      {confirmationOpen && (
+        <ConfirmationModal
+          title={`${i18n.t(
+            "ticketOptionsMenu.confirmationModal.title",
+          )} #${ticket.id}?`}
+          open={confirmationOpen}
+          onClose={setConfirmationOpen}
+          onConfirm={handleDeleteTicket}
+        >
+          {i18n.t("ticketOptionsMenu.confirmationModal.message")}
+        </ConfirmationModal>
       )}
 
       <div className={classes.actionButtons}>
@@ -948,18 +964,6 @@ const TicketActionButtonsCustom = ({
               </Tooltip>
             </MenuItem>
 
-            {confirmationOpen && (
-              <ConfirmationModal
-                title={`${i18n.t(
-                  "ticketOptionsMenu.confirmationModal.title",
-                )} #${ticket.id}?`}
-                open={confirmationOpen}
-                onClose={setConfirmationOpen}
-                onConfirm={handleDeleteTicket}
-              >
-                {i18n.t("ticketOptionsMenu.confirmationModal.message")}
-              </ConfirmationModal>
-            )}
             {transferTicketModalOpen && (
               <TransferTicketModalCustom
                 modalOpen={transferTicketModalOpen}
@@ -1018,13 +1022,16 @@ const TicketActionButtonsCustom = ({
           open={menuOpen}
           onClose={handleCloseMenu}
         >
-          <MenuItem onClick={handleOpenConfirmationModal}>
-            <Can
-              role={user.profile}
-              perform="ticket-options:deleteTicket"
-              yes={() => i18n.t("tickets.buttons.deleteTicket")}
-            />
-          </MenuItem>
+          {ticket.status !== "closed" && (
+            <MenuItem onClick={handleOpenConfirmationModal}>
+              <Can
+                role={user.profile}
+                perform="ticket-options:deleteTicket"
+                yes={() => i18n.t("tickets.buttons.deleteTicket")}
+              />
+            </MenuItem>
+          )}
+
           <MenuItem onClick={handleEnableIntegration}>
             {enableIntegration === true
               ? i18n.t("messagesList.header.buttons.disableIntegration")

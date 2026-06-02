@@ -3903,6 +3903,17 @@ const handleMessage = async (
 
     const whatsapp = await ShowWhatsAppService(wbot.id!, companyId);
 
+    // ✅ Ignorar mensagens do próprio número da conexão
+    if (!isGroup && whatsapp.number) {
+      const ownJid = `${whatsapp.number}@s.whatsapp.net`;
+      if (msg.key.remoteJid === ownJid) {
+        logger.info(
+          `[SELF-MSG] Ignorando mensagem do próprio número da conexão: ${msg.key.remoteJid}`
+        );
+        return;
+      }
+    }
+
     if (!whatsapp.allowGroup && isGroup) return;
 
     if (isGroup) {
