@@ -7,6 +7,7 @@ import authConfig from "../config/auth";
 import { getIO } from "../libs/socket";
 import ShowUserService from "../services/UserServices/ShowUserService";
 import { updateUser } from "../helpers/updateUser";
+import logger from "../utils/logger";
 // import { moment} from "moment-timezone"
 
 interface TokenPayload {
@@ -26,14 +27,19 @@ const isAuth = async (
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
+    logger.warn({
+      message: "ERR_SESSION_EXPIRED - SEM AUTH HEADER",
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      headers: {
+        host: req.headers.host,
+        origin: req.headers.origin,
+        referer: req.headers.referer
+      }
+    });
     throw new AppError("ERR_SESSION_EXPIRED", 401);
   }
-
-  // const check = await verifyHelper();
-
-  // if (!check) {
-  //   throw new AppError("ERR_SYSTEM_INVALID", 401);
-  // }
 
   const [, token] = authHeader.split(" ");
 
