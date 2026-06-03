@@ -14,7 +14,7 @@ const isAuthCompany = async (
   }
 
   const [, token] = authHeader.split(" ");
-  
+
   try {
     const getToken = process.env.COMPANY_TOKEN;
     if (!getToken) {
