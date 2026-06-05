@@ -5492,11 +5492,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
   const listeners = wbot.ev["_events"]?.["messages.upsert"];
 
-  // console.log(
-  //   "Listeners messages.upsert:",
-  //   Array.isArray(listeners) ? listeners.length : listeners ? 1 : 0
-  // );
-
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
