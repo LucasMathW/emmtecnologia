@@ -48,7 +48,7 @@ const parseReactionPayload = (
   const emoji = reaction.text || "";
 
   const rawJid =
-    message.key.remoteJidAlt ||
+    (message.key as any).remoteJidAlt ||
     (reaction.key as any).remoteJidAlt ||
     reaction.key.participant ||
     message.key.participant ||
