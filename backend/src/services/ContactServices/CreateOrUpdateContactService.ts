@@ -55,6 +55,11 @@ export const updateContact = async (
 ) => {
   // Se uma nova profilePicUrl válida foi passada, baixar a imagem pro disco
   const newProfilePicUrl = contactData.profilePicUrl;
+
+  if (!newProfilePicUrl || newProfilePicUrl.includes("nopicture")) {
+    return contact;
+  }
+
   if (newProfilePicUrl && !newProfilePicUrl.includes("nopicture")) {
     contact.profilePicUrl = newProfilePicUrl;
 

@@ -148,7 +148,6 @@ export async function verifyContact(
       const cachedPic = await cacheLayer.get(picCacheKey);
 
       if (cachedPic === "none") {
-        // sem foto — não chama WhatsApp
       } else if (cachedPic) {
         profilePicUrl = cachedPic;
       } else {

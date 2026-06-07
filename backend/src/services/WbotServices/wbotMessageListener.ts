@@ -96,7 +96,7 @@ import { normalizeJid } from "../../utils";
 import { handleOpenAiFlow } from "../IntegrationsServices/OpenAiService";
 import { getJidOf } from "./getJidOf";
 import { verifyContact } from "./verifyContact";
-// import { verifyContact } from "./verifyContact";
+
 import os from "os";
 import request from "request";
 import { Session } from "../../libs/wbot";
@@ -3896,10 +3896,9 @@ const handleMessage = async (
         msgType !== "hydratedContentText"
       )
         return;
-      msgContact = await getContactMessage(msg, wbot);
-    } else {
-      msgContact = await getContactMessage(msg, wbot);
     }
+
+    msgContact = await getContactMessage(msg, wbot);
 
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
 
@@ -4013,10 +4012,29 @@ const handleMessage = async (
       order: [["id", "DESC"]]
     });
 
-    const mutex = new Mutex();
-    // Inclui a busca de ticket aqui, se realmente não achar um ticket, então vai para o findorcreate
-    const ticket = await mutex.runExclusive(async () => {
-      const result = await FindOrCreateTicketService(
+    // const mutex = new Mutex();
+    // // Inclui a busca de ticket aqui, se realmente não achar um ticket, então vai para o findorcreate
+    // const ticket = await mutex.runExclusive(async () => {
+    //   const result = await FindOrCreateTicketService(
+    //     contact,
+    //     whatsapp,
+    //     unreadMessages,
+    //     companyId,
+    //     queueId,
+    //     userId,
+    //     groupContact,
+    //     "whatsapp",
+    //     isImported,
+    //     false,
+    //     settings
+    //   );
+    //   return result;
+    // });
+
+    const ticket = await getTicketMutex(
+      `ticket:${companyId}:${contact.id}`
+    ).runExclusive(() =>
+      FindOrCreateTicketService(
         contact,
         whatsapp,
         unreadMessages,
@@ -4028,9 +4046,8 @@ const handleMessage = async (
         isImported,
         false,
         settings
-      );
-      return result;
-    });
+      )
+    );
 
     const ticketTraking = await FindOrCreateATicketTrakingService({
       ticketId: ticket.id,
@@ -5455,8 +5472,6 @@ const verifyCampaignMessageAndCloseTicket = async (
 };
 
 const filterMessages = (msg: WAMessage): boolean => {
-  // msgDB.save(msg);
-
   if (msg.message?.protocolMessage?.editedMessage) return true;
   if (msg.message?.protocolMessage) return false;
 
@@ -5468,9 +5483,9 @@ const filterMessages = (msg: WAMessage): boolean => {
       WAMessageStubType.CIPHERTEXT
     ].includes(msg.messageStubType)
   )
-    // return false;
-
     return true;
+
+  return true;
 };
 
 const handleBaileysReaction = async (
@@ -5489,45 +5504,34 @@ const handleBaileysReaction = async (
   }
 };
 
+const ticketMutexMap = new Map<string, Mutex>();
+const getTicketMutex = (key: string): Mutex => {
+  if (!ticketMutexMap.has(key)) {
+    ticketMutexMap.set(key, new Mutex());
+    setTimeout(() => ticketMutexMap.delete(key), 30_000);
+  }
+  return ticketMutexMap.get(key)!;
+};
+
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("messages.upsert");
-
-  const listeners = wbot.ev["_events"]?.["messages.upsert"];
 
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
-    console.log(
-      `[FLOW][1] messages.upsert recebido | type: ${messageUpsert.type} | qtd: ${rawMessages.length} | wbot: ${wbot.id}`
-    );
-
+    // Reactions têm handler próprio
     for (const message of rawMessages) {
       if (message.message?.reactionMessage) {
         await handleBaileysReaction(message, wbot, companyId);
-        continue;
       }
-
-      console.log(
-        `[FLOW][2] Loop1-raw | msgId: ${message.key.id} | fromMe: ${
-          message.key.fromMe
-        } | remoteJid: ${message.key.remoteJid} | ts: ${Date.now()}`
-      );
-
-      await handleMessage(message, wbot, companyId);
-
-      console.log(
-        `[FLOW][2-END] Loop1-raw CONCLUIDO | msgId: ${
-          message.key.id
-        } | ts: ${Date.now()}`
-      );
     }
 
     const messages = rawMessages.filter(
       msg => filterMessages(msg) && !msg.message?.reactionMessage
     );
 
-    if (!messages) return;
+    if (!messages?.length) return;
 
     for (const message of messages) {
       const messageExists = await Message.count({
