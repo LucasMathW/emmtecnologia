@@ -94,30 +94,45 @@ const Ticket = () => {
   const getStoredPic = useCallback(() => {
     try {
       const store = JSON.parse(localStorage.getItem("contactPics") || "{}");
-      return store[`${companyId}-${ticket.contact?.number}`] || store[`${companyId}-${ticket.contact?.id}`] || "";
+      return (
+        store[`${companyId}-${ticket.contact?.number}`] ||
+        store[`${companyId}-${ticket.contact?.id}`] ||
+        ""
+      );
     } catch {
       return "";
     }
   }, [companyId, ticket.contact]);
 
   // Salvar foto no localStorage
-  const storeContactPic = useCallback((contactData) => {
-    try {
-      const number = contactData.number;
-      const id = contactData.id;
-      const pic = contactData.urlPicture;
-      console.log("[STORE CONTACT PIC] number:", number, "pic:", pic?.substring(0, 80));
-      if (!pic || !number) return;
-      const store = JSON.parse(localStorage.getItem("contactPics") || "{}");
-      store[`${companyId}-${number}`] = pic;
-      if (id) store[`${companyId}-${id}`] = pic;
-      localStorage.setItem("contactPics", JSON.stringify(store));
-      latestContactPic.current = pic;
-      console.log("[STORE CONTACT PIC] Salvo no localStorage. Keys:", Object.keys(store).join(", "));
-    } catch (e) {
-      console.error("[STORE CONTACT PIC] Erro:", e);
-    }
-  }, [companyId]);
+  const storeContactPic = useCallback(
+    (contactData) => {
+      try {
+        const number = contactData.number;
+        const id = contactData.id;
+        const pic = contactData.urlPicture;
+        console.log(
+          "[STORE CONTACT PIC] number:",
+          number,
+          "pic:",
+          pic?.substring(0, 80),
+        );
+        if (!pic || !number) return;
+        const store = JSON.parse(localStorage.getItem("contactPics") || "{}");
+        store[`${companyId}-${number}`] = pic;
+        if (id) store[`${companyId}-${id}`] = pic;
+        localStorage.setItem("contactPics", JSON.stringify(store));
+        latestContactPic.current = pic;
+        console.log(
+          "[STORE CONTACT PIC] Salvo no localStorage. Keys:",
+          Object.keys(store).join(", "),
+        );
+      } catch (e) {
+        console.error("[STORE CONTACT PIC] Erro:", e);
+      }
+    },
+    [companyId],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -135,12 +150,28 @@ const Ticket = () => {
             const storedPic = latestContactPic.current;
             const lsKey = `${companyId}-${data.contact?.number}`;
             const lsKey2 = `${companyId}-${data.contact?.id}`;
-            const storedLs = JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey] || JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey2] || "";
+            const storedLs =
+              JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey] ||
+              JSON.parse(localStorage.getItem("contactPics") || "{}")[lsKey2] ||
+              "";
             const finalPic = storedPic || storedLs;
-            if (process.env.NODE_ENV === "development") console.log("[FETCH TICKET] storedPic:", storedPic?.substring(0, 60), "storedLs:", storedLs?.substring(0, 60), "finalPic:", finalPic?.substring(0, 60));
+            if (process.env.NODE_ENV === "development")
+              console.log(
+                "[FETCH TICKET] storedPic:",
+                storedPic?.substring(0, 60),
+                "storedLs:",
+                storedLs?.substring(0, 60),
+                "finalPic:",
+                finalPic?.substring(0, 60),
+              );
             if (finalPic) {
-              const separator = finalPic.includes("?") ? "" : `?t=${Date.now()}`;
-              contactData = { ...data.contact, urlPicture: `${finalPic}${separator}` };
+              const separator = finalPic.includes("?")
+                ? ""
+                : `?t=${Date.now()}`;
+              contactData = {
+                ...data.contact,
+                urlPicture: `${finalPic}${separator}`,
+              };
             }
 
             setContact(contactData);
@@ -180,23 +211,44 @@ const Ticket = () => {
       return;
     }
 
-    // if (user.companyId) {
-    //    const socket = socketManager.GetSocket();
-
     const onConnectTicket = () => {
       socket.emit("joinChatBox", `${ticket.id}`);
     };
 
     const onCompanyTicket = (data) => {
       if (data.action === "update" && data.ticket.id === ticket?.id) {
-        // Usar foto mais recente se tivermos
-        const incomingPic = data.ticket?.contact?.urlPicture;
-        const mostRecent = latestContactPic.current || incomingPic;
-        if (mostRecent && mostRecent !== incomingPic) {
-          data.ticket.contact = { ...data.ticket.contact, urlPicture: mostRecent };
-        }
-
         setTicket(data.ticket);
+
+        // ✅ Preservar a foto mais recente ao atualizar o ticket
+        const freshPic = latestContactPic.current;
+
+        setTicket((prev) => {
+          const updated = data.ticket;
+          if (freshPic && updated.contact) {
+            updated.contact.urlPicture = freshPic;
+          }
+          return updated;
+        });
+
+        // Sincronizar contact preservando a foto mais recente
+        setContact((prevContact) => {
+          const incomingContact = data.ticket?.contact;
+          if (!incomingContact) return prevContact;
+
+          // Foto mais recente: ref > state atual > incoming
+          const bestPic =
+            latestContactPic.current ||
+            prevContact?.urlPicture ||
+            incomingContact?.urlPicture;
+
+          return {
+            ...prevContact,
+            ...incomingContact,
+            urlPicture: bestPic
+              ? `${bestPic.split("?")[0]}?t=${Date.now()}`
+              : incomingContact?.urlPicture,
+          };
+        });
       }
 
       if (data.action === "delete" && data.ticketId === ticket?.id) {
@@ -206,6 +258,11 @@ const Ticket = () => {
 
     const onCompanyContactTicket = (data) => {
       if (data.action === "update") {
+        console.log(
+          "[CONTACT UPDATE] Dados recebidos:",
+          data.contact?.urlPicture,
+        );
+
         setContact((prevState) => {
           const matchById = prevState.id === data.contact?.id;
           const normalizeNumber = (n) => n?.replace(/\D/g, "");
@@ -215,11 +272,42 @@ const Ticket = () => {
 
           if (matchById || matchByNumber) {
             const updatedContact = { ...prevState, ...data.contact };
+
             if (updatedContact.urlPicture) {
-              updatedContact.urlPicture = `${updatedContact.urlPicture}?t=${Date.now()}`;
-              // Salvar na ref e localStorage para persistir entre fechamento/reabertura
+              updatedContact.urlPicture = `${updatedContact.urlPicture.split("?")[0]}?t=${Date.now()}`;
               storeContactPic(updatedContact);
+              latestContactPic.current = updatedContact.urlPicture;
+            } else {
+              updatedContact.urlPicture = null;
+              latestContactPic.current = null; // limpa a ref
+
+              try {
+                const store = JSON.parse(
+                  localStorage.getItem("contactPics") || "{}",
+                );
+                delete store[`${companyId}-${updatedContact.number}`];
+                delete store[`${companyId}-${updatedContact.id}`];
+                localStorage.setItem("contactPics", JSON.stringify(store));
+                console.log(
+                  "[CONTACT UPDATE] ✅ Cache limpo para contato sem foto",
+                );
+              } catch (e) {
+                console.error(
+                  "[CONTACT UPDATE] Erro ao limpar localStorage:",
+                  e,
+                );
+              }
+
+              // Forçar atualização do ticket.contact também
+              setTicket((prev) => ({
+                ...prev,
+                contact: {
+                  ...prev.contact,
+                  urlPicture: updatedContact.urlPicture,
+                },
+              }));
             }
+
             return updatedContact;
           }
           return prevState;

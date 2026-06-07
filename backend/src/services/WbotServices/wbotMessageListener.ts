@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/node";
 import { get, isNil, isNull } from "lodash";
 import { REDIS_URI_MSG_CONN } from "../../config/redis";
 import { col } from "sequelize";
+import axios from "axios";
 
 import {
   downloadMediaMessage,
@@ -65,6 +66,7 @@ import Whatsapp from "../../models/Whatsapp";
 import QueueIntegrations from "../../models/QueueIntegrations";
 import ShowFileService from "../FileServices/ShowService";
 import { WbotSession } from "../../@types/WbotSession";
+import { normalizeContactToEmit } from "../../utils/ContactPicture";
 
 import OpenAI from "openai";
 import ffmpeg from "fluent-ffmpeg";
@@ -5496,17 +5498,14 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
-    // console.log(`rawMessage =>:${JSON.stringify(rawMessages)}`);
-
     console.log(
       `[FLOW][1] messages.upsert recebido | type: ${messageUpsert.type} | qtd: ${rawMessages.length} | wbot: ${wbot.id}`
     );
 
     for (const message of rawMessages) {
-      // 🔥 1️⃣ Reaction
       if (message.message?.reactionMessage) {
         await handleBaileysReaction(message, wbot, companyId);
-        continue; // pula para próxima mensagem
+        continue;
       }
 
       console.log(
@@ -5524,7 +5523,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       );
     }
 
-    // const messages = rawMessages.filter(filterMessages);
     const messages = rawMessages.filter(
       msg => filterMessages(msg) && !msg.message?.reactionMessage
     );
@@ -5706,43 +5704,134 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("contacts.update", async (contacts: any) => {
+    console.log(
+      `[PIC-EVENT] contacts.update disparado | qtd: ${contacts.length} | wbot: ${wbot.id}`
+    );
+
     for (const contact of contacts) {
+      console.log(
+        `[PIC-EVENT] Contato recebido:`,
+        JSON.stringify(contact, null, 2)
+      );
+
       try {
         if (!contact?.id) continue;
 
-        if (
-          !contact.id.includes("@s.whatsapp.net") &&
-          !contact.id.includes("@g.us")
-        ) {
-          continue;
-        }
-
+        const isLid = contact.id.includes("@lid");
         const isGroup = contact.id.includes("@g.us");
-        const number = isGroup
-          ? contact.id.replace("@g.us", "")
-          : contact.id.replace("@s.whatsapp.net", "");
+        const isWNet = contact.id.includes("@s.whatsapp.net");
 
-        if (!/^\d{10,18}$/.test(number)) {
+        // Aceita @s.whatsapp.net, @g.us e @lid
+        if (!isWNet && !isGroup && !isLid) {
+          console.log(`[PIC-EVENT] Ignorado — JID inválido: ${contact.id}`);
           continue;
         }
 
-        // Se contact.imgUrl é vazio, o contato não tem foto de perfil
-        if (contact.imgUrl === "") {
-          logger.info(
-            `[PIC] Contato ${number} removeu ou não possui foto de perfil, ignorando update`
+        // Se é @lid, busca o contato pelo lid no banco
+        let jidParaBuscarFoto = contact.id;
+        let number: string;
+
+        if (isLid) {
+          console.log(
+            `[PIC-EVENT] JID é @lid, buscando contato no banco: ${contact.id}`
           );
+
+          const lidNumber = contact.id.replace("@lid", "");
+          const foundContact = await Contact.findOne({
+            where: {
+              companyId,
+              [Op.or]: [{ lid: contact.id }, { number: lidNumber }]
+            }
+          });
+
+          if (!foundContact) {
+            console.log(
+              `[PIC-EVENT] Contato @lid não encontrado no banco: ${contact.id}`
+            );
+            continue;
+          }
+
+          number = foundContact.number;
+          jidParaBuscarFoto = `${number}@s.whatsapp.net`;
+          console.log(
+            `[PIC-EVENT] @lid resolvido para número: ${number}, buscando foto em: ${jidParaBuscarFoto}`
+          );
+        } else {
+          number = isGroup
+            ? contact.id.replace("@g.us", "")
+            : contact.id.replace("@s.whatsapp.net", "");
+
+          if (!/^\d{10,18}$/.test(number)) {
+            console.log(`[PIC-EVENT] Ignorado — número inválido: ${number}`);
+            continue;
+          }
+        }
+
+        const io = getIO();
+
+        // Contato removeu a foto
+        // Contato removeu a foto
+        if (contact.imgUrl === "" || contact.imgUrl === "removed") {
+          const existingContact = await Contact.findOne({
+            where: { companyId, number }
+          });
+          if (existingContact) {
+            // Apagar arquivo em disco
+            const publicFolder = path.resolve(
+              __dirname,
+              "..",
+              "..",
+              "..",
+              "public"
+            );
+            const folder = path.resolve(
+              publicFolder,
+              `company${companyId}`,
+              "contacts"
+            );
+            const filePath = path.join(folder, `${existingContact.id}.jpeg`);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+
+            // Zerar os dois campos no banco
+            await existingContact.update({
+              profilePicUrl: "",
+              urlPicture: ""
+            });
+
+            await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
+
+            io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+              action: "update",
+              contact: {
+                ...existingContact.toJSON(),
+                urlPicture: null
+              }
+            });
+            console.log(`[PIC-EVENT] Foto removida para contato ${number}`);
+          }
           continue;
         }
 
-        // Busca a URL mais recente da foto diretamente do WhatsApp
-        const profilePicUrl = await wbot
-          .profilePictureUrl(contact.id, "image")
-          .catch(() => null);
+        // imgUrl === "changed" ou qualquer valor — buscar foto atualizada
+        console.log(
+          `[PIC-EVENT] Buscando foto atualizada para ${jidParaBuscarFoto}`
+        );
+        let profilePicUrl: string | null = null;
+        try {
+          profilePicUrl = await Promise.race([
+            wbot.profilePictureUrl(jidParaBuscarFoto, "image"),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
+          ]);
+        } catch (e) {
+          console.log(`[PIC-EVENT] Erro ao buscar foto: ${e.message}`);
+        }
+
+        console.log(`[PIC-EVENT] profilePicUrl obtida: ${profilePicUrl}`);
 
         if (!profilePicUrl || profilePicUrl.includes("nopicture")) {
-          logger.info(
-            `[PIC] Contato ${number} não possui foto de perfil válida no WhatsApp`
-          );
+          console.log(`[PIC-EVENT] Foto inválida ou nula para ${number}`);
           continue;
         }
 
@@ -5751,23 +5840,37 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           number,
           isGroup,
           companyId,
-          remoteJid: contact.id,
+          remoteJid: jidParaBuscarFoto,
           profilePicUrl,
           whatsappId: wbot.id,
           wbot
         };
 
-        await CreateOrUpdateContactService(contactData);
+        const updatedContact = await CreateOrUpdateContactService(contactData);
+        await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
 
-        logger.info(`[PIC] Foto de perfil atualizada para o contato ${number}`);
+        // ✅ MODIFICAÇÃO: usar URL local em vez da URL do WhatsApp
+        const backendUrl = process.env.BACKEND_URL || "";
+        const localPicUrl = `${backendUrl}/public/company${companyId}/contacts/${updatedContact.id}.jpeg`;
+
+        io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+          action: "update",
+          contact: {
+            ...updatedContact.toJSON(), // ou spread normal se não for instância Sequelize
+            urlPicture: `${localPicUrl}?t=${Date.now()}`
+          }
+        });
+        console.log(
+          `[PIC-EVENT] ✅ Foto atualizada em tempo real para contato ${number}`
+        );
       } catch (error) {
         logger.error(
-          `[PIC] Erro ao atualizar foto de perfil do contato ${contact?.id}: ${error.message}`
+          `[PIC-EVENT] Erro ao processar contato ${contact?.id}: ${error.message}`
         );
       }
     }
   });
-  // Handlers extras removidos para produção
+
   wbot.ev.on("group-participants.update", async event => {
     console.log(
       "group-participants.update.listener",

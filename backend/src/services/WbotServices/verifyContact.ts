@@ -11,8 +11,46 @@ import * as queues from "../../queues";
 import logger from "../../utils/logger";
 import { IMe } from "./wbotMessageListener";
 import { Session } from "../../libs/wbot";
+import cacheLayer from "../../libs/cache";
+import { getIO } from "../../libs/socket";
 
-const lidUpdateMutex = new Mutex();
+// ─── Mutex por contato (evita gargalo global) ───────────────────────────────
+const mutexMap = new Map<string, Mutex>();
+const getMutex = (key: string): Mutex => {
+  if (!mutexMap.has(key)) {
+    mutexMap.set(key, new Mutex());
+    setTimeout(() => mutexMap.delete(key), 30_000);
+  }
+  return mutexMap.get(key)!;
+};
+
+// ─── Helper: remove domínio do JID com segurança ────────────────────────────
+const stripDomain = (jid: string): string =>
+  jid.includes("@") ? jid.substring(0, jid.indexOf("@")) : jid;
+
+// ─── Helper: onWhatsApp com timeout e cache ──────────────────────────────────
+const onWhatsAppCached = async (
+  wbot: Session,
+  jid: string,
+  companyId: number
+): Promise<any[] | null> => {
+  const cacheKey = `onwa:${companyId}:${jid}`;
+  const cached = await cacheLayer.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  const result = await Promise.race([
+    wbot.onWhatsApp(jid),
+    new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
+  ]);
+
+  if (result) {
+    await cacheLayer.set(cacheKey, JSON.stringify(result), "EX", 86400);
+  }
+
+  return result;
+};
 
 export async function checkAndDedup(
   contact: Contact,
@@ -22,46 +60,47 @@ export async function checkAndDedup(
     where: {
       companyId: contact.companyId,
       number: {
-        [Op.or]: [lid, lid.substring(0, lid.indexOf("@"))]
+        [Op.or]: [lid, stripDomain(lid)]
       }
     }
   });
 
-  if (!lidContact) {
-    return;
-  }
+  if (!lidContact) return;
 
   await Message.update(
     { contactId: contact.id },
-    {
-      where: {
-        contactId: lidContact.id,
-        companyId: contact.companyId
-      }
-    }
+    { where: { contactId: lidContact.id, companyId: contact.companyId } }
   );
 
   const allTickets = await Ticket.findAll({
-    where: {
-      contactId: lidContact.id,
-      companyId: contact.companyId
-    }
+    where: { contactId: lidContact.id, companyId: contact.companyId }
   });
 
   await Ticket.update(
     { contactId: contact.id },
-    {
-      where: {
-        contactId: lidContact.id,
-        companyId: contact.companyId
-      }
-    }
+    { where: { contactId: lidContact.id, companyId: contact.companyId } }
   );
 
   if (allTickets.length > 0) {
-    console.log(
+    logger.info(
       `[RDS CONTATO] Transferidos ${allTickets.length} tickets do contato ${lidContact.id} para ${contact.id}`
     );
+
+    // Notificar frontend após reassociação
+    const io = getIO();
+    for (const t of allTickets) {
+      try {
+        await t.reload({ include: [{ model: Contact, as: "contact" }] });
+        io.of(String(contact.companyId)).emit(
+          `company-${contact.companyId}-ticket`,
+          { action: "update", ticket: t }
+        );
+      } catch (e) {
+        logger.error(
+          `[RDS CONTATO] Erro ao emitir socket para ticket ${t.id}: ${e?.message}`
+        );
+      }
+    }
   }
 
   await lidContact.destroy();
@@ -89,8 +128,7 @@ export async function verifyContact(
     );
   }
 
-  const isNumberLikelyLid = !isLid && number && number.length > 15 && !isGroup;
-  if (isNumberLikelyLid) {
+  if (!isLid && number && number.length > 15 && !isGroup) {
     logger.info(
       `[RDS-LID-FIX] Número extraído parece ser um LID (muito longo): ${number}`
     );
@@ -102,36 +140,58 @@ export async function verifyContact(
     }, número extraído: ${number}, LID detectado: ${originalLid || "não"}`
   );
 
-  // ✅ CORREÇÃO PRINCIPAL: buscar profilePicUrl AQUI, antes de montar contactData
-  // Só busca para contatos individuais (não grupos, não @lid)
+  // ─── Foto de perfil com cache ─────────────────────────────────────────────
   let profilePicUrl: string | undefined;
   if (!isGroup && !isLid && wbot) {
+    const picCacheKey = `pic:${companyId}:${msgContact.id}`;
     try {
-      const timeout = new Promise<null>(resolve =>
-        setTimeout(() => resolve(null), 3000)
-      );
-      const fetched = await Promise.race([
-        wbot.profilePictureUrl(msgContact.id, "image"),
-        timeout
-      ]);
-      if (fetched && !fetched.includes("nopicture")) {
-        profilePicUrl = fetched;
-        logger.info(
-          `[PIC-VERIFY] Foto obtida para ${msgContact.id}: ${profilePicUrl}`
-        );
+      const cachedPic = await cacheLayer.get(picCacheKey);
+
+      if (cachedPic === "none") {
+        // sem foto — não chama WhatsApp
+      } else if (cachedPic) {
+        profilePicUrl = cachedPic;
       } else {
-        logger.info(
-          fetched === null
-            ? `[PIC-VERIFY] Timeout (3s) para ${msgContact.id} — continuando sem foto`
-            : `[PIC-VERIFY] Sem foto válida para ${msgContact.id}`
-        );
+        let fetched: string | null = null;
+        try {
+          fetched = await Promise.race([
+            wbot.profilePictureUrl(msgContact.id, "image"),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 3000))
+          ]);
+        } catch (e) {
+          const msg = e?.message || "";
+          await cacheLayer.set(
+            picCacheKey,
+            "none",
+            "EX",
+            msg.includes("item-not-found") ? 3600 : 1800
+          );
+          logger.warn(
+            `[PIC-VERIFY] Erro ao buscar foto para ${msgContact.id}: ${msg}`
+          );
+        }
+
+        if (fetched && !fetched.includes("nopicture")) {
+          profilePicUrl = fetched;
+          await cacheLayer.set(picCacheKey, fetched, "EX", 3600);
+        } else if (fetched !== null) {
+          await cacheLayer.set(picCacheKey, "none", "EX", 3600);
+          logger.warn(`[PIC-VERIFY] Sem foto válida para ${msgContact.id}`);
+        } else {
+          await cacheLayer.set(picCacheKey, "none", "EX", 300); // timeout → retry em 5min
+          logger.warn(
+            `[PIC-VERIFY] Timeout (3s) para ${msgContact.id} — continuando sem foto`
+          );
+        }
       }
     } catch (e) {
-      logger.info(
-        `[PIC-VERIFY] Erro ao buscar foto para ${msgContact.id}: ${e.message}`
+      logger.error(
+        `[PIC-VERIFY] Erro inesperado no cache para ${msgContact.id}: ${e?.message}`
       );
     }
   }
+
+  const picUpdate = profilePicUrl !== undefined ? { profilePicUrl } : {};
 
   const contactData = {
     name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
@@ -148,96 +208,74 @@ export async function verifyContact(
     return CreateOrUpdateContactService(contactData);
   }
 
-  return lidUpdateMutex.runExclusive(async () => {
+  return getMutex(`${companyId}:${number}`).runExclusive(async () => {
     let foundContact: Contact | null = null;
+
     if (isLid) {
       foundContact = await Contact.findOne({
         where: {
           companyId,
           [Op.or]: [
-            { lid: originalLid ? originalLid : msgContact.id },
-            { number: number },
-            { remoteJid: originalLid ? originalLid : msgContact.id }
+            { lid: originalLid ?? msgContact.id },
+            { number },
+            { remoteJid: originalLid ?? msgContact.id }
           ]
         },
         include: ["tags", "extraInfo", "whatsappLidMap"]
       });
     } else {
       foundContact = await Contact.findOne({
-        where: {
-          companyId,
-          number: number
-        }
+        where: { companyId, number }
       });
     }
 
+    // ─── Contato LID ────────────────────────────────────────────────────────
     if (isLid) {
       if (foundContact) {
-        return updateContact(foundContact, {
-          profilePicUrl: contactData.profilePicUrl
-        });
+        return updateContact(foundContact, picUpdate);
       }
 
       const foundMappedContact = await WhatsappLidMap.findOne({
-        where: {
-          companyId,
-          lid: number
-        },
+        where: { companyId, lid: number },
         include: [
-          {
-            model: Contact,
-            as: "contact",
-            include: ["tags", "extraInfo"]
-          }
+          { model: Contact, as: "contact", include: ["tags", "extraInfo"] }
         ]
       });
-
       if (foundMappedContact) {
-        return updateContact(foundMappedContact.contact, {
-          profilePicUrl: contactData.profilePicUrl
-        });
+        return updateContact(foundMappedContact.contact, picUpdate);
       }
 
       const partialLidContact = await Contact.findOne({
-        where: {
-          companyId,
-          number: number.substring(0, number.indexOf("@"))
-        },
+        where: { companyId, number: stripDomain(number) },
         include: ["tags", "extraInfo"]
       });
-
       if (partialLidContact) {
         return updateContact(partialLidContact, {
           number: contactData.number,
-          profilePicUrl: contactData.profilePicUrl
+          ...picUpdate
         });
       }
-    } else if (foundContact) {
+    }
+
+    // ─── Contato existente ───────────────────────────────────────────────────
+    else if (foundContact) {
       if (!foundContact.whatsappLidMap) {
         try {
-          const ow = await wbot.onWhatsApp(msgContact.id);
-          const owItem = ow?.[0] as any;
+          const owResult = await onWhatsAppCached(
+            wbot,
+            msgContact.id,
+            companyId
+          );
+          const owItem = owResult?.[0] as any;
 
           if (owItem?.exists) {
             const lid = owItem?.lid as string;
-
             if (lid) {
               await checkAndDedup(foundContact, lid);
-
-              const lidMap = await WhatsappLidMap.findOne({
-                where: {
-                  companyId,
-                  lid,
-                  contactId: foundContact.id
-                }
+              await WhatsappLidMap.findOrCreate({
+                where: { companyId, lid, contactId: foundContact.id },
+                defaults: { companyId, lid, contactId: foundContact.id }
               });
-              if (!lidMap) {
-                await WhatsappLidMap.create({
-                  companyId,
-                  lid,
-                  contactId: foundContact.id
-                });
-              }
               logger.info(
                 `[RDS CONTATO] LID obtido para contato ${foundContact.id} (${msgContact.id}): ${lid}`
               );
@@ -251,7 +289,6 @@ export async function verifyContact(
           logger.error(
             `[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`
           );
-
           try {
             await queues["lidRetryQueue"].add(
               "RetryLidLookup",
@@ -263,122 +300,72 @@ export async function verifyContact(
                 retryCount: 1,
                 maxRetries: 5
               },
-              {
-                delay: 60 * 1000,
-                attempts: 1,
-                removeOnComplete: true
-              }
-            );
-            logger.info(
-              `[RDS CONTATO] Agendada retentativa de obtenção de LID para contato ${foundContact.id} (${msgContact.id})`
+              { delay: 60_000, attempts: 1, removeOnComplete: true }
             );
           } catch (queueError) {
             logger.error(
-              `[RDS CONTATO] Erro ao adicionar contato ${foundContact.id} à fila de retentativa: ${queueError.message}`
+              `[RDS CONTATO] Erro ao adicionar à fila de retentativa: ${queueError.message}`
             );
           }
         }
       }
-      // ✅ Passa profilePicUrl atualizado para contato existente
-      return updateContact(foundContact, {
-        profilePicUrl: contactData.profilePicUrl
-      });
-    } else if (!isGroup && !foundContact) {
+      return updateContact(foundContact, picUpdate);
+    }
+
+    // ─── Contato novo ────────────────────────────────────────────────────────
+    else if (!isGroup && !foundContact) {
       let newContact: Contact | null = null;
-
       try {
-        const ow = await wbot.onWhatsApp(msgContact.id);
+        const owResult = await onWhatsAppCached(wbot, msgContact.id, companyId);
 
-        if (!ow?.[0]?.exists) {
-          if (originalLid && !contactData.lid) {
-            contactData.lid = originalLid;
-          }
-
+        if (!owResult?.[0]?.exists) {
+          if (originalLid && !contactData.lid) contactData.lid = originalLid;
           return CreateOrUpdateContactService(contactData);
         }
 
-        const owItem = ow?.[0] as any;
-        let lid = owItem?.lid as string;
-
-        if (!lid && originalLid) {
-          lid = originalLid;
-        }
-
-        try {
-          const firstItem = ow && ow.length > 0 ? ow[0] : null;
-          if (firstItem) {
-            const firstItemAny = firstItem as any;
-            if (firstItemAny.jid) {
-              const parts = String(firstItemAny.jid).split("@");
-              if (parts.length > 0) {
-                const owNumber = parts[0];
-                if (owNumber && owNumber !== number) {
-                }
-              }
-            }
-          }
-        } catch (e) {
-          logger.error(
-            `[RDS-LID-FIX] Erro ao extrair número da resposta onWhatsApp: ${e.message}`
-          );
-        }
+        const owItem = owResult[0] as any;
+        const lid: string = owItem?.lid || originalLid || "";
 
         if (lid) {
           const lidContact = await Contact.findOne({
             where: {
               companyId,
-              number: {
-                [Op.or]: [lid, lid.substring(0, lid.indexOf("@"))]
-              }
+              number: { [Op.or]: [lid, stripDomain(lid)] }
             },
             include: ["tags", "extraInfo"]
           });
 
           if (lidContact) {
-            await lidContact.update({
-              lid: lid
+            await lidContact.update({ lid });
+            await WhatsappLidMap.findOrCreate({
+              where: { companyId, lid },
+              defaults: { companyId, lid, contactId: lidContact.id }
             });
-
-            await WhatsappLidMap.create({
-              companyId,
-              lid,
-              contactId: lidContact.id
-            });
-
             return updateContact(lidContact, {
               number: contactData.number,
-              profilePicUrl: contactData.profilePicUrl
+              ...picUpdate
             });
-          } else {
-            const contactDataWithLid = {
-              ...contactData,
-              lid: lid
-            };
-            newContact = await CreateOrUpdateContactService(contactDataWithLid);
-
-            if (newContact.lid !== lid) {
-              await newContact.update({ lid: lid });
-            }
-
-            await WhatsappLidMap.create({
-              companyId,
-              lid,
-              contactId: newContact.id
-            });
-
-            return newContact;
           }
+
+          newContact = await CreateOrUpdateContactService({
+            ...contactData,
+            lid
+          });
+          if (newContact.lid !== lid) await newContact.update({ lid });
+          await WhatsappLidMap.findOrCreate({
+            where: { companyId, lid },
+            defaults: { companyId, lid, contactId: newContact.id }
+          });
+          return newContact;
         }
       } catch (error) {
         logger.error(
           `[RDS CONTATO] Erro ao verificar contato ${msgContact.id} no WhatsApp: ${error.message}`
         );
-
         newContact = await CreateOrUpdateContactService(contactData);
         logger.info(
           `[RDS CONTATO] Contato criado sem LID devido a erro: ${newContact.id}`
         );
-
         try {
           await queues["lidRetryQueue"].add(
             "RetryLidLookup",
@@ -387,25 +374,17 @@ export async function verifyContact(
               whatsappId: wbot.id || null,
               companyId,
               number: msgContact.id,
-              lid: originalLid ? originalLid : msgContact.id,
+              lid: originalLid ?? msgContact.id,
               retryCount: 1,
               maxRetries: 5
             },
-            {
-              delay: 60 * 1000,
-              attempts: 1,
-              removeOnComplete: true
-            }
-          );
-          logger.info(
-            `[RDS CONTATO] Agendada retentativa de obtenção de LID para novo contato ${newContact.id} (${msgContact.id})`
+            { delay: 60_000, attempts: 1, removeOnComplete: true }
           );
         } catch (queueError) {
           logger.error(
-            `[RDS CONTATO] Erro ao adicionar contato ${newContact.id} à fila de retentativa: ${queueError.message}`
+            `[RDS CONTATO] Erro ao adicionar novo contato à fila de retentativa: ${queueError.message}`
           );
         }
-
         return newContact;
       }
     }

@@ -128,7 +128,7 @@ const AcceptTicketWithouSelectQueue = ({
 
       if (!settingMessage.greetingAcceptedMessage) {
         toast.warning(
-          i18n.t("messagesList.header.buttons.greetingAcceptedMessage")
+          i18n.t("messagesList.header.buttons.greetingAcceptedMessage"),
         );
         return;
       }

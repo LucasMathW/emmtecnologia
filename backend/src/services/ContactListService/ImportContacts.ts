@@ -32,7 +32,13 @@ export async function ImportContacts(
       has(row, "telefone") ||
       has(row, "Telefone")
     ) {
-      number = row["numero"] || row["número"] || row["Numero"] || row["Número"] || row["telefone"] || row["Telefone"];
+      number =
+        row["numero"] ||
+        row["número"] ||
+        row["Numero"] ||
+        row["Número"] ||
+        row["telefone"] ||
+        row["Telefone"];
       number = `${number}`.replace(/\D/g, "");
     }
 
@@ -65,12 +71,19 @@ export async function ImportContacts(
   if (contactList) {
     for (let newContact of contactList) {
       try {
-        const whatsapp = await Whatsapp.findOne({ where: { companyId, status: 'CONNECTED', channel: 'whatsapp' }, limit: 1 });
+        const whatsapp = await Whatsapp.findOne({
+          where: { companyId, status: "CONNECTED", channel: "whatsapp" },
+          limit: 1
+        });
         const wbot = await getWbot(whatsapp.id);
-        const response = await wbot.onWhatsApp(`${newContact.number}@s.whatsapp.net`);
-       
+        const response = await wbot.onWhatsApp(
+          `${newContact.number}@s.whatsapp.net`
+        );
+
         newContact.isWhatsappValid = response[0]?.exists ? true : false;
-        newContact.number = response[0]?.exists ? response[0]?.jid.split("@")[0] : newContact.number;
+        newContact.number = response[0]?.exists
+          ? response[0]?.jid.split("@")[0]
+          : newContact.number;
 
         await newContact.save();
       } catch (e) {
@@ -78,11 +91,13 @@ export async function ImportContacts(
       }
       const io = getIO();
 
-      io.of(String(companyId))
-        .emit(`company-${companyId}-ContactListItem-${+contactListId}`, {
+      io.of(String(companyId)).emit(
+        `company-${companyId}-ContactListItem-${+contactListId}`,
+        {
           action: "reload",
           records: [newContact]
-        });
+        }
+      );
     }
   }
 

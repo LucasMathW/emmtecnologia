@@ -1,4 +1,3 @@
-// src/models/Contact.ts - Versão atualizada com birthDate
 import {
   Table,
   Column,
@@ -126,15 +125,21 @@ class Contact extends Model<Contact> {
 
   @Column
   get urlPicture(): string | null {
-    if (this.getDataValue("urlPicture")) {
-      return this.getDataValue("urlPicture") === "nopicture.png"
-        ? `${process.env.FRONTEND_URL}/nopicture.png`
-        : `${process.env.BACKEND_URL}${process.env.PROXY_PORT ? `:${process.env.PROXY_PORT}` : ""
-        }/public/company${this.companyId}/contacts/${this.getDataValue(
-          "urlPicture"
-        )}`;
+    const pic = this.getDataValue("urlPicture"); // ← era "profilePicUrl"
+
+    if (!pic || pic === "") return null;
+
+    if (pic.startsWith("http://") || pic.startsWith("https://")) {
+      return pic;
     }
-    return null;
+
+    if (pic === "nopicture.png") {
+      return `${process.env.FRONTEND_URL}/nopicture.png`;
+    }
+
+    return `${process.env.BACKEND_URL}${
+      process.env.PROXY_PORT ? `:${process.env.PROXY_PORT}` : ""
+    }/public/company${this.companyId}/contacts/${pic}`;
   }
 
   @BelongsToMany(() => User, () => ContactWallet, "contactId", "walletId")
@@ -152,103 +157,114 @@ class Contact extends Model<Contact> {
 
   //  MÉTODOS PARA ANIVERSÁRIO
 
-// Adicionar no modelo Contact.ts - Método corrigido para buscar aniversariantes
+  // Adicionar no modelo Contact.ts - Método corrigido para buscar aniversariantes
 
-/**
- * Verifica se hoje é aniversário do contato
- */
-get isBirthdayToday(): boolean {
-  if (!this.birthDate) return false;
+  /**
+   * Verifica se hoje é aniversário do contato
+   */
+  get isBirthdayToday(): boolean {
+    if (!this.birthDate) return false;
 
-  const moment = require('moment-timezone');
-  const today = moment().tz("America/Sao_Paulo");
-  const birthDate = moment(this.birthDate).tz("America/Sao_Paulo");
+    const moment = require("moment-timezone");
+    const today = moment().tz("America/Sao_Paulo");
+    const birthDate = moment(this.birthDate).tz("America/Sao_Paulo");
 
-  return (
-    today.month() === birthDate.month() &&
-    today.date() === birthDate.date()
-  );
-}
-
-/**
- * Calcula a idade atual do contato
- */
-get currentAge(): number | null {
-  if (!this.birthDate) return null;
-
-  const moment = require('moment-timezone');
-  const today = moment().tz("America/Sao_Paulo");
-  const birthDate = moment(this.birthDate).tz("America/Sao_Paulo");
-
-  let age = today.year() - birthDate.year();
-
-  // Ajustar se ainda não fez aniversário este ano
-  const monthDiff = today.month() - birthDate.month();
-  if (monthDiff < 0 || (monthDiff === 0 && today.date() < birthDate.date())) {
-    age--;
+    return (
+      today.month() === birthDate.month() && today.date() === birthDate.date()
+    );
   }
 
-  return age;
-}
+  /**
+   * Calcula a idade atual do contato
+   */
+  get currentAge(): number | null {
+    if (!this.birthDate) return null;
 
-/**
- * Busca todos os contatos aniversariantes de hoje de uma empresa
- */
-static async getTodayBirthdays(companyId: number): Promise<Contact[]> {
-  const moment = require('moment-timezone');
-  const today = moment().tz("America/Sao_Paulo");
-  const month = today.month() + 1;
-  const day = today.date();
+    const moment = require("moment-timezone");
+    const today = moment().tz("America/Sao_Paulo");
+    const birthDate = moment(this.birthDate).tz("America/Sao_Paulo");
 
-  logger.info(` [Contact.getTodayBirthdays] Buscando aniversariantes - Hoje: ${today.format('DD/MM/YYYY')}`);
+    let age = today.year() - birthDate.year();
 
-  // Buscar todos os contatos com data de nascimento
-  const contacts = await Contact.findAll({
-    where: {
-      companyId,
-      active: true,
-      birthDate: {
-        [require('sequelize').Op.ne]: null
-      }
-    },
-    include: [
-      'company',
-      'whatsapp',
-      {
-        model: ContactWallet,
-        include: [
-          {
-            model: User,
-            attributes: ['id', 'name']
-          }
-        ]
-      }
-    ]
-  });
-
-  logger.info(` [Contact.getTodayBirthdays] Total de contatos com birthDate: ${contacts.length}`);
-
-  // Filtrar no JavaScript para evitar problemas de timezone do banco
-  const birthdayContacts = contacts.filter(contact => {
-    if (!contact.birthDate) return false;
-
-    const birthDate = moment(contact.birthDate).tz("America/Sao_Paulo");
-    const birthMonth = birthDate.month() + 1;
-    const birthDay = birthDate.date();
-
-    const isToday = birthMonth === month && birthDay === day;
-
-    if (isToday) {
-      logger.info(` [Contact.getTodayBirthdays] Aniversariante encontrado: ${contact.name} - ${birthDate.format('DD/MM/YYYY')}`);
+    // Ajustar se ainda não fez aniversário este ano
+    const monthDiff = today.month() - birthDate.month();
+    if (monthDiff < 0 || (monthDiff === 0 && today.date() < birthDate.date())) {
+      age--;
     }
 
-    return isToday;
-  });
+    return age;
+  }
 
-  logger.info(` [Contact.getTodayBirthdays] Aniversariantes de hoje: ${birthdayContacts.length}`);
+  /**
+   * Busca todos os contatos aniversariantes de hoje de uma empresa
+   */
+  static async getTodayBirthdays(companyId: number): Promise<Contact[]> {
+    const moment = require("moment-timezone");
+    const today = moment().tz("America/Sao_Paulo");
+    const month = today.month() + 1;
+    const day = today.date();
 
-  return birthdayContacts;
-}
+    logger.info(
+      ` [Contact.getTodayBirthdays] Buscando aniversariantes - Hoje: ${today.format(
+        "DD/MM/YYYY"
+      )}`
+    );
+
+    // Buscar todos os contatos com data de nascimento
+    const contacts = await Contact.findAll({
+      where: {
+        companyId,
+        active: true,
+        birthDate: {
+          [require("sequelize").Op.ne]: null
+        }
+      },
+      include: [
+        "company",
+        "whatsapp",
+        {
+          model: ContactWallet,
+          include: [
+            {
+              model: User,
+              attributes: ["id", "name"]
+            }
+          ]
+        }
+      ]
+    });
+
+    logger.info(
+      ` [Contact.getTodayBirthdays] Total de contatos com birthDate: ${contacts.length}`
+    );
+
+    // Filtrar no JavaScript para evitar problemas de timezone do banco
+    const birthdayContacts = contacts.filter(contact => {
+      if (!contact.birthDate) return false;
+
+      const birthDate = moment(contact.birthDate).tz("America/Sao_Paulo");
+      const birthMonth = birthDate.month() + 1;
+      const birthDay = birthDate.date();
+
+      const isToday = birthMonth === month && birthDay === day;
+
+      if (isToday) {
+        logger.info(
+          ` [Contact.getTodayBirthdays] Aniversariante encontrado: ${
+            contact.name
+          } - ${birthDate.format("DD/MM/YYYY")}`
+        );
+      }
+
+      return isToday;
+    });
+
+    logger.info(
+      ` [Contact.getTodayBirthdays] Aniversariantes de hoje: ${birthdayContacts.length}`
+    );
+
+    return birthdayContacts;
+  }
 }
 
 export default Contact;

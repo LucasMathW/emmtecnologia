@@ -103,10 +103,13 @@ export const updateContact = async (
   await contact.reload();
 
   const io = getIO();
-  io.of(String(contact.companyId)).emit(`company-${contact.companyId}-contact`, {
-    action: "update",
-    contact
-  });
+  io.of(String(contact.companyId)).emit(
+    `company-${contact.companyId}-contact`,
+    {
+      action: "update",
+      contact: contact.toJSON()
+    }
+  );
   return contact;
 };
 
@@ -597,23 +600,17 @@ const CreateOrUpdateContactService = async ({
       if (updateImage || isNil(contact.urlPicture)) {
         await contact.update({
           urlPicture: filename,
+          profilePicUrl: filename,
           pictureUpdated: true
         });
         await contact.reload();
       }
     }
 
-    if (createContact) {
-      io.of(String(companyId)).emit(`company-${companyId}-contact`, {
-        action: "create",
-        contact
-      });
-    } else {
-      io.of(String(companyId)).emit(`company-${companyId}-contact`, {
-        action: "update",
-        contact
-      });
-    }
+    io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+      action: createContact ? "create" : "update",
+      contact: contact.toJSON()
+    });
 
     if (ENABLE_LID_DEBUG) {
       logger.info(

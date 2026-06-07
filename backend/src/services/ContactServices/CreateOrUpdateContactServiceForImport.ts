@@ -33,7 +33,7 @@ const CreateOrUpdateContactServiceForImport = async ({
 }: Request): Promise<Contact> => {
   // Normalizar número de telefone para evitar duplicações com formatos diferentes
   const number = isGroup ? rawNumber : rawNumber.replace(/[^0-9]/g, "");
-  
+
   const io = getIO();
   let contact: Contact | null;
 
@@ -44,17 +44,17 @@ const CreateOrUpdateContactServiceForImport = async ({
     if (contact) {
       // Atualizar contato existente
       if (contact.companyId === null) {
-        await contact.update({ 
-          name, 
-          profilePicUrl, 
+        await contact.update({
+          name,
+          profilePicUrl,
           companyId,
           email: email || contact.email,
           whatsappId: whatsappId || contact.whatsappId,
           birthDate
         });
       } else {
-        await contact.update({ 
-          name, 
+        await contact.update({
+          name,
           profilePicUrl,
           email: email || contact.email,
           whatsappId: whatsappId || contact.whatsappId,
@@ -62,11 +62,10 @@ const CreateOrUpdateContactServiceForImport = async ({
         });
       }
 
-      io.of(String(companyId))
-        .emit(`company-${companyId}-contact`, {
-          action: "update",
-          contact
-        });
+      io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+        action: "update",
+        contact
+      });
     } else {
       // Criar novo contato
       contact = await Contact.create({
@@ -82,11 +81,10 @@ const CreateOrUpdateContactServiceForImport = async ({
         birthDate
       });
 
-      io.of(String(companyId))
-        .emit(`company-${companyId}-contact`, {
-          action: "create",
-          contact
-        });
+      io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+        action: "create",
+        contact
+      });
     }
 
     return contact;
