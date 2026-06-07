@@ -304,8 +304,7 @@ const FindOrCreateTicketService = async (
             ticketData.isGroup = groupContact ? true : false;
           }
         }
-      } catch (error) {
-      }
+      } catch (error) {}
     }
 
     ticket = await Ticket.create(ticketData);

@@ -3758,7 +3758,7 @@ const handleMessage = async (
   isImported: boolean = false
 ): Promise<void> => {
   const tStart = Date.now();
-  console.log(
+  logger.info(
     `[FLOW][HM-START] handleMessage iniciado | msgId: ${msg.key.id} | fromMe: ${msg.key.fromMe} | companyId: ${companyId} | ts: ${tStart}`
   );
 
@@ -3770,7 +3770,7 @@ const handleMessage = async (
   });
 
   if (existingMessage) {
-    console.log(
+    logger.info(
       `[FLOW][HM-SKIP] Mensagem já existe, ignorando | msgId: ${
         msg.key.id
       } | ts: ${Date.now()}`
@@ -4178,8 +4178,6 @@ const handleMessage = async (
             ticketId: ticket.id
           }
         });
-
-        // console.log("DEBUG LUCAS messageUpdate =>", messageToUpdate);
 
         if (!messageToUpdate) return;
 
@@ -4689,15 +4687,15 @@ const handleMessage = async (
           );
 
           if (campaignExecuted) {
-            console.log(
-              "[RDS-4121 - HANDLE MESSAGE] ✅ Campanha executada, parando outros fluxos"
+            logger.info(
+              "[HANDLE MESSAGE] Campanha executada, parando outros fluxos"
             );
+
             return;
           }
         } catch (error) {
-          console.error(
-            "[RDS-4125 HANDLE MESSAGE] Erro ao verificar campanhas:",
-            error
+          logger.error(
+            `[HANDLE MESSAGE] Erro ao verificar campanhas: ${error}`
           );
         }
       }
@@ -4855,9 +4853,8 @@ const handleMessage = async (
           }
         }
       } catch (error) {
-        console.error(
-          "[inputNode] Erro ao processar resposta do nó de input:",
-          error
+        logger.error(
+          `[inputNode] Erro ao processar resposta do nó de input: ${error}`
         );
       }
     }
