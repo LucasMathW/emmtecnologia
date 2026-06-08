@@ -5729,6 +5729,11 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       try {
         if (!contact?.id) continue;
 
+        // ✅ Ignorar eventos sem informação de foto
+        if (contact.imgUrl === undefined || contact.imgUrl === null) {
+          continue;
+        }
+
         const isLid = contact.id.includes("@lid");
         const isGroup = contact.id.includes("@g.us");
         const isWNet = contact.id.includes("@s.whatsapp.net");
