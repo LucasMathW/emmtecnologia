@@ -851,6 +851,17 @@ export const verifyMediaMessage = async (
   try {
     const media = await downloadMedia(msg, ticket?.imported, wbot);
 
+    logger.info(
+      "media retornado: " +
+        JSON.stringify({
+          hasMedia: !!media,
+          mimetype: media?.mimetype,
+          filename: media?.filename,
+          hasData: !!media?.data,
+          msgType: Object.keys(msg.message || {})
+        })
+    );
+
     if (!media && ticket.imported) {
       const body =
         "*System:* \nFalha no download da mídia verifique no dispositivo";
