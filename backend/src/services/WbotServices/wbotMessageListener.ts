@@ -4060,6 +4060,17 @@ const handleMessage = async (
       )
     );
 
+    if (!isGroup && !msg.key.fromMe) {
+      try {
+        const jidParaSubscribe =
+          contact.remoteJid || `${contact.number}@s.whatsapp.net`;
+        await wbot.presenceSubscribe(jidParaSubscribe);
+        logger.info(`[PRESENCE] ✅ Subscribed em ${jidParaSubscribe}`);
+      } catch (subError) {
+        logger.warn(`[PRESENCE] Erro ao subscribe: ${subError.message}`);
+      }
+    }
+
     const ticketTraking = await FindOrCreateATicketTrakingService({
       ticketId: ticket.id,
       companyId,
@@ -5513,6 +5524,7 @@ const handleBaileysReaction = async (
 };
 
 const ticketMutexMap = new Map<string, Mutex>();
+
 const getTicketMutex = (key: string): Mutex => {
   if (!ticketMutexMap.has(key)) {
     ticketMutexMap.set(key, new Mutex());
@@ -5523,6 +5535,12 @@ const getTicketMutex = (key: string): Mutex => {
 
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("messages.upsert");
+  wbot.ev.removeAllListeners("presence.update");
+  wbot.ev.removeAllListeners("contacts.update");
+  wbot.ev.removeAllListeners("messages.update");
+  wbot.ev.removeAllListeners("messages.reaction");
+  wbot.ev.removeAllListeners("groups.update");
+  wbot.ev.removeAllListeners("group-participants.update");
 
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
