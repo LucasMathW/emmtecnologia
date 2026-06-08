@@ -122,6 +122,15 @@ export async function verifyContact(
   let number = extractedPhone;
   let originalLid = msgContact.lid || null;
 
+  const picCacheKey = `pic:${companyId}:${msgContact.id}`;
+  try {
+    await cacheLayer.set("pic:test", "ok", "EX", 60);
+    const testVal = await cacheLayer.get("pic:test");
+    logger.info(`[PIC-CACHE-TEST] Redis escrita/leitura: ${testVal}`);
+  } catch (e) {
+    logger.error(`[PIC-CACHE-TEST] Redis FALHOU: ${e?.message}`);
+  }
+
   if (isWhatsappNet && extractedId.includes(":")) {
     logger.info(
       `[RDS-LID-FIX] ID contém separador ':' - extraindo apenas o telefone: ${extractedPhone}`
