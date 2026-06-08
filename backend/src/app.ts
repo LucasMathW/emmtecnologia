@@ -88,7 +88,13 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(Sentry.Handlers.requestHandler());
-app.use("/public", express.static(uploadConfig.directory));
+app.use(
+  "/public",
+  express.static(uploadConfig.directory),
+  (req: Request, res: Response) => {
+    res.status(404).json({ error: "File not found" });
+  }
+);
 
 // Rotas
 app.use(routes);
