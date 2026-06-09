@@ -5307,9 +5307,10 @@ const handleMsgAck = async (
   chat: number | null | undefined
 ) => {
   const tStart = Date.now();
-  console.log(
+  logger.info(
     `[FLOW][ACK-START] handleMsgAck | msgId: ${msg.key.id} | ack: ${chat} | ts: ${tStart}`
   );
+
   await new Promise(r => setTimeout(r, 500));
   const io = getIO();
 
@@ -5366,34 +5367,54 @@ const handleMsgAck = async (
         }
       ]
     });
-    if (!messageToUpdate || messageToUpdate.ack >= chat) return;
 
-    console.log(
-      `[FLOW][ACK-UPDATE] Atualizando ack | msgId: ${
-        msg.key.id
-      } | ack: ${chat} | ts: ${Date.now()}`
+    if (!messageToUpdate) {
+      logger.warn(`[ACK] Mensagem não encontrada: ${msg.key.id}`);
+      return;
+    }
+
+    // ✅ CORREÇÃO: Garantir que chat seja um número válido
+    let newAck = chat || msg.status || 1;
+
+    // Converter valores do Baileys se necessário
+    if (newAck === 0) newAck = 1; // PENDING -> SENT
+    if (newAck > 3) newAck = 3; // Limitar a 3
+
+    // ✅ CORREÇÃO: Só atualizar se o novo ack for MAIOR que o atual
+    if (newAck <= messageToUpdate.ack) {
+      logger.debug(
+        `[ACK] Ignorado - ack atual (${messageToUpdate.ack}) >= novo ack (${newAck})`
+      );
+      return;
+    }
+
+    // ✅ CORREÇÃO: Log detalhado para debug
+    logger.info(
+      `[FLOW][ACK-UPDATE] Atualizando ack | msgId: ${msg.key.id} | ack: ${
+        messageToUpdate.ack
+      } -> ${newAck} | fromMe: ${msg.key.fromMe} | ts: ${Date.now()}`
     );
 
-    await messageToUpdate.update({ ack: chat });
+    await messageToUpdate.update({ ack: newAck });
 
-    console.log(
+    logger.info(
       `[FLOW][ACK-DONE] ack atualizado | msgId: ${msg.key.id} | total: ${
         Date.now() - tStart
       }ms`
     );
 
-    io.of(messageToUpdate.companyId.toString())
-      // .to(messageToUpdate.ticketId.toString())
-      .emit(`company-${messageToUpdate.companyId}-appMessage`, {
+    io.of(messageToUpdate.companyId.toString()).emit(
+      `company-${messageToUpdate.companyId}-appMessage`,
+      {
         action: "update",
         message: messageToUpdate
-      });
+      }
+    );
   } catch (err) {
     Sentry.captureException(err);
     logger.error(`Error handling message ack. Err: ${err}`);
   }
 };
-
 const verifyRecentCampaign = async (
   message: WAMessageSafe,
   companyId: number
@@ -5671,6 +5692,16 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       }
 
       let ack: number = message.update.status || 1;
+
+      // Mapear status do Baileys corretamente
+      if (ack === 0) ack = 1; // PENDING
+      if (ack === 1) ack = 2; // SENT/DELIVERED
+      if (ack === 2) ack = 3; // DELIVERED/READ
+      if (ack === 3) ack = 3; // READ
+
+      logger.debug(
+        `[MESSAGES.UPDATE] msgId: ${message.key.id} | status: ${message.update?.status} | ack: ${ack} | fromMe: ${message.key?.fromMe}`
+      );
 
       if (REDIS_URI_MSG_CONN !== "") {
         BullQueues.add(
