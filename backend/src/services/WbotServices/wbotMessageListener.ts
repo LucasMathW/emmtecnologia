@@ -5378,7 +5378,12 @@ const handleMsgAck = async (
 
     // Converter valores do Baileys se necessário
     if (newAck === 0) newAck = 1; // PENDING -> SENT
-    if (newAck > 3) newAck = 3; // Limitar a 3
+
+    const validAcks = [1, 2, 3, 4];
+    if (!validAcks.includes(newAck)) {
+      logger.warn(`[ACK] ack inválido: ${newAck}, usando 1`);
+      newAck = 1;
+    }
 
     // ✅ CORREÇÃO: Só atualizar se o novo ack for MAIOR que o atual
     if (newAck <= messageToUpdate.ack) {
@@ -5415,6 +5420,7 @@ const handleMsgAck = async (
     logger.error(`Error handling message ack. Err: ${err}`);
   }
 };
+
 const verifyRecentCampaign = async (
   message: WAMessageSafe,
   companyId: number
@@ -5675,7 +5681,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("messages.update", (messageUpdate: WAMessageUpdate[]) => {
     if (messageUpdate.length === 0) return;
     messageUpdate.forEach(async (message: WAMessageUpdate) => {
-      (wbot as WASocket)!.readMessages([message.key]);
+      // (wbot as WASocket)!.readMessages([message.key]);
 
       const msgUp = { ...messageUpdate };
 
@@ -5695,9 +5701,29 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
       // Mapear status do Baileys corretamente
       if (ack === 0) ack = 1; // PENDING
-      if (ack === 1) ack = 2; // SENT/DELIVERED
-      if (ack === 2) ack = 3; // DELIVERED/READ
-      if (ack === 3) ack = 3; // READ
+      if (ack === 1) ack = 2; // SENT
+
+      if (ack === 2 || ack === 3) {
+        // Status 2 ou 3 podem ser DELIVERED ou READ
+        // Precisamos verificar o userReceipt para ter certeza
+        const userReceipt = message.update.userReceipt;
+        const hasReadTimestamp =
+          userReceipt &&
+          userReceipt.length > 0 &&
+          userReceipt.some(receipt => receipt.readTimestamp);
+
+        if (hasReadTimestamp) {
+          ack = 4; // READ - tem readTimestamp
+          logger.debug(
+            `[MESSAGES.UPDATE] ✅ READ confirmado via readTimestamp | msgId: ${message.key.id}`
+          );
+        } else {
+          ack = 3; // DELIVERED - sem readTimestamp
+          logger.debug(
+            `[MESSAGES.UPDATE] 📬 DELIVERED (sem readTimestamp) | msgId: ${message.key.id}`
+          );
+        }
+      }
 
       logger.debug(
         `[MESSAGES.UPDATE] msgId: ${message.key.id} | status: ${message.update?.status} | ack: ${ack} | fromMe: ${message.key?.fromMe}`
