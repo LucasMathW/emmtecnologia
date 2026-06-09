@@ -465,68 +465,120 @@ export async function verifyContact(
     }
 
     // ─── Contato novo ────────────────────────────────────────────────────────
+    // else if (!isGroup && !foundContact) {
+    //   let newContact: Contact | null = null;
+    //   try {
+    //     const owResult = await onWhatsAppCached(wbot, msgContact.id, companyId);
+
+    //     if (!owResult?.[0]?.exists) {
+    //       if (originalLid && !contactData.lid) contactData.lid = originalLid;
+    //       newContact = await CreateOrUpdateContactService(contactData);
+    //       populateCache(newContact);
+    //       return newContact;
+    //     }
+
+    //     const owItem = owResult[0] as any;
+    //     const lid: string = owItem?.lid || originalLid || "";
+
+    //     if (lid) {
+    //       const lidContact = await Contact.findOne({
+    //         where: {
+    //           companyId,
+    //           number: { [Op.or]: [lid, stripDomain(lid)] }
+    //         },
+    //         include: ["tags", "extraInfo"]
+    //       });
+
+    //       if (lidContact) {
+    //         await lidContact.update({ lid });
+    //         await WhatsappLidMap.findOrCreate({
+    //           where: { companyId, lid },
+    //           defaults: { companyId, lid, contactId: lidContact.id }
+    //         });
+    //         populateCache(lidContact);
+    //         return smartUpdateContact(
+    //           lidContact,
+    //           {
+    //             number: contactData.number,
+    //             name: msgContact.name || undefined,
+    //             ...picUpdate
+    //           },
+    //           "novo-com-lid-existente"
+    //         );
+    //       }
+
+    //       newContact = await CreateOrUpdateContactService({
+    //         ...contactData,
+    //         lid
+    //       });
+    //       if (newContact.lid !== lid) await newContact.update({ lid });
+    //       await WhatsappLidMap.findOrCreate({
+    //         where: { companyId, lid },
+    //         defaults: { companyId, lid, contactId: newContact.id }
+    //       });
+    //       populateCache(newContact);
+    //       return newContact;
+    //     }
+    //   } catch (error) {
+    //     logger.error(
+    //       `[RDS CONTATO] Erro ao verificar ${msgContact.id}: ${error.message}`
+    //     );
+    //     newContact = await CreateOrUpdateContactService(contactData);
+    //     populateCache(newContact);
+    //     logger.info(`[RDS CONTATO] Contato criado sem LID: ${newContact.id}`);
+
+    //     try {
+    //       await queues["lidRetryQueue"].add(
+    //         "RetryLidLookup",
+    //         {
+    //           contactId: newContact.id,
+    //           whatsappId: wbot.id || null,
+    //           companyId,
+    //           number: msgContact.id,
+    //           lid: originalLid ?? msgContact.id,
+    //           retryCount: 1,
+    //           maxRetries: 5
+    //         },
+    //         { delay: 60_000, attempts: 1, removeOnComplete: true }
+    //       );
+    //     } catch (queueError) {
+    //       logger.error(`[RDS CONTATO] Erro na fila: ${queueError.message}`);
+    //     }
+    //     return newContact;
+    //   }
+    // }
+
+    // ─── Contato novo (MODO TURBO: Cria na hora, busca LID no background) ────────────────────────────────────────────────────────
     else if (!isGroup && !foundContact) {
+      console.log(
+        `[VERIFY-CONTACT] 🚀 MODO TURBO ATIVADO: Criando contato imediatamente para ${number} (sem esperar onWhatsApp)`
+      );
+
       let newContact: Contact | null = null;
+
       try {
-        const owResult = await onWhatsAppCached(wbot, msgContact.id, companyId);
-
-        if (!owResult?.[0]?.exists) {
-          if (originalLid && !contactData.lid) contactData.lid = originalLid;
-          newContact = await CreateOrUpdateContactService(contactData);
-          populateCache(newContact);
-          return newContact;
+        // 🔥 PASSO 1: Cria o contato IMEDIATAMENTE com os dados que temos
+        // Se tivermos o LID original do evento da mensagem, já salva. Se não, salva sem.
+        if (originalLid && !contactData.lid) {
+          contactData.lid = originalLid;
+          console.log(
+            `[VERIFY-CONTACT] 📌 LID original detectado no evento: ${originalLid}. Já vou salvar no contato.`
+          );
         }
 
-        const owItem = owResult[0] as any;
-        const lid: string = owItem?.lid || originalLid || "";
-
-        if (lid) {
-          const lidContact = await Contact.findOne({
-            where: {
-              companyId,
-              number: { [Op.or]: [lid, stripDomain(lid)] }
-            },
-            include: ["tags", "extraInfo"]
-          });
-
-          if (lidContact) {
-            await lidContact.update({ lid });
-            await WhatsappLidMap.findOrCreate({
-              where: { companyId, lid },
-              defaults: { companyId, lid, contactId: lidContact.id }
-            });
-            populateCache(lidContact);
-            return smartUpdateContact(
-              lidContact,
-              {
-                number: contactData.number,
-                name: msgContact.name || undefined,
-                ...picUpdate
-              },
-              "novo-com-lid-existente"
-            );
-          }
-
-          newContact = await CreateOrUpdateContactService({
-            ...contactData,
-            lid
-          });
-          if (newContact.lid !== lid) await newContact.update({ lid });
-          await WhatsappLidMap.findOrCreate({
-            where: { companyId, lid },
-            defaults: { companyId, lid, contactId: newContact.id }
-          });
-          populateCache(newContact);
-          return newContact;
-        }
-      } catch (error) {
-        logger.error(
-          `[RDS CONTATO] Erro ao verificar ${msgContact.id}: ${error.message}`
-        );
         newContact = await CreateOrUpdateContactService(contactData);
-        populateCache(newContact);
-        logger.info(`[RDS CONTATO] Contato criado sem LID: ${newContact.id}`);
+        console.log(
+          `[VERIFY-CONTACT] ✅ Contato criado INSTANTANEAMENTE! ID: ${
+            newContact.id
+          } | Number: ${newContact.number} | LID: ${
+            newContact.lid || "PENDENTE"
+          }`
+        );
 
+        // 🔥 PASSO 2: Popula o cache imediatamente para as próximas mensagens serem ultra-rápidas
+        populateCache(newContact);
+
+        // 🔥 PASSO 3: Adiciona na fila para buscar/atualizar o LID em background (não bloqueia a mensagem!)
         try {
           await queues["lidRetryQueue"].add(
             "RetryLidLookup",
@@ -534,17 +586,50 @@ export async function verifyContact(
               contactId: newContact.id,
               whatsappId: wbot.id || null,
               companyId,
-              number: msgContact.id,
+              number: msgContact.id, // JID original da mensagem
               lid: originalLid ?? msgContact.id,
               retryCount: 1,
               maxRetries: 5
             },
-            { delay: 60_000, attempts: 1, removeOnComplete: true }
+            { delay: 2000, attempts: 1, removeOnComplete: true } // Delay de 2s para dar tempo do WhatsApp processar
+          );
+          console.log(
+            `[VERIFY-CONTACT] 📨 Job de sincronização de LID adicionado à fila para o contato ${newContact.id}. A mensagem já foi entregue!`
           );
         } catch (queueError) {
-          logger.error(`[RDS CONTATO] Erro na fila: ${queueError.message}`);
+          console.log(
+            `[VERIFY-CONTACT] ⚠️ Erro ao adicionar job na fila (não crítico): ${queueError.message}`
+          );
         }
+
+        // 🔥 PASSO 4: Retorna o contato imediatamente para o handleMessage criar o ticket
         return newContact;
+      } catch (error) {
+        console.log(
+          `[VERIFY-CONTACT] ❌ ERRO CRÍTICO ao criar contato novo: ${error.message}`
+        );
+        console.log(`[VERIFY-CONTACT] Stack:`, error.stack);
+
+        // Fallback de emergência: tenta criar do jeito mais simples possível
+        try {
+          newContact = await CreateOrUpdateContactService({
+            name: number,
+            number: number,
+            companyId: companyId,
+            remoteJid: msgContact.id,
+            isGroup: false
+          });
+          console.log(
+            `[VERIFY-CONTACT] 🆘 Fallback funcionou! Contato criado sem LID e sem foto. ID: ${newContact.id}`
+          );
+          populateCache(newContact);
+          return newContact;
+        } catch (fallbackError) {
+          console.log(
+            `[VERIFY-CONTACT] 💥 FALHA TOTAL: Nem o fallback funcionou. Erro: ${fallbackError.message}`
+          );
+          throw fallbackError; // Deixa o erro estourar para o handleMessage lidar
+        }
       }
     }
 
