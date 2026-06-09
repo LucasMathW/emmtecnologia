@@ -849,7 +849,38 @@ export const verifyMediaMessage = async (
   const companyId = ticket.companyId;
 
   try {
-    const media = await downloadMedia(msg, ticket?.imported, wbot);
+    // ✅ RETRY: Tentar download até 3 vezes em caso de falha intermitente (DNS/rede)
+    let media = null;
+    let downloadAttempts = 0;
+    const maxAttempts = 3;
+
+    while (downloadAttempts < maxAttempts && !media?.data) {
+      try {
+        downloadAttempts++;
+        if (downloadAttempts > 1) {
+          logger.info(
+            `[MEDIA-DOWNLOAD] Tentativa ${downloadAttempts}/${maxAttempts} para msgId: ${msg.key.id}`
+          );
+          await new Promise(resolve =>
+            setTimeout(resolve, 2000 * downloadAttempts)
+          );
+        }
+
+        media = await downloadMedia(msg, ticket?.imported, wbot);
+
+        if (!media?.data) {
+          logger.warn(
+            `[MEDIA-DOWNLOAD] Tentativa ${downloadAttempts} falhou - media.data é null/undefined`
+          );
+          media = null;
+        }
+      } catch (downloadError) {
+        logger.warn(
+          `[MEDIA-DOWNLOAD] Erro na tentativa ${downloadAttempts}: ${downloadError.message}`
+        );
+        media = null;
+      }
+    }
 
     logger.info(
       "media retornado: " +
@@ -858,15 +889,20 @@ export const verifyMediaMessage = async (
           mimetype: media?.mimetype,
           filename: media?.filename,
           hasData: !!media?.data,
-          msgType: Object.keys(msg.message || {})
+          msgType: Object.keys(msg.message || {}),
+          attempts: downloadAttempts
         })
     );
 
-    if (!media && ticket.imported) {
+    // ✅ CORREÇÃO CRÍTICA: Verificar se media.data existe antes de continuar
+    if (!media || !media.data) {
+      logger.error(
+        `[MEDIA-ERROR] Falha definitiva no download após ${maxAttempts} tentativas. MsgId: ${msg.key.id}`
+      );
+
       const body =
         "*System:* \nFalha no download da mídia verifique no dispositivo";
       const messageData = {
-        //mensagem de texto
         wid: msg.key.id,
         ticketId: ticket.id,
         contactId: msg.key.fromMe ? undefined : ticket.contactId,
@@ -897,21 +933,6 @@ export const verifyMediaMessage = async (
       return CreateMessageService({ messageData, companyId: companyId });
     }
 
-    if (!media) {
-      throw new Error("ERR_WAPP_DOWNLOAD_MEDIA");
-    }
-
-    // if (!media.filename || media.mimetype === "audio/mp4") {
-    //   const ext = media.mimetype === "audio/mp4" ? "m4a" : media.mimetype.split("/")[1].split(";")[0];
-    //   media.filename = `${new Date().getTime()}.${ext}`;
-    // } else {
-    //   // ext = tudo depois do ultimo .
-    //   const ext = media.filename.split(".").pop();
-    //   // name = tudo antes do ultimo .
-    //   const name = media.filename.split(".").slice(0, -1).join(".").replace(/\s/g, '_').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    //   media.filename = `${name.trim()}_${new Date().getTime()}.${ext}`;
-    // }
     if (!media.filename) {
       const ext = media.mimetype.split("/")[1].split(";")[0];
       media.filename = `${new Date().getTime()}.${ext}`;
@@ -960,6 +981,11 @@ export const verifyMediaMessage = async (
       if (!fs.existsSync(folder)) {
         fs.mkdirSync(folder, { recursive: true }); // Correção adicionada por Altemir 16-08-2023
         fs.chmodSync(folder, 0o777);
+      }
+
+      // ✅ PROTEÇÃO EXTRA: Verificar novamente antes de toString
+      if (!media.data) {
+        throw new Error("Media data is null após todas as verificações");
       }
 
       await fsp
