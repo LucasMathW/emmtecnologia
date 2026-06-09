@@ -553,3 +553,5 @@ export async function verifyContact(
     return fallback;
   });
 }
+
+export { memoryCache };
