@@ -1255,11 +1255,16 @@ export const verifyMediaMessage = async (
     const isSticker =
       media.mimetype?.includes("webp") || media.mimetype?.includes("sticker");
     if (isSticker) {
-      const bufferHex = media.data.toString("hex", 0, 12);
-      const isAnimated =
-        bufferHex.includes("5650384c") || bufferHex.includes("56503858");
+      // ✅ CORREÇÃO: WebP header: RIFF (0-3) + size (4-7) + WEBP (8-11) + chunk type (12-15)
+      // VP8X = animado, VP8L = lossless, VP8 = estático
+      const bufferHex = media.data.toString("hex", 0, 16);
+      const chunkType = bufferHex.substring(24, 32); // bytes 12-15
+
+      // ✅ CORREÇÃO: Verificar chunk type correto (bytes 12-15)
+      const isAnimated = chunkType === "56503858"; // "VP8X" em hex = animado
+
       logger.info(
-        `[MEDIA-STICKER] Sticker detectado | msgId: ${msg.key.id} | tamanho: ${media.data.length} bytes | animado: ${isAnimated} | hex: ${bufferHex}`
+        `[MEDIA-STICKER] Sticker detectado | msgId: ${msg.key.id} | tamanho: ${media.data.length} bytes | animado: ${isAnimated} | chunk: ${chunkType} | hex: ${bufferHex}`
       );
     }
 
@@ -1313,7 +1318,7 @@ export const verifyMediaMessage = async (
         fs.chmodSync(folder, 0o777);
       }
 
-      // ✅ PROTEÇÃO EXTRA: Verificar novamente antes de toString
+      // ✅ PROTEÇÃO EXTRA: Verificar novamente antes de salvar
       if (!media.data) {
         throw new Error("Media data is null após todas as verificações");
       }
@@ -1324,54 +1329,49 @@ export const verifyMediaMessage = async (
         `[MEDIA-SAVE] Salvando arquivo | msgId: ${msg.key.id} | path: ${filePath} | tamanho: ${media.data.length} bytes`
       );
 
-      await fsp
-        .writeFile(filePath, media.data.toString("base64"), "base64") // Correção adicionada por Altemir 16-08-2023
-        .then(() => {
-          // Verificar tamanho do arquivo salvo
-          const savedStats = fs.statSync(filePath);
-          logger.info(
-            `[MEDIA-SAVE] Arquivo salvo com sucesso | msgId: ${msg.key.id} | tamanho: ${savedStats.size} bytes | path: ${filePath}`
-          );
+      // ✅ CORREÇÃO CRÍTICA: Salvar buffer diretamente (sem conversão base64)
+      // Isso é essencial para stickers animados - conversão base64 pode corromper a animação
+      await fsp.writeFile(filePath, media.data);
 
-          // Verificar integridade para stickers
-          if (isSticker && savedStats.size !== media.data.length) {
-            logger.warn(
-              `[MEDIA-SAVE] ⚠️ Tamanho do arquivo salvo (${savedStats.size}) diferente do buffer original (${media.data.length}) | msgId: ${msg.key.id}`
-            );
-          }
+      // Verificar tamanho do arquivo salvo
+      const savedStats = fs.statSync(filePath);
+      logger.info(
+        `[MEDIA-SAVE] Arquivo salvo com sucesso | msgId: ${msg.key.id} | tamanho: ${savedStats.size} bytes | path: ${filePath}`
+      );
 
-          // console.log("Arquivo salvo com sucesso!");
-          if (media.mimetype.includes("audio")) {
-            const inputFile = path.join(folder, media.filename);
-            let outputFile: string;
+      // Verificar integridade para stickers
+      if (isSticker && savedStats.size !== media.data.length) {
+        logger.warn(
+          `[MEDIA-SAVE] ⚠️ Tamanho do arquivo salvo (${savedStats.size}) diferente do buffer original (${media.data.length}) | msgId: ${msg.key.id}`
+        );
+      }
 
-            if (inputFile.endsWith(".mpeg")) {
-              outputFile = inputFile.replace(".mpeg", ".mp3");
-            } else if (inputFile.endsWith(".ogg")) {
-              outputFile = inputFile.replace(".ogg", ".mp3");
-            } else {
-              // Trate outros formatos de arquivo conforme necessário
-              //console.error("Formato de arquivo não suportado:", inputFile);
-              return;
-            }
+      // Processamento de áudio
+      if (media.mimetype.includes("audio")) {
+        const inputFile = path.join(folder, media.filename);
+        let outputFile: string;
 
-            return new Promise<void>((resolve, reject) => {
-              ffmpeg(inputFile)
-                .toFormat("mp3")
-                .save(outputFile)
-                .on("end", () => {
-                  resolve();
-                })
-                .on("error", (err: any) => {
-                  reject(err);
-                });
+        if (inputFile.endsWith(".mpeg")) {
+          outputFile = inputFile.replace(".mpeg", ".mp3");
+        } else if (inputFile.endsWith(".ogg")) {
+          outputFile = inputFile.replace(".ogg", ".mp3");
+        } else {
+          // Trate outros formatos de arquivo conforme necessário
+          return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(inputFile)
+            .toFormat("mp3")
+            .save(outputFile)
+            .on("end", () => {
+              resolve();
+            })
+            .on("error", (err: any) => {
+              reject(err);
             });
-          }
         });
-      // .then(() => {
-      //   //console.log("Conversão concluída!");
-      //   // Aqui você pode fazer o que desejar com o arquivo MP3 convertido.
-      // })
+      }
     } catch (err) {
       Sentry.setExtra("Erro media", {
         companyId: companyId,
