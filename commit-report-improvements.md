@@ -129,3 +129,82 @@ Este commit implementa otimizações significativas no sistema de verificação 
 2. Considerar adicionar métricas específicas para o sistema de cache
 3. Avaliar necessidade de ajustes nos TTLs do cache com base em uso real
 4. Considerar expansão do sistema de cache para outras entidades
+
+---
+
+# Relatório de Modificações - Commit 476df0e
+
+## Resumo Executivo
+Este commit implementa melhorias significativas no tratamento de status de mensagens e validação de ACK, resultando em maior precisão no rastreamento da entrega e leitura de mensagens, além de melhorar a robustez do sistema.
+
+## Melhorias Implementadas
+
+### 1. Validação de ACK (Mensagem Lida)
+**Arquivo:** `wbotMessageListener.ts`
+
+**O que foi feito:**
+- Implementou uma lista de valores ACK válidos `[1, 2, 3, 4]`
+- Valores inválidos agora geram um warning e são substituídos por 1 (SENT)
+- Removida a limitação artificial que truncava valores acima de 3
+
+**Impacto:**
+- Maior robustez no tratamento de valores de ACK
+- Previne erros causados por valores inesperados do Baileys
+- Logs mais informativos para depuração
+
+### 2. Tratamento Preciso de Status de Mensagem
+**Arquivo:** `wbotMessageListener.ts`
+
+**O que foi feito:**
+- Comentada a chamada `readMessages` para evitar processamento duplicado
+- Implementada lógica mais precisa para distinguir entre DELIVERED e READ:
+  - Verificação do `userReceipt` para `readTimestamp`
+  - Status 4 (READ) quando há `readTimestamp`
+  - Status 3 (DELIVERED) quando não há `readTimestamp`
+
+**Impacto:**
+- Maior precisão no rastreamento do status das mensagens
+- Evita falsos positivos de mensagens "lidas"
+- Sistema mais confiável para métricas de engajamento
+
+### 3. Melhorias de Logging
+**Arquivo:** `wbotMessageListener.ts`
+
+**O que foi feito:**
+- Adicionados logs detalhados para depuração
+- Mensagens claras indicando se a mensagem foi READ ou DELIVERED
+- Incluído ID da mensagem nos logs para rastreamento
+- Formatação padronizada com emojis para fácil identificação
+
+**Impacto:**
+- Facilita a depuração de problemas de entrega
+- Maior visibilidade do status das mensagens
+- Logs mais úteis para suporte e monitoramento
+
+## Métricas de Melhoria
+
+### Quantitativas:
+- **Valores ACK suportados:** 4 (antes 3)
+- **Novos status de mensagem:** Suporte explícito a READ (status 4)
+- **Redução de processamento:** Remoção de chamada `readMessages` duplicada
+
+### Qualitativas:
+- Maior precisão no rastreamento de mensagens lidas
+- Melhora na confiabilidade do sistema de confirmação
+- Logs mais detalhados facilitam a depuração
+- Maior robustez no tratamento de edge cases
+
+## Arquivos Modificados:
+1. `backend/src/services/WbotServices/wbotMessageListener.ts` - 31 linhas adicionadas, 5 removidas
+
+## Considerações:
+- As melhorias são retrocompatíveis
+- Não requerem mudanças no banco de dados
+- Ajuste de valores ACK para suportar todos os status do Baileys
+- Implementação mais fiel ao protocolo do WhatsApp
+
+## Próximos Passos Sugeridos:
+1. Monitorar os logs de depuração para identificar novos casos
+2. Considerar adicionar métricas específicas para status 4 (READ)
+3. Avaliar a necessidade de tratamento de outros edge cases no protocolo
+4. Documentar os novos valores ACK para a equipe de suporte
