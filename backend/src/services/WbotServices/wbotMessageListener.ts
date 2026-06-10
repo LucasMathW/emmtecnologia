@@ -4402,10 +4402,20 @@ const handleMessage = async (
       order: [["id", "DESC"]]
     });
 
-    const mutex = new Mutex();
-    // Inclui a busca de ticket aqui, se realmente não achar um ticket, então vai para o findorcreate
-    const ticket = await mutex.runExclusive(async () => {
-      const result = await FindOrCreateTicketService(
+    const ticketMutexMap = new Map<string, Mutex>();
+
+    const getTicketMutex = (key: string): Mutex => {
+      if (!ticketMutexMap.has(key)) {
+        ticketMutexMap.set(key, new Mutex());
+        setTimeout(() => ticketMutexMap.delete(key), 30_000);
+      }
+      return ticketMutexMap.get(key)!;
+    };
+
+    const ticket = await getTicketMutex(
+      `ticket:${companyId}:${contact.id}`
+    ).runExclusive(() =>
+      FindOrCreateTicketService(
         contact,
         whatsapp,
         unreadMessages,
@@ -4417,9 +4427,27 @@ const handleMessage = async (
         isImported,
         false,
         settings
-      );
-      return result;
-    });
+      )
+    );
+
+    // const mutex = new Mutex();
+    // // Inclui a busca de ticket aqui, se realmente não achar um ticket, então vai para o findorcreate
+    // const ticket = await mutex.runExclusive(async () => {
+    //   const result = await FindOrCreateTicketService(
+    //     contact,
+    //     whatsapp,
+    //     unreadMessages,
+    //     companyId,
+    //     queueId,
+    //     userId,
+    //     groupContact,
+    //     "whatsapp",
+    //     isImported,
+    //     false,
+    //     settings
+    //   );
+    //   return result;
+    // });
 
     if (!isGroup && !msg.key.fromMe) {
       try {
@@ -5910,16 +5938,6 @@ const handleBaileysReaction = async (
     console.error("Erro ao processar reaction Baileys:", err);
   }
 };
-
-const ticketMutexMap = new Map<string, Mutex>();
-
-// const getTicketMutex = (key: string): Mutex => {
-//   if (!ticketMutexMap.has(key)) {
-//     ticketMutexMap.set(key, new Mutex());
-//     setTimeout(() => ticketMutexMap.delete(key), 30_000);
-//   }
-//   return ticketMutexMap.get(key)!;
-// };
 
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("messages.upsert");
