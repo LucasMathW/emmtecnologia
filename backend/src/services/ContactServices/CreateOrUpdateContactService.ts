@@ -455,6 +455,27 @@ const CreateOrUpdateContactService = async ({
           const start = Date.now(); // ✅ Declarado ANTES do try
           let duration: number; // ✅ Declarado ANTES do try
 
+          // Testa com um número aleatório diferente
+          const testNumbers = [
+            "5511999999999@s.whatsapp.net", // número fictício
+            "5521988887777@s.whatsapp.net" // outro número fictício
+          ];
+
+          for (const testNum of testNumbers) {
+            try {
+              console.log(`[DIAGNOSTICO] Testando foto de: ${testNum}`);
+              const start = Date.now();
+              const pic = await wbot.profilePictureUrl(testNum, "image");
+              console.log(
+                `[DIAGNOSTICO] Resultado: ${pic} (${Date.now() - start}ms)`
+              );
+            } catch (e) {
+              console.log(
+                `[DIAGNOSTICO] Erro: ${e.message} (${Date.now() - start}ms)`
+              );
+            }
+          }
+
           try {
             console.log(
               `[DEBUG-VPS] INÍCIO - Buscando foto para: ${newRemoteJid}`
