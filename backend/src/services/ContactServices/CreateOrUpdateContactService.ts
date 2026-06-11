@@ -377,6 +377,38 @@ const CreateOrUpdateContactService = async ({
         // }
 
         if (wbot) {
+          console.log(`[DIAGNOSTICO] wbot.id: ${wbot.id}`);
+          console.log(`[DIAGNOSTICO] wbot.type: ${wbot.type}`);
+          console.log(`[DIAGNOSTICO] newRemoteJid: ${newRemoteJid}`);
+          console.log(`[DIAGNOSTICO] lid: ${lid}`);
+          console.log(
+            `[DIAGNOSTICO] wbot.authState: ${JSON.stringify(
+              wbot.authState?.creds?.me
+            )}`
+          );
+
+          // Verifica se o JID é válido
+          const jidRegex = /^[\d]+@(s\.whatsapp\.net|g\.us|lid)$/;
+          console.log(
+            `[DIAGNOSTICO] newRemoteJid é válido: ${jidRegex.test(
+              newRemoteJid
+            )}`
+          );
+
+          // Tenta buscar info sobre o JID
+          try {
+            const onWhatsAppResult = await wbot.onWhatsApp(newRemoteJid);
+            console.log(
+              `[DIAGNOSTICO] onWhatsApp(${newRemoteJid}):`,
+              JSON.stringify(onWhatsAppResult)
+            );
+          } catch (e) {
+            console.log(
+              `[DIAGNOSTICO] onWhatsApp(${newRemoteJid}) erro:`,
+              e.message
+            );
+          }
+
           const start = Date.now(); // ✅ Declarado ANTES do try
           let duration: number; // ✅ Declarado ANTES do try
 
