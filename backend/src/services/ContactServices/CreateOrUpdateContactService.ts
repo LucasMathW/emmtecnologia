@@ -409,6 +409,49 @@ const CreateOrUpdateContactService = async ({
             );
           }
 
+          // ✅ NOVO: Testa profilePictureUrl com OUTRO número (seu próprio número)
+          try {
+            const selfJid = wbot.authState?.creds?.me?.id;
+            if (selfJid) {
+              console.log(
+                `[DIAGNOSTICO] Testando profilePictureUrl com próprio número: ${selfJid}`
+              );
+              const startSelf = Date.now();
+              const selfPic = await wbot.profilePictureUrl(selfJid, "image");
+              console.log(
+                `[DIAGNOSTICO] Foto própria: ${selfPic} (${
+                  Date.now() - startSelf
+                }ms)`
+              );
+            }
+          } catch (e) {
+            console.log(
+              `[DIAGNOSTICO] Erro ao buscar foto própria:`,
+              e.message
+            );
+          }
+
+          // ✅ NOVO: Testa profilePictureUrl via LID
+          if (lid) {
+            try {
+              console.log(
+                `[DIAGNOSTICO] Testando profilePictureUrl via LID: ${lid}`
+              );
+              const startLid = Date.now();
+              const lidPic = await wbot.profilePictureUrl(lid, "image");
+              console.log(
+                `[DIAGNOSTICO] Foto via LID: ${lidPic} (${
+                  Date.now() - startLid
+                }ms)`
+              );
+            } catch (e) {
+              console.log(
+                `[DIAGNOSTICO] Erro ao buscar foto via LID:`,
+                e.message
+              );
+            }
+          }
+
           const start = Date.now(); // ✅ Declarado ANTES do try
           let duration: number; // ✅ Declarado ANTES do try
 
