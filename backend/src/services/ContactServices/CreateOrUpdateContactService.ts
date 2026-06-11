@@ -361,165 +361,19 @@ const CreateOrUpdateContactService = async ({
           );
         }
 
-        // if (wbot) {
-        //   try {
-        //     const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
-        //     if (fetched && !fetched.includes("nopicture")) {
-        //       profilePicUrl = fetched;
-        //     } else {
-        //       profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-        //     }
-        //   } catch (e) {
-        //     profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-        //   }
-        // } else {
-        //   profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-        // }
-
         if (wbot) {
-          console.log(`[DIAGNOSTICO] wbot.id: ${wbot.id}`);
-          console.log(`[DIAGNOSTICO] wbot.type: ${wbot.type}`);
-          console.log(`[DIAGNOSTICO] newRemoteJid: ${newRemoteJid}`);
-          console.log(`[DIAGNOSTICO] lid: ${lid}`);
-          console.log(
-            `[DIAGNOSTICO] wbot.authState: ${JSON.stringify(
-              wbot.authState?.creds?.me
-            )}`
-          );
-
-          // Verifica se o JID é válido
-          const jidRegex = /^[\d]+@(s\.whatsapp\.net|g\.us|lid)$/;
-          console.log(
-            `[DIAGNOSTICO] newRemoteJid é válido: ${jidRegex.test(
-              newRemoteJid
-            )}`
-          );
-
-          // Tenta buscar info sobre o JID
           try {
-            const onWhatsAppResult = await wbot.onWhatsApp(newRemoteJid);
-            console.log(
-              `[DIAGNOSTICO] onWhatsApp(${newRemoteJid}):`,
-              JSON.stringify(onWhatsAppResult)
-            );
-          } catch (e) {
-            console.log(
-              `[DIAGNOSTICO] onWhatsApp(${newRemoteJid}) erro:`,
-              e.message
-            );
-          }
-
-          // ✅ NOVO: Testa profilePictureUrl com OUTRO número (seu próprio número)
-          try {
-            const selfJid = wbot.authState?.creds?.me?.id;
-            if (selfJid) {
-              console.log(
-                `[DIAGNOSTICO] Testando profilePictureUrl com próprio número: ${selfJid}`
-              );
-              const startSelf = Date.now();
-              const selfPic = await wbot.profilePictureUrl(selfJid, "image");
-              console.log(
-                `[DIAGNOSTICO] Foto própria: ${selfPic} (${
-                  Date.now() - startSelf
-                }ms)`
-              );
-            }
-          } catch (e) {
-            console.log(
-              `[DIAGNOSTICO] Erro ao buscar foto própria:`,
-              e.message
-            );
-          }
-
-          // ✅ NOVO: Testa profilePictureUrl via LID
-          if (lid) {
-            try {
-              console.log(
-                `[DIAGNOSTICO] Testando profilePictureUrl via LID: ${lid}`
-              );
-              const startLid = Date.now();
-              const lidPic = await wbot.profilePictureUrl(lid, "image");
-              console.log(
-                `[DIAGNOSTICO] Foto via LID: ${lidPic} (${
-                  Date.now() - startLid
-                }ms)`
-              );
-            } catch (e) {
-              console.log(
-                `[DIAGNOSTICO] Erro ao buscar foto via LID:`,
-                e.message
-              );
-            }
-          }
-
-          const start = Date.now(); // ✅ Declarado ANTES do try
-          let duration: number; // ✅ Declarado ANTES do try
-
-          // Testa com um número aleatório diferente
-          const testNumbers = [
-            "5511999999999@s.whatsapp.net", // número fictício
-            "5521988887777@s.whatsapp.net" // outro número fictício
-          ];
-
-          for (const testNum of testNumbers) {
-            try {
-              console.log(`[DIAGNOSTICO] Testando foto de: ${testNum}`);
-              const start = Date.now();
-              const pic = await wbot.profilePictureUrl(testNum, "image");
-              console.log(
-                `[DIAGNOSTICO] Resultado: ${pic} (${Date.now() - start}ms)`
-              );
-            } catch (e) {
-              console.log(
-                `[DIAGNOSTICO] Erro: ${e.message} (${Date.now() - start}ms)`
-              );
-            }
-          }
-
-          try {
-            console.log(
-              `[DEBUG-VPS] INÍCIO - Buscando foto para: ${newRemoteJid}`
-            );
-            console.log(`[DEBUG-VPS] LID disponível: ${lid}`);
-            console.log(`[DEBUG-VPS] Timestamp: ${Date.now()}`);
-
             const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
-            duration = Date.now() - start;
-
-            console.log(`[DEBUG-VPS] FIM - Tempo: ${duration}ms`);
-            console.log(`[DEBUG-VPS] Resultado: ${fetched}`);
-
             if (fetched && !fetched.includes("nopicture")) {
               profilePicUrl = fetched;
             } else {
               profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
             }
           } catch (e) {
-            duration = Date.now() - start;
-            console.log(`[DEBUG-VPS] ERRO após ${duration}ms: ${e.message}`);
-
-            // Tenta via LID se disponível
-            if (lid) {
-              console.log(`[DEBUG-VPS] Tentando via LID: ${lid}`);
-              const startLid = Date.now();
-              let durationLid: number;
-
-              try {
-                const fetchedLid = await wbot.profilePictureUrl(lid, "image");
-                durationLid = Date.now() - startLid;
-                console.log(
-                  `[DEBUG-VPS] LID funcionou em ${durationLid}ms: ${fetchedLid}`
-                );
-              } catch (e2) {
-                durationLid = Date.now() - startLid;
-                console.log(
-                  `[DEBUG-VPS] LID falhou em ${durationLid}ms: ${e2.message}`
-                );
-              }
-            }
-
             profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
           }
+        } else {
+          profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
         }
 
         // 🎂 PROCESSAR DATA DE NASCIMENTO PARA NOVO CONTATO
