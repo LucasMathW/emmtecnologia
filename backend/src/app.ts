@@ -90,7 +90,12 @@ app.use(express.json());
 app.use(Sentry.Handlers.requestHandler());
 app.use(
   "/public",
-  express.static(uploadConfig.directory),
+  express.static(uploadConfig.directory, {
+    maxAge: "7d", // browser cacheia por 7 dias
+    etag: true, // revalida com ETag se o arquivo mudou
+    lastModified: true, // usa Last-Modified como fallback
+    immutable: false // não é imutável (foto de perfil pode mudar)
+  }),
   (req: Request, res: Response) => {
     res.status(404).json({ error: "File not found" });
   }
