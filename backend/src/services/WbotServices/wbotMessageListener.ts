@@ -4076,13 +4076,15 @@ const handleMessage = async (
 
     let unreadMessages = 0;
 
+    const unreadCacheId = groupContact ? groupContact.id : contact.id;
+
     if (msg.key.fromMe) {
-      await cacheLayer.set(`contacts:${contact.id}:unreads`, "0");
+      await cacheLayer.set(`contacts:${unreadCacheId}:unreads`, "0");
     } else {
-      const unreads = await cacheLayer.get(`contacts:${contact.id}:unreads`);
+      const unreads = await cacheLayer.get(`contacts:${unreadCacheId}:unreads`);
       unreadMessages = +unreads + 1;
       await cacheLayer.set(
-        `contacts:${contact.id}:unreads`,
+        `contacts:${unreadCacheId}:unreads`,
         `${unreadMessages}`
       );
     }
