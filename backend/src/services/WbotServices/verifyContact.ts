@@ -275,6 +275,26 @@ export async function verifyContact(
   };
 
   if (isGroup) {
+    if (wbot) {
+      const groupJid = msgContact.id;
+      const picCacheKey = `pic:${companyId}:${groupJid}`;
+
+      try {
+        const cached = await cacheLayer.get(picCacheKey);
+        if (cached) {
+          contactData.profilePicUrl = cached;
+        } else {
+          const pic = await Promise.race([
+            wbot.profilePictureUrl(groupJid, "image"),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
+          ]);
+          if (pic && !pic.includes("nopicture")) {
+            await cacheLayer.set(picCacheKey, pic, "EX", 3600);
+            contactData.profilePicUrl = pic;
+          }
+        }
+      } catch (e) {}
+    }
     return CreateOrUpdateContactService(contactData);
   }
 

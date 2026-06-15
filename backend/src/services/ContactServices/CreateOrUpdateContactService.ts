@@ -282,14 +282,11 @@ const CreateOrUpdateContactService = async ({
           contact.urlPicture.includes("nopicture") ||
           !fileExistsAndValid;
 
-        // Só tenta rebuscar a foto se:
-        // 1. Tem wbot disponível
-        // 2. A foto atual é inválida ou o arquivo não existe em disco
         const isGroupContact = (
           contact.remoteJid || fallbackRemoteJid
         )?.includes("@g.us");
 
-        if (wbot && currentPicIsInvalid && !isGroupContact) {
+        if (wbot && currentPicIsInvalid) {
           try {
             const targetJid = contact.remoteJid || fallbackRemoteJid;
             logger.info(

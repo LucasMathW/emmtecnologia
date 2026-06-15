@@ -6103,15 +6103,27 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("groups.update", (groupUpdate: GroupMetadata[]) => {
-    // Logs de debug de grupos removidos para produção
-
-    if (!groupUpdate[0]?.id) return;
-    if (groupUpdate.length === 0) return;
     groupUpdate.forEach(async (group: GroupMetadata) => {
       const number = group.id.substr(0, group.id.indexOf("@"));
       const nameGroup = group.subject || number;
 
       let profilePicUrl: string = "";
+      try {
+        const picCacheKey = `pic:${companyId}:${group.id}`;
+        const cached = await cacheLayer.get(picCacheKey);
+        if (cached) {
+          profilePicUrl = cached;
+        } else {
+          const pic = await Promise.race([
+            wbot.profilePictureUrl(group.id, "image"),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
+          ]);
+          if (pic && !pic.includes("nopicture")) {
+            profilePicUrl = pic;
+            await cacheLayer.set(picCacheKey, pic, "EX", 3600);
+          }
+        }
+      } catch (e) {}
 
       const contactData = {
         name: nameGroup,
@@ -6123,10 +6135,35 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         whatsappId: wbot.id,
         wbot: wbot
       };
-
-      const contact = await CreateOrUpdateContactService(contactData);
+      await CreateOrUpdateContactService(contactData);
     });
   });
+
+  // wbot.ev.on("groups.update", (groupUpdate: GroupMetadata[]) => {
+  //   // Logs de debug de grupos removidos para produção
+
+  //   if (!groupUpdate[0]?.id) return;
+  //   if (groupUpdate.length === 0) return;
+  //   groupUpdate.forEach(async (group: GroupMetadata) => {
+  //     const number = group.id.substr(0, group.id.indexOf("@"));
+  //     const nameGroup = group.subject || number;
+
+  //     let profilePicUrl: string = "";
+
+  //     const contactData = {
+  //       name: nameGroup,
+  //       number: number,
+  //       isGroup: true,
+  //       companyId: companyId,
+  //       remoteJid: group.id,
+  //       profilePicUrl,
+  //       whatsappId: wbot.id,
+  //       wbot: wbot
+  //     };
+
+  //     const contact = await CreateOrUpdateContactService(contactData);
+  //   });
+  // });
 };
 
 export {

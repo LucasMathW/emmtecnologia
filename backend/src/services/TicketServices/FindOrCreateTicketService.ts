@@ -113,7 +113,9 @@ const FindOrCreateTicketService = async (
         );
       }
 
-      if (!["open", "pending", "chatbot", "nps"].includes(ticket.status)) {
+      if (
+        !["open", "pending", "chatbot", "nps", "group"].includes(ticket.status)
+      ) {
         // Verificar se é um grupo analisando o remoteJid (se termina com @g.us) ou a propriedade isGroup do ticket
         const isGroupTicket =
           ticket.status === "group" ||
