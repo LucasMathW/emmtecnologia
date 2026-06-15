@@ -16,6 +16,7 @@ interface PresencePayload {
 
 const presenceCache = new Map<string, string | null>();
 const presenceTimeouts = new Map<string, NodeJS.Timeout>();
+const presenceClearTimeouts = new Map<string, NodeJS.Timeout>(); // ← novo
 
 export const handlePresenceUpdate = async ({
   remoteJid,
@@ -152,8 +153,9 @@ export const handlePresenceUpdate = async ({
 
   // Cache isolado por chip + jid do chat (grupo ou individual)
   const cacheKey = `${companyId}:${whatsappId}:${remoteJid}`;
+
   if (presenceCache.get(cacheKey) === newPresence) return;
-  presenceCache.set(cacheKey, newPresence);
+  // presenceCache.set(cacheKey, newPresence);
 
   console.log(
     `[PRESENCE] ✅ ${
@@ -187,6 +189,14 @@ export const handlePresenceUpdate = async ({
 
   // Timeout de segurança
   if (newPresence !== null) {
+    // Cancela qualquer clear pendente (paused que ainda não disparou)
+    const existingClear = presenceClearTimeouts.get(cacheKey);
+    if (existingClear) {
+      clearTimeout(existingClear);
+      presenceClearTimeouts.delete(cacheKey);
+    }
+
+    // Timeout de segurança: se ficar 10s sem atualização, limpa
     const existing = presenceTimeouts.get(cacheKey);
     if (existing) clearTimeout(existing);
 
@@ -210,10 +220,39 @@ export const handlePresenceUpdate = async ({
 
     presenceTimeouts.set(cacheKey, timeout);
   } else {
-    const existing = presenceTimeouts.get(cacheKey);
-    if (existing) {
-      clearTimeout(existing);
-      presenceTimeouts.delete(cacheKey);
-    }
+    // Paused/offline: aguarda 4s antes de emitir null (janela para novo composing)
+    const existingClear = presenceClearTimeouts.get(cacheKey);
+    if (existingClear) clearTimeout(existingClear);
+
+    const clearDelay = setTimeout(() => {
+      // Só emite null se o estado ainda for null (não chegou novo typing nesse intervalo)
+      if (presenceCache.get(cacheKey) !== null) {
+        presenceClearTimeouts.delete(cacheKey);
+        return;
+      }
+
+      io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+        action: "presence:update",
+        ticket: {
+          id: ticket.id,
+          uuid: ticket.uuid,
+          contactId: ticket.contactId
+        },
+        contact: ticket.contact,
+        contactId: contact.id,
+        status: null
+      });
+
+      // Cancela também o timeout de segurança de 10s
+      const existing = presenceTimeouts.get(cacheKey);
+      if (existing) {
+        clearTimeout(existing);
+        presenceTimeouts.delete(cacheKey);
+      }
+
+      presenceClearTimeouts.delete(cacheKey);
+    }, 4_000);
+
+    presenceClearTimeouts.set(cacheKey, clearDelay);
   }
 };

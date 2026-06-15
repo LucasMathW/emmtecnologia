@@ -165,17 +165,18 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "center",
     gap: 6,
     padding: "8px 14px",
-    backgroundColor: theme.mode === "light" ? "#ffffff" : "#1f2c33",
-    borderRadius: 20,
+    backgroundColor: theme.mode === "light" ? "#ffffff" : "#202c33",
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 7.8,
+    borderBottomLeftRadius: 7.8,
+    borderBottomRightRadius: 7.8,
     boxShadow:
-      theme.mode === "light"
-        ? "0 4px 12px rgba(0,0,0,0.15)"
-        : "0 4px 12px rgba(0,0,0,0.5)",
+      theme.mode === "light" ? "0 1px 1px #b3b3b3" : "0 1px 1px #000000",
     width: "fit-content",
   },
   presenceText: {
-    fontSize: 15,
-    color: "#128C7E",
+    fontSize: 13,
+    color: theme.mode === "light" ? "#667781" : "#8696a0",
     fontStyle: "italic",
   },
   "@keyframes presenceBounce": {
@@ -1308,6 +1309,8 @@ const MessagesList = ({
       ? `${contactPresence.memberName} `
       : "";
 
+    const showText = !!displayName; // só mostra texto em grupos (quando tem memberName)
+
     return (
       <div
         style={{
@@ -1318,7 +1321,29 @@ const MessagesList = ({
           marginBottom: 1,
         }}
       >
-        <div className={classes.presenceIndicator}>
+        <div
+          style={
+            showText
+              ? undefined // mantém a classe original com estilo de pill
+              : {
+                  backgroundColor:
+                    theme.mode === "light" ? "#ffffff" : "#202c33",
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 7.8,
+                  borderBottomLeftRadius: 7.8,
+                  borderBottomRightRadius: 7.8,
+                  boxShadow:
+                    theme.mode === "light"
+                      ? "0 1px 1px #b3b3b3"
+                      : "0 1px 1px #000000",
+                  padding: "10px 14px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minWidth: 54,
+                }
+          }
+          className={showText ? classes.presenceIndicator : undefined}
+        >
           {isTyping ? (
             <>
               <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
@@ -1326,10 +1351,11 @@ const MessagesList = ({
                 <span className={`${classes.dot} ${classes.dot2}`} />
                 <span className={`${classes.dot} ${classes.dot3}`} />
               </div>
-              <span className={classes.presenceText}>
-                {displayName && `${displayName}está digitando...`}
-                {!displayName && "digitando..."}
-              </span>
+              {showText && (
+                <span className={classes.presenceText}>
+                  {`${displayName}está digitando...`}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -1347,10 +1373,11 @@ const MessagesList = ({
                 <span className={`${classes.audioBar} ${classes.audioBar4}`} />
                 <span className={`${classes.audioBar} ${classes.audioBar5}`} />
               </div>
-              <span className={classes.presenceText}>
-                {displayName && `${displayName}está gravando áudio...`}
-                {!displayName && "gravando áudio..."}
-              </span>
+              {showText && (
+                <span className={classes.presenceText}>
+                  {`${displayName}está gravando áudio...`}
+                </span>
+              )}
             </>
           )}
         </div>
