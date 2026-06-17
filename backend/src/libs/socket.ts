@@ -8,6 +8,8 @@ import { ReceibedWhatsAppService } from "../services/WhatsAppOficial/ReceivedWha
 import { JwtPayload, verify } from "jsonwebtoken";
 import authConfig from "../config/auth";
 import BirthdayService from "../services/BirthdayService/BirthdayService";
+import Ticket from "../models/Ticket";
+import SendPresenceService from "../services/WbotServices/SendPresenceService";
 
 let io: SocketIO;
 
@@ -258,6 +260,31 @@ export const initIO = (httpServer: Server): SocketIO => {
 
     //  NOVO: Heartbeat para manter usuário online e verificar aniversários periodicamente
     socket.on("heartbeat", () => handleHeartbeat(socket));
+
+    socket.on("presence:send", async ({ ticketId, status }) => {
+      try {
+        const companyId = parseInt(socket.nsp.name.split("/")[1]);
+
+        console.log(
+          `[PRESENCE:SEND] ticketId: ${ticketId} | status: ${status} | companyId: ${companyId}`
+        );
+
+        const ticket = await Ticket.findOne({
+          where: { id: ticketId, companyId }
+        });
+
+        if (!ticket?.whatsappId) {
+          console.log(
+            `[PRESENCE:SEND] ❌ ticket não encontrado ou sem whatsappId`
+          );
+          return;
+        }
+
+        await SendPresenceService({ ticket, status, skipThrottle: true });
+      } catch (err) {
+        logger.error(`[PRESENCE:SEND] erro: ${err.message}`);
+      }
+    });
 
     //  EVENTO: Quando cliente se desconecta
     socket.on("disconnect", async () => {

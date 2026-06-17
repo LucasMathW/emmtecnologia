@@ -12,6 +12,7 @@ interface PresencePayload {
   companyId: number;
   whatsappId: number;
   status: "typing" | "recording" | "paused" | "online" | "offline";
+  instant?: boolean;
 }
 
 const presenceCache = new Map<string, string | null>();
@@ -23,7 +24,8 @@ export const handlePresenceUpdate = async ({
   memberJid,
   companyId,
   whatsappId,
-  status
+  status,
+  instant = false
 }: PresencePayload) => {
   const io = getIO();
   const isGroup = remoteJid.endsWith("@g.us");
@@ -223,6 +225,29 @@ export const handlePresenceUpdate = async ({
     // Paused/offline: aguarda 4s antes de emitir null (janela para novo composing)
     const existingClear = presenceClearTimeouts.get(cacheKey);
     if (existingClear) clearTimeout(existingClear);
+
+    if (instant) {
+      // Limpa imediatamente — chamado pela nossa API (atendente parou de digitar)
+      presenceCache.set(cacheKey, null);
+      io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+        action: "presence:update",
+        ticket: {
+          id: ticket.id,
+          uuid: ticket.uuid,
+          contactId: ticket.contactId
+        },
+        contact: ticket.contact,
+        contactId: contact.id,
+        status: null
+      });
+
+      const existing = presenceTimeouts.get(cacheKey);
+      if (existing) {
+        clearTimeout(existing);
+        presenceTimeouts.delete(cacheKey);
+      }
+      return;
+    }
 
     const clearDelay = setTimeout(() => {
       // Só emite null se o estado ainda for null (não chegou novo typing nesse intervalo)

@@ -497,8 +497,9 @@ const MessageInput = ({
   const theme = useTheme();
   const [mediasUpload, setMediasUpload] = useState([]);
   const isMounted = useRef(true);
-
   const [inputMessage, setInputMessage] = useState("");
+  const presenceDebounceRef = useRef(null);
+  const composingIntervalRef = useRef(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
@@ -507,6 +508,7 @@ const MessageInput = ({
   const [quickAnswers, setQuickAnswer] = useState([]);
   const [typeBar, setTypeBar] = useState(false);
   const inputRef = useRef();
+  const recordingPresenceIntervalRef = useRef(null);
   const [onDragEnter, setOnDragEnter] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const { setReplyingMessage, replyingMessage } =
@@ -515,7 +517,6 @@ const MessageInput = ({
   const { user, socket } = useContext(AuthContext);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const { getPlanCompany } = usePlans();
-
   const [signMessagePar, setSignMessagePar] = useState(false);
   const { get: getSetting } = useCompanySettings();
   const [signMessage, setSignMessage] = useState(true);
@@ -682,6 +683,13 @@ const MessageInput = ({
       setShowEmoji(false);
       setMediasUpload([]);
       setReplyingMessage(null);
+      if (composingIntervalRef.current) {
+        clearInterval(composingIntervalRef.current);
+        composingIntervalRef.current = null;
+      }
+      if (presenceDebounceRef.current) {
+        clearTimeout(presenceDebounceRef.current);
+      }
       if (!isTicketPending()) {
         setPrivateMessage(false);
         setPrivateMessageInputVisible(false);
@@ -920,6 +928,15 @@ const MessageInput = ({
     [typeBar, selectedQuickAnswerIndex, isNavigatingQuickAnswers],
   );
 
+  const sendPresence = useCallback(
+    (status) => {
+      if (ticketStatus !== "open" && ticketStatus !== "group") return;
+      if (privateMessage) return;
+      socket.emit("presence:send", { ticketId, status });
+    },
+    [ticketId, ticketStatus, privateMessage, socket],
+  );
+
   useEffect(() => {
     if (!typeBar || !Array.isArray(typeBar) || typeBar.length === 0) {
       setSelectedQuickAnswerIndex(-1);
@@ -949,9 +966,92 @@ const MessageInput = ({
     setTemplateModalOpen(true);
   };
 
-  const handleChangeInput = useCallback((e) => {
-    setInputMessage(e.target.value);
-  }, []);
+  // const handleChangeInput = useCallback(
+  //   (e) => {
+  //     setInputMessage(e.target.value);
+  //     const value = e?.target?.value ?? e ?? "";
+  //     setInputMessage(value);
+
+  //     // Só envia presence se ticket estiver open ou group
+  //     if (ticketStatus !== "open" && ticketStatus !== "group") return;
+  //     if (privateMessage) return; // mensagem interna não dispara presence
+
+  //     // Cancela o paused anterior
+  //     if (presenceDebounceRef.current)
+  //       clearTimeout(presenceDebounceRef.current);
+
+  //     if (!value || value.trim() === "") {
+  //       api
+  //         .post(`/messages/${ticketId}/presence`, { status: "paused" })
+  //         .catch(() => {});
+  //       window.dispatchEvent(
+  //         new CustomEvent("presence:clear", { detail: { ticketId } }),
+  //       );
+  //       return;
+  //     }
+
+  //     api
+  //       .post(`/messages/${ticketId}/presence`, { status: "composing" })
+  //       .catch(() => {});
+
+  //     presenceDebounceRef.current = setTimeout(() => {
+  //       api
+  //         .post(`/messages/${ticketId}/presence`, { status: "paused" })
+  //         .catch(() => {});
+
+  //       // Emite evento local para o MessagesList zerar na hora, sem esperar o delay de 4s do backend
+  //       window.dispatchEvent(
+  //         new CustomEvent("presence:clear", { detail: { ticketId } }),
+  //       );
+  //     }, 3000);
+  //   },
+  //   [ticketId, ticketStatus, privateMessage],
+  // );
+
+  const handleChangeInput = useCallback(
+    (e) => {
+      const value = e?.target?.value ?? e ?? "";
+      setInputMessage(value);
+
+      if (ticketStatus !== "open" && ticketStatus !== "group") return;
+      if (privateMessage) return;
+
+      if (presenceDebounceRef.current)
+        clearTimeout(presenceDebounceRef.current);
+
+      if (!value || value.trim() === "") {
+        if (composingIntervalRef.current) {
+          clearInterval(composingIntervalRef.current);
+          composingIntervalRef.current = null;
+        }
+        sendPresence("paused");
+        window.dispatchEvent(
+          new CustomEvent("presence:clear", { detail: { ticketId } }),
+        );
+        return;
+      }
+
+      sendPresence("composing");
+
+      if (!composingIntervalRef.current) {
+        composingIntervalRef.current = setInterval(() => {
+          sendPresence("composing");
+        }, 4000);
+      }
+
+      presenceDebounceRef.current = setTimeout(() => {
+        if (composingIntervalRef.current) {
+          clearInterval(composingIntervalRef.current);
+          composingIntervalRef.current = null;
+        }
+        sendPresence("paused");
+        window.dispatchEvent(
+          new CustomEvent("presence:clear", { detail: { ticketId } }),
+        );
+      }, 8000);
+    },
+    [ticketId, ticketStatus, privateMessage, sendPresence],
+  );
 
   const handlePrivateMessage = (e) => {
     if (isTicketPending()) {
@@ -1103,6 +1203,15 @@ const MessageInput = ({
     setLoading(false);
     setReplyingMessage(null);
     setEditingMessage(null);
+
+    if (composingIntervalRef.current) {
+      clearInterval(composingIntervalRef.current);
+      composingIntervalRef.current = null;
+    }
+    if (presenceDebounceRef.current) {
+      clearTimeout(presenceDebounceRef.current);
+    }
+
     if (!isTicketPending()) {
       setPrivateMessage(false);
       setPrivateMessageInputVisible(false);
@@ -1112,6 +1221,15 @@ const MessageInput = ({
   const handleSendMessage = async () => {
     if (!inputMessage || inputMessage.trim() === "") return;
     setLoading(true);
+
+    if (composingIntervalRef.current) {
+      clearInterval(composingIntervalRef.current);
+      composingIntervalRef.current = null;
+    }
+    if (presenceDebounceRef.current) {
+      clearTimeout(presenceDebounceRef.current);
+    }
+    sendPresence("paused");
 
     const userName =
       privateMessage || isTicketPending()
@@ -1235,11 +1353,23 @@ const MessageInput = ({
       await Mp3Recorder.start();
       setRecording(true);
       setLoading(false);
+      sendPresence("recording");
+      recordingPresenceIntervalRef.current = setInterval(() => {
+        sendPresence("recording");
+      }, 3500);
     } catch (err) {
       toastError(err);
       setLoading(false);
     }
   };
+
+  const stopRecordingPresence = useCallback(() => {
+    if (recordingPresenceIntervalRef.current) {
+      clearInterval(recordingPresenceIntervalRef.current);
+      recordingPresenceIntervalRef.current = null;
+    }
+    sendPresence("paused");
+  }, [sendPresence]);
 
   useEffect(() => {
     async function fetchData() {
@@ -1363,6 +1493,7 @@ const MessageInput = ({
     setLoading(true);
     try {
       const [, blob] = await Mp3Recorder.stop().getMp3();
+      stopRecordingPresence();
       if (blob.size < 10000) {
         setLoading(false);
         setRecording(false);
@@ -1941,6 +2072,7 @@ const MessageInput = ({
     try {
       await Mp3Recorder.stop().getMp3();
       setRecording(false);
+      stopRecordingPresence();
     } catch (err) {
       toastError(err);
     }

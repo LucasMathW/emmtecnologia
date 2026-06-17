@@ -21,6 +21,7 @@ import DeleteWhatsAppMessage from "../services/WbotServices/DeleteWhatsAppMessag
 import SendWhatsAppMedia from "../services/WbotServices/SendWhatsAppMedia";
 import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
 import CreateMessageService from "../services/MessageServices/CreateMessageService";
+import SendPresenceService from "../services/WbotServices/SendPresenceService";
 
 import { sendFacebookMessageMedia } from "../services/FacebookServices/sendFacebookMessageMedia";
 import { sendFacebookMessage } from "../services/FacebookServices/sendFacebookMessage";
@@ -56,6 +57,8 @@ import TranscribeAudioMessageToText from "../services/MessageServices/Transcribe
 import QuickMessage from "../models/QuickMessage";
 import QuickMessageComponent from "../models/QuickMessageComponent";
 import { getRequestParam } from "../helpers/getRequestParam";
+import logger from "../utils/logger";
+import GetTicketWbot from "../helpers/GetTicketWbot";
 
 type IndexQuery = {
   pageNumber: string;
@@ -1301,4 +1304,27 @@ export const transcribeAudioMessage = async (
   );
 
   return res.send(transcribedText);
+};
+
+export const sendPresence = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const ticketId = getRequestParam(req.params.ticketId, "ticketId");
+  const { companyId } = req.user;
+  const { status } = req.body;
+
+  const ticket = await ShowTicketService(ticketId, companyId);
+
+  if (!ticket.whatsappId || ticket.channel !== "whatsapp") {
+    return res.send();
+  }
+
+  try {
+    await SendPresenceService({ ticket, status });
+  } catch (e) {
+    logger.warn(`[PRESENCE-SEND] Erro: ${e.message}`);
+  }
+
+  return res.send();
 };

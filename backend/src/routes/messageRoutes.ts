@@ -17,12 +17,14 @@ messageRoutes.post(
   upload.array("medias"),
   MessageController.store
 );
+
 messageRoutes.post(
   "/messages-template/:ticketId",
   isAuth,
   upload.array("medias"),
   MessageController.storeTemplate
 );
+
 messageRoutes.post(
   "/message/transcribeAudio",
   isAuth,
@@ -44,6 +46,13 @@ messageRoutes.post(
   "/messages/:messageId/reaction",
   isAuth,
   MsgReactionController.store
+);
+
+//PRESENCE....
+messageRoutes.post(
+  "/messages/:ticketId/presence",
+  isAuth,
+  MessageController.sendPresence
 );
 
 export default messageRoutes;

@@ -944,8 +944,7 @@ const MessagesList = ({
 }) => {
   const classes = useStyles();
   const [reactionBar, setReactionBar] = useState(null);
-  // const [hoveredMessageId, setHoveredMessageId] = useState(null);
-  // Adicione este helper no início do componente (junto aos outros estados)
+
   const [imageDimensions, setImageDimensions] = useState({});
   const [reactionPicker, setReactionPicker] = useState(null);
 
@@ -1271,6 +1270,15 @@ const MessagesList = ({
       }
     };
 
+    const handlePresenceClear = (event) => {
+      if (event.detail?.ticketId === ticketId) {
+        clearTimeout(presenceTimeoutRef.current);
+        setContactPresence({ status: null, memberName: null });
+      }
+    };
+
+    window.addEventListener("presence:clear", handlePresenceClear);
+
     socket.on("connect", connectEventMessagesList);
     socket.on(eventAppMessage, onAppMessageMessagesList);
 
@@ -1284,6 +1292,7 @@ const MessagesList = ({
       socket.emit("joinChatBoxLeave", `${ticketId}`);
       socket.off("connect", connectEventMessagesList);
       socket.off(eventAppMessage, onAppMessageMessagesList);
+      window.removeEventListener("presence:clear", handlePresenceClear);
       clearTimeout(presenceTimeoutRef.current);
     };
   }, [ticketId, user.companyId]); // ← remover o segundo useEffect de presença

@@ -1,3 +1,6 @@
+import Ticket from "../models/Ticket";
+import SendPresenceService from "../services/WbotServices/SendPresenceService";
+
 const handleHeartbeat = socket => {
   const userId = socket.user.id;
   const companyId = socket.user.companyId;

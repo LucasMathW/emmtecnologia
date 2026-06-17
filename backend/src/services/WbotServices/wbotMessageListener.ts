@@ -5825,9 +5825,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
-    // data.id = JID do CHAT onde o evento ocorreu
-    // data.presences = { [membroJid]: { lastKnownPresence } }
-
     console.log(`[PRESENCE FLOW][1] Loop1-raw`);
 
     const chatJid = data.id;
