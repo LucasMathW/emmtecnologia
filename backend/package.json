@@ -36,7 +36,7 @@
     "@supabase/supabase-js": "^2.33.2",
     "async-mutex": "^0.5.0",
     "axios": "^1.5.0",
-    "baileys": "npm:@whiskeysockets/baileys@latest",
+    "baileys": "npm:@whiskeysockets/baileys@7.0.0-rc13",
     "basic-auth": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
