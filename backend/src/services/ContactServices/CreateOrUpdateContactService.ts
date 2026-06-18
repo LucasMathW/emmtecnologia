@@ -346,6 +346,8 @@ const CreateOrUpdateContactService = async ({
           setCachedContact(companyId, cleanNumber, contact);
         }
       } else if (["whatsapp"].includes(channel)) {
+        const t0 = Date.now();
+        logger.info(`[PERF] Iniciando bloco criação contato ${cleanNumber}`);
         const settings = await CompaniesSettings.findOne({
           where: { companyId }
         });
@@ -360,7 +362,10 @@ const CreateOrUpdateContactService = async ({
 
         if (wbot) {
           try {
+            const t1 = Date.now();
             const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
+            logger.info(`[PERF] profilePictureUrl levou ${Date.now() - t1}ms`);
+
             if (fetched && !fetched.includes("nopicture")) {
               profilePicUrl = fetched;
             } else {
@@ -390,8 +395,10 @@ const CreateOrUpdateContactService = async ({
           let lidToUse = lid || null;
 
           if (!lidToUse && wbot && newRemoteJid) {
+            const t2 = Date.now();
             try {
               const ow = await wbot.onWhatsApp(newRemoteJid);
+              logger.info(`[PERF] onWhatsApp levou ${Date.now() - t2}ms`);
               if (ow?.[0]?.exists && ow?.[0]?.lid) {
                 lidToUse = ow[0].lid as string;
                 if (ENABLE_LID_DEBUG) {
@@ -408,7 +415,7 @@ const CreateOrUpdateContactService = async ({
               }
             }
           }
-
+          const t3 = Date.now();
           contact = await Contact.create({
             name,
             number: cleanNumber,
@@ -425,6 +432,7 @@ const CreateOrUpdateContactService = async ({
             urlPicture: "",
             whatsappId
           });
+          logger.info(`[PERF] Contact.create levou ${Date.now() - t3}ms`);
 
           setCachedContact(companyId, cleanNumber, contact);
 
@@ -434,6 +442,7 @@ const CreateOrUpdateContactService = async ({
             );
           }
           createContact = true;
+          logger.info(`[PERF] Bloco criação total: ${Date.now() - t0}ms`);
         } catch (err) {
           if (err.name === "SequelizeUniqueConstraintError") {
             logger.info(

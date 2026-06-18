@@ -158,9 +158,9 @@ async function apiMessageQueue() {
               // Ignorar conexões WhatsApp Oficial (usam webhook, não polling)
               if (whatsapp.channel === "whatsapp_oficial") return;
               try {
-                logger.info(
-                  `Processando whatsapp ${whatsapp.id} da empresa ${company.id}`
-                );
+                // logger.info(
+                //   `Processando whatsapp ${whatsapp.id} da empresa ${company.id}`
+                // );
 
                 const pendingMessages = await MessageApi.findAll({
                   where: {
