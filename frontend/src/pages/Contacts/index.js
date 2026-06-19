@@ -83,22 +83,6 @@ const reducer = (state, action) => {
     return contact;
   };
 
-  // if (action.type === "LOAD_CONTACTS") {
-  //   const contacts = action.payload;
-  //   const newContacts = [];
-
-  //   contacts.forEach((contact) => {
-  //     const contactIndex = state.findIndex((c) => c.id === contact.id);
-  //     if (contactIndex !== -1) {
-  //       state[contactIndex] = contact;
-  //     } else {
-  //       newContacts.push(contact);
-  //     }
-  //   });
-
-  //   return [...state, ...newContacts];
-  // }
-
   if (action.type === "LOAD_CONTACTS") {
     const contacts = action.payload;
     const newContacts = [];
@@ -128,25 +112,6 @@ const reducer = (state, action) => {
       return [contact, ...state];
     }
   }
-
-  // if (action.type === "UPDATE_CONTACTS") {
-  //   const contact = action.payload;
-  //   const contactIndex = state.findIndex((c) => c.id === contact.id);
-
-  //   // ✅ UMA LINHA SÓ:
-  //   const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
-  //   if (contact.urlPicture && !contact.urlPicture.startsWith("http")) {
-  //     contact.urlPicture = `${backendUrl}/${contact.urlPicture}`;
-  //   }
-
-  //   if (contactIndex !== -1) {
-  //     contact._picCachedBust = Date.now();
-  //     state[contactIndex] = contact;
-  //     return [...state];
-  //   } else {
-  //     return [contact, ...state];
-  //   }
-  // }
 
   if (action.type === "DELETE_CONTACT") {
     const contactId = action.payload;
@@ -220,7 +185,9 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "400px",
     maxHeight: "400px",
     objectFit: "contain",
+    display: "block",
   },
+
   toolbar: {
     paddingLeft: theme.spacing(2),
     paddingRight: theme.spacing(1),
