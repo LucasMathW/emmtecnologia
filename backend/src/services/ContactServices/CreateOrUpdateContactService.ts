@@ -361,6 +361,29 @@ const CreateOrUpdateContactService = async ({
         }
 
         if (wbot) {
+          console.log("=== INSPEÇÃO DO WBOT ===");
+          console.log("Tipo:", typeof wbot);
+          console.log("Chaves:", Object.keys(wbot));
+          console.log("Prototype:", Object.getPrototypeOf(wbot));
+
+          // Ver se profilePictureUrl existe
+          console.log(
+            "profilePictureUrl existe?",
+            typeof wbot.profilePictureUrl
+          );
+          console.log(
+            "profilePictureUrl é função?",
+            typeof wbot.profilePictureUrl === "function"
+          );
+
+          // Ver outros métodos relacionados
+          console.log(
+            "Métodos disponíveis:",
+            Object.getOwnPropertyNames(wbot).filter(
+              key => typeof wbot[key] === "function"
+            )
+          );
+
           try {
             const t1 = Date.now();
             const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");

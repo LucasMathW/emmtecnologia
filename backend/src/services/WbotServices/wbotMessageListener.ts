@@ -6137,32 +6137,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
       await CreateOrUpdateContactService(contactData);
     });
   });
-
-  // wbot.ev.on("groups.update", (groupUpdate: GroupMetadata[]) => {
-  //   // Logs de debug de grupos removidos para produção
-
-  //   if (!groupUpdate[0]?.id) return;
-  //   if (groupUpdate.length === 0) return;
-  //   groupUpdate.forEach(async (group: GroupMetadata) => {
-  //     const number = group.id.substr(0, group.id.indexOf("@"));
-  //     const nameGroup = group.subject || number;
-
-  //     let profilePicUrl: string = "";
-
-  //     const contactData = {
-  //       name: nameGroup,
-  //       number: number,
-  //       isGroup: true,
-  //       companyId: companyId,
-  //       remoteJid: group.id,
-  //       profilePicUrl,
-  //       whatsappId: wbot.id,
-  //       wbot: wbot
-  //     };
-
-  //     const contact = await CreateOrUpdateContactService(contactData);
-  //   });
-  // });
 };
 
 export {
