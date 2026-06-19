@@ -23,6 +23,22 @@ authRoutes.get(
       const wbot = await getWbot(Number(whatsappId));
       const jid = `${number}@s.whatsapp.net`;
 
+      const wsState = (wbot as any).ws?.readyState;
+      const wsStateMap = {
+        0: "CONNECTING",
+        1: "OPEN",
+        2: "CLOSING",
+        3: "CLOSED"
+      };
+      const user = (wbot as any).user;
+      const isOpen = wsState === 1;
+
+      console.log(
+        `[DEBUG-PIC] WS readyState: ${wsState} (${wsStateMap[wsState]})`
+      );
+      console.log(`[DEBUG-PIC] user: ${JSON.stringify(user)}`);
+      console.log(`[DEBUG-PIC] isOpen: ${isOpen}`);
+
       const start = Date.now();
       try {
         const pic = await wbot.profilePictureUrl(jid, "image");
