@@ -360,48 +360,51 @@ const CreateOrUpdateContactService = async ({
           );
         }
 
-        if (wbot) {
-          console.log("=== INSPEÇÃO DO WBOT ===");
-          console.log("Tipo:", typeof wbot);
-          console.log("Chaves:", Object.keys(wbot));
-          console.log("Prototype:", Object.getPrototypeOf(wbot));
+        // if (wbot) {
+        //   console.log("=== INSPEÇÃO DO WBOT ===");
+        //   console.log("Tipo:", typeof wbot);
+        //   console.log("Chaves:", Object.keys(wbot));
+        //   console.log("Prototype:", Object.getPrototypeOf(wbot));
 
-          // Ver se profilePictureUrl existe
-          console.log(
-            "profilePictureUrl existe?",
-            typeof wbot.profilePictureUrl
-          );
-          console.log(
-            "profilePictureUrl é função?",
-            typeof wbot.profilePictureUrl === "function"
-          );
+        //   // Ver se profilePictureUrl existe
+        //   console.log(
+        //     "profilePictureUrl existe?",
+        //     typeof wbot.profilePictureUrl
+        //   );
+        //   console.log(
+        //     "profilePictureUrl é função?",
+        //     typeof wbot.profilePictureUrl === "function"
+        //   );
 
-          // Ver outros métodos relacionados
-          console.log(
-            "Métodos disponíveis:",
-            Object.getOwnPropertyNames(wbot).filter(
-              key => typeof wbot[key] === "function"
-            )
-          );
+        //   // Ver outros métodos relacionados
+        //   console.log(
+        //     "Métodos disponíveis:",
+        //     Object.getOwnPropertyNames(wbot).filter(
+        //       key => typeof wbot[key] === "function"
+        //     )
+        //   );
 
-          try {
-            const t1 = Date.now();
-            const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
-            logger.info(`[PERF] profilePictureUrl levou ${Date.now() - t1}ms`);
+        //   try {
+        //     const t1 = Date.now();
+        //     const fetched = await wbot.profilePictureUrl(newRemoteJid, "image");
+        //     logger.info(`[PERF] profilePictureUrl levou ${Date.now() - t1}ms`);
 
-            if (fetched && !fetched.includes("nopicture")) {
-              profilePicUrl = fetched;
-            } else {
-              profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-            }
-          } catch (e) {
-            profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-          }
-        } else {
-          profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
-        }
+        //     if (fetched && !fetched.includes("nopicture")) {
+        //       profilePicUrl = fetched;
+        //     } else {
+        //       profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+        //     }
+        //   } catch (e) {
+        //     profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+        //   }
+        // } else {
+        //   profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+        // }
 
         // 🎂 PROCESSAR DATA DE NASCIMENTO PARA NOVO CONTATO
+
+        profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+
         let processedBirthDate: Date | null = null;
         if (birthDate) {
           if (typeof birthDate === "string") {
@@ -417,27 +420,27 @@ const CreateOrUpdateContactService = async ({
         try {
           let lidToUse = lid || null;
 
-          if (!lidToUse && wbot && newRemoteJid) {
-            const t2 = Date.now();
-            try {
-              const ow = await wbot.onWhatsApp(newRemoteJid);
-              logger.info(`[PERF] onWhatsApp levou ${Date.now() - t2}ms`);
-              if (ow?.[0]?.exists && ow?.[0]?.lid) {
-                lidToUse = ow[0].lid as string;
-                if (ENABLE_LID_DEBUG) {
-                  logger.info(
-                    `[RDS-LID] LID obtido via API para novo contato: ${lidToUse}`
-                  );
-                }
-              }
-            } catch (error) {
-              if (ENABLE_LID_DEBUG) {
-                logger.error(
-                  `[RDS-LID] Erro ao consultar LID para novo contato: ${error.message}`
-                );
-              }
-            }
-          }
+          // if (!lidToUse && wbot && newRemoteJid) {
+          //   const t2 = Date.now();
+          //   try {
+          //     const ow = await wbot.onWhatsApp(newRemoteJid);
+          //     logger.info(`[PERF] onWhatsApp levou ${Date.now() - t2}ms`);
+          //     if (ow?.[0]?.exists && ow?.[0]?.lid) {
+          //       lidToUse = ow[0].lid as string;
+          //       if (ENABLE_LID_DEBUG) {
+          //         logger.info(
+          //           `[RDS-LID] LID obtido via API para novo contato: ${lidToUse}`
+          //         );
+          //       }
+          //     }
+          //   } catch (error) {
+          //     if (ENABLE_LID_DEBUG) {
+          //       logger.error(
+          //         `[RDS-LID] Erro ao consultar LID para novo contato: ${error.message}`
+          //       );
+          //     }
+          //   }
+          // }
           const t3 = Date.now();
           contact = await Contact.create({
             name,
@@ -455,6 +458,7 @@ const CreateOrUpdateContactService = async ({
             urlPicture: "",
             whatsappId
           });
+
           logger.info(`[PERF] Contact.create levou ${Date.now() - t3}ms`);
 
           setCachedContact(companyId, cleanNumber, contact);
@@ -589,27 +593,28 @@ const CreateOrUpdateContactService = async ({
         const isGroupPic = (contact.remoteJid || fallbackRemoteJid)?.includes(
           "@g.us"
         );
-        if (
-          wbot &&
-          (!profilePicUrl || profilePicUrl.includes("nopicture")) &&
-          !isGroupPic
-        ) {
-          try {
-            const targetJid = contact.remoteJid || fallbackRemoteJid;
-            const fetched = await wbot.profilePictureUrl(targetJid, "image");
-            if (fetched && !fetched.includes("nopicture")) {
-              profilePicUrl = fetched;
-              contact.profilePicUrl = profilePicUrl;
-              logger.info(
-                `[PIC] Foto obtida na última tentativa para contato ${contact.number}`
-              );
-            }
-          } catch (e) {
-            logger.info(
-              `[PIC] Última tentativa falhou para ${contact.number}: ${e.message}`
-            );
-          }
-        }
+
+        // if (
+        //   wbot &&
+        //   (!profilePicUrl || profilePicUrl.includes("nopicture")) &&
+        //   !isGroupPic
+        // ) {
+        //   try {
+        //     const targetJid = contact.remoteJid || fallbackRemoteJid;
+        //     const fetched = await wbot.profilePictureUrl(targetJid, "image");
+        //     if (fetched && !fetched.includes("nopicture")) {
+        //       profilePicUrl = fetched;
+        //       contact.profilePicUrl = profilePicUrl;
+        //       logger.info(
+        //         `[PIC] Foto obtida na última tentativa para contato ${contact.number}`
+        //       );
+        //     }
+        //   } catch (e) {
+        //     logger.info(
+        //       `[PIC] Última tentativa falhou para ${contact.number}: ${e.message}`
+        //     );
+        //   }
+        // }
 
         let filename: string;
         if (isNil(profilePicUrl) || profilePicUrl.includes("nopicture")) {
