@@ -9,10 +9,9 @@ import {
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import ContactAvatar from "../ContactAvatar";
+import ContactAvatar, { NoProfileSvg } from "../ContactAvatar";
 
 const useStyles = makeStyles((theme) => ({
-  // Estilos para o modal da imagem
   imageModal: {
     display: "flex",
     alignItems: "center",
@@ -22,11 +21,17 @@ const useStyles = makeStyles((theme) => ({
     outline: "none",
     maxWidth: "90vw",
     maxHeight: "90vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing(2),
   },
   expandedImage: {
     width: "100%",
     height: "auto",
-    maxWidth: "500px",
+    maxWidth: "400px",
+    maxHeight: "400px",
+    objectFit: "contain",
     borderRadius: theme.spacing(1),
   },
   clickableAvatar: {
@@ -97,13 +102,11 @@ const TicketInfo = ({ contact, ticket, onClick }) => {
   return (
     <React.Fragment>
       <Grid container alignItems="center" spacing={10}>
-        {/* Conteúdo do contato à esquerda */}
         <Grid item xs={6}>
           {renderCardReader()}
         </Grid>
       </Grid>
 
-      {/* Modal da Imagem */}
       <Dialog
         open={imageModalOpen}
         onClose={handleImageModalClose}
@@ -112,19 +115,33 @@ const TicketInfo = ({ contact, ticket, onClick }) => {
         fullWidth
       >
         <DialogContent className={classes.imageModalContent}>
-          <img
-            src={
-              contact?.urlPicture && !contact.urlPicture.includes("nopicture")
-                ? `${contact.urlPicture}?t=${
-                    contact.updatedAt
-                      ? new Date(contact.updatedAt).getTime()
-                      : Date.now()
-                  }`
-                : ""
-            }
-            alt={contact?.name || "Foto do contato"}
-            className={classes.expandedImage}
-          />
+          {contact?.urlPicture &&
+          !contact.urlPicture.includes("nopicture") &&
+          contact.urlPicture !== "" ? (
+            <img
+              src={`${contact.urlPicture}?t=${
+                contact.updatedAt
+                  ? new Date(contact.updatedAt).getTime()
+                  : Date.now()
+              }`}
+              alt={contact?.name || "Foto do contato"}
+              className={classes.expandedImage}
+              onError={(e) => {
+                console.error("Erro ao carregar imagem:", contact.urlPicture);
+                handleImageModalClose();
+              }}
+            />
+          ) : (
+            <Avatar
+              style={{
+                width: 350,
+                height: 350,
+                backgroundColor: "#DFE5E7",
+              }}
+            >
+              <NoProfileSvg size={350} />
+            </Avatar>
+          )}
         </DialogContent>
       </Dialog>
     </React.Fragment>

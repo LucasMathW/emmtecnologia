@@ -22,6 +22,7 @@ import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import AcceptTicketWithouSelectQueue from "../AcceptTicketWithoutQueueModal";
+import ContactAvatar from "../ContactAvatar";
 
 const useStyles = makeStyles((theme) => ({
   overlay: {
@@ -200,7 +201,7 @@ const PendingTicketOverlay = ({ ticket, contact, isAccepting = false }) => {
 
           {/* Informações do Contato */}
           <div className={classes.contactInfo}>
-            <Avatar
+            {/* <Avatar
               src={
                 contact?.urlPicture
                   ? `${contact.urlPicture}?t=${
@@ -214,7 +215,14 @@ const PendingTicketOverlay = ({ ticket, contact, isAccepting = false }) => {
               className={classes.contactAvatar}
             >
               {contact?.name?.charAt(0).toUpperCase()}
-            </Avatar>
+            </Avatar> */}
+
+            <ContactAvatar
+              contact={contact}
+              size={48}
+              className={classes.contactAvatar}
+            />
+
             <div className={classes.contactDetails}>
               <Typography className={classes.contactName}>
                 {contact?.name || "Contato"}

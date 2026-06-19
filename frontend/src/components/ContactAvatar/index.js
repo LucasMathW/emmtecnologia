@@ -9,7 +9,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const NoProfileSvg = ({ size = 40 }) => (
+export const NoProfileSvg = ({ size = 40 }) => (
   <svg viewBox="0 0 212 212" width={size} height={size} fill="none">
     <circle cx="106" cy="106" r="106" fill="#DFE5E7" />
     <path
@@ -19,7 +19,14 @@ const NoProfileSvg = ({ size = 40 }) => (
   </svg>
 );
 
-const ContactAvatar = ({ contact, size, className, style, onClick }) => {
+const ContactAvatar = ({
+  contact,
+  size,
+  className,
+  style,
+  onClick,
+  children,
+}) => {
   const classes = useStyles();
 
   const hasPicture =
@@ -40,7 +47,7 @@ const ContactAvatar = ({ contact, size, className, style, onClick }) => {
       style={style}
       onClick={onClick}
     >
-      {!hasPicture && <NoProfileSvg size={size} />}
+      {!hasPicture && (children || <NoProfileSvg size={size} />)}
     </Avatar>
   );
 };

@@ -18,6 +18,7 @@ import ClearIcon from "@material-ui/icons/Clear";
 import BlockIcon from "@material-ui/icons/Block";
 import LockOpenIcon from "@material-ui/icons/LockOpen";
 import Avatar from "@material-ui/core/Avatar";
+import ContactAvatar, { NoProfileSvg } from "../ContactAvatar";
 import formatSerializedId from "../../utils/formatSerializedId";
 import { i18n } from "../../translate/i18n";
 import ModalImageCors from "../ModalImageCors";
@@ -691,13 +692,22 @@ const ContactDrawer = ({
                   ) : null
                 }
               >
-                <Avatar
+                {/* <Avatar
                   src={participant.profilePicUrl}
                   alt={participant.name}
                   className={classes.participantAvatar}
                 >
                   {participant.name?.charAt(0)?.toUpperCase()}
-                </Avatar>
+                </Avatar> */}
+                <ContactAvatar
+                  contact={{
+                    urlPicture: participant.profilePicUrl,
+                    updatedAt: participant.updatedAt,
+                    name: participant.name,
+                  }}
+                  size={45}
+                  className={classes.participantAvatar}
+                />
               </Badge>
             </ListItemAvatar>
             <ListItemText
@@ -1209,22 +1219,12 @@ const ContactDrawer = ({
           <div className={classes.profileSection}>
             <Paper square variant="outlined" className={classes.contactHeader}>
               {/* Avatar redondo e menor - CLICÁVEL */}
-              <Avatar
-                src={
-                  contact?.urlPicture
-                    ? `${contact.urlPicture}?t=${
-                        contact.updatedAt
-                          ? new Date(contact.updatedAt).getTime()
-                          : Date.now()
-                      }`
-                    : ""
-                }
-                alt={contact.name}
+              <ContactAvatar
+                contact={contact}
+                size={80}
                 className={classes.contactAvatar}
                 onClick={handleImageClick}
-              >
-                {contact.name?.charAt(0)?.toUpperCase()}
-              </Avatar>
+              />
 
               <div className={classes.contactCardHeader}>
                 {/* Nome completo */}
@@ -1764,19 +1764,34 @@ const ContactDrawer = ({
         fullWidth
       >
         <DialogContent className={classes.imageModalContent}>
-          <img
-            src={
-              contact?.urlPicture
-                ? `${contact.urlPicture}?t=${
-                    contact.updatedAt
-                      ? new Date(contact.updatedAt).getTime()
-                      : Date.now()
-                  }`
-                : ""
-            }
-            alt={contact?.name || "Foto do contato"}
-            className={classes.expandedImage}
-          />
+          {contact?.urlPicture &&
+          !contact.urlPicture.includes("nopicture") &&
+          contact.urlPicture !== "" ? (
+            <img
+              src={`${contact.urlPicture}?t=${
+                contact.updatedAt
+                  ? new Date(contact.updatedAt).getTime()
+                  : Date.now()
+              }`}
+              alt={contact?.name || "Foto do contato"}
+              className={classes.expandedImage}
+              onError={(e) => {
+                console.error("Erro ao carregar imagem:", contact.urlPicture);
+                handleImageModalClose();
+              }}
+            />
+          ) : (
+            <Avatar
+              style={{
+                width: 350,
+                height: 350,
+                backgroundColor: "#DFE5E7",
+                margin: "0 auto",
+              }}
+            >
+              <NoProfileSvg size={350} />
+            </Avatar>
+          )}
         </DialogContent>
       </Dialog>
     </>

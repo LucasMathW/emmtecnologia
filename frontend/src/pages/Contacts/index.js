@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { toast } from "react-toastify";
 import { useHistory } from "react-router-dom";
-import ContactAvatar from "../../components/ContactAvatar";
+import ContactAvatar, { NoProfileSvg } from "../../components/ContactAvatar";
 import { makeStyles } from "@material-ui/core/styles";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -716,28 +716,37 @@ const Contacts = () => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {selectedImage ? (
+          {selectedImage && !selectedImage.includes("nopicture") ? (
             <img
               src={selectedImage}
               alt={`Foto de perfil de ${selectedContactName}`}
               className={classes.profileImage}
               onError={(e) => {
+                // Se falhar ao carregar, mostra o ícone
                 e.target.style.display = "none";
+                const iconContainer = e.target.nextElementSibling;
+                if (iconContainer) {
+                  iconContainer.style.display = "flex";
+                }
               }}
             />
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "200px",
-                color: "#666",
-              }}
-            >
-              Imagem não disponível
-            </div>
-          )}
+          ) : null}
+
+          {/* Ícone de fallback - sempre visível quando não há imagem */}
+          <div
+            style={{
+              display:
+                selectedImage && !selectedImage.includes("nopicture")
+                  ? "none"
+                  : "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "40px",
+            }}
+          >
+            <NoProfileSvg size={200} />
+          </div>
         </DialogContent>
       </Dialog>
 
