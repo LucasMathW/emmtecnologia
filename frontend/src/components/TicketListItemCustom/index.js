@@ -56,6 +56,7 @@ import {
   Button,
   DialogContent,
 } from "@material-ui/core";
+import ContactAvatar from "../ContactAvatar";
 
 const useStyles = makeStyles((theme) => ({
   ticket: {
@@ -280,7 +281,10 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
   // Função para abrir modal da imagem
   const handleImageClick = (e) => {
     e.stopPropagation(); // Prevenir que o clique no avatar selecione o ticket
-    if (ticket?.contact?.urlPicture) {
+    if (
+      ticket?.contact?.urlPicture &&
+      !ticket.contact.urlPicture.includes("nopicture")
+    ) {
       setImageModalOpen(true);
     }
   };
@@ -897,17 +901,14 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         })}
       >
         <ListItemAvatar style={{ marginLeft: "-15px" }}>
-          <Avatar
+          <ContactAvatar
+            contact={ticket?.contact}
+            size={50}
             style={{
               width: "50px",
               height: "50px",
               borderRadius: "50%",
             }}
-            src={
-              ticket?.contact?.urlPicture
-                ? `${ticket.contact.urlPicture}?t=${ticket.contact._picCachedBust || Date.now()}`
-                : ""
-            }
             className={classes.clickableAvatar}
             onClick={handleImageClick}
           />
@@ -1342,11 +1343,30 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         fullWidth
       >
         <DialogContent className={classes.imageModalContent}>
-          <img
-            src={ticket?.contact?.urlPicture}
-            alt={ticket?.contact?.name || "Foto do contato"}
-            className={classes.expandedImage}
-          />
+          {ticket?.contact?.urlPicture &&
+          !ticket.contact.urlPicture.includes("nopicture") ? (
+            <img
+              src={`${ticket.contact.urlPicture}?t=${ticket.contact._picCachedBust || Date.now()}`}
+              alt={ticket?.contact?.name || "Foto do contato"}
+              className={classes.expandedImage}
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "200px",
+                color: "#666",
+                fontSize: "14px",
+              }}
+            >
+              Sem foto de perfil
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </React.Fragment>

@@ -6173,7 +6173,11 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
-            await existingContact.update({ profilePicUrl: "", urlPicture: "" });
+            await existingContact.update({
+              profilePicUrl: null,
+              urlPicture: null
+            });
+
             await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
 
             io.of(String(companyId)).emit(`company-${companyId}-contact`, {

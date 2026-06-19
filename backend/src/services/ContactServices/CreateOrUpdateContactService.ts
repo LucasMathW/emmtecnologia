@@ -403,7 +403,7 @@ const CreateOrUpdateContactService = async ({
 
         // 🎂 PROCESSAR DATA DE NASCIMENTO PARA NOVO CONTATO
 
-        profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
+        profilePicUrl = null;
 
         let processedBirthDate: Date | null = null;
         if (birthDate) {
@@ -618,7 +618,7 @@ const CreateOrUpdateContactService = async ({
 
         let filename: string;
         if (isNil(profilePicUrl) || profilePicUrl.includes("nopicture")) {
-          filename = "nopicture.png";
+          filename = "";
         } else {
           filename = `${contact.id}.jpeg`;
           const filePath = join(folder, filename);

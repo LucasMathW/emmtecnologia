@@ -8,16 +8,16 @@ import {
   Avatar,
   CircularProgress,
   makeStyles,
-  useTheme
+  useTheme,
 } from "@material-ui/core";
 import {
   Lock as LockIcon,
   Visibility as VisibilityIcon,
   CheckCircle as AcceptIcon,
-  Schedule as PendingIcon
+  Schedule as PendingIcon,
 } from "@material-ui/icons";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import {TicketsContext} from "../../context/Tickets/TicketsContext";
+import { TicketsContext } from "../../context/Tickets/TicketsContext";
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
@@ -125,28 +125,27 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "0.75rem",
     fontWeight: 500,
     marginBottom: theme.spacing(2),
-  }
+  },
 }));
 
-const PendingTicketOverlay = ({ 
-  ticket, 
-  contact, 
-  isAccepting = false 
-}) => {
+const PendingTicketOverlay = ({ ticket, contact, isAccepting = false }) => {
   const classes = useStyles();
   const theme = useTheme();
   const history = useHistory();
   const { user } = useContext(AuthContext);
   const { setTabOpen } = useContext(TicketsContext);
   const [loading, setLoading] = useState(false);
-  
+
   // ✅ ADICIONAR ESTADO PARA MODAL DE SELEÇÃO DE FILA
-  const [acceptTicketWithouSelectQueueOpen, setAcceptTicketWithouSelectQueueOpen] = useState(false);
+  const [
+    acceptTicketWithouSelectQueueOpen,
+    setAcceptTicketWithouSelectQueueOpen,
+  ] = useState(false);
 
   // ✅ CORRIGIDO: Lógica igual ao TicketActionButtonsCustom
   const handleAcceptTicket = async () => {
     if (loading || isAccepting) return;
-    
+
     // ✅ VERIFICAR SE TICKET TEM FILA ASSOCIADA
     if (ticket.queueId === null || ticket.queueId === undefined) {
       // Se não tem fila, abrir modal para escolher
@@ -161,7 +160,7 @@ const PendingTicketOverlay = ({
         status: ticket.isGroup ? "group" : "open",
         userId: user?.id,
       });
-      
+
       setLoading(false);
       setTabOpen(ticket.isGroup ? "group" : "open");
       history.push(`/tickets/${ticket.uuid}`);
@@ -179,17 +178,19 @@ const PendingTicketOverlay = ({
 
   return (
     <>
-      <Box className={`${classes.overlay} ${theme.palette.type === 'dark' ? classes.overlayDark : ''}`}>
+      <Box
+        className={`${classes.overlay} ${theme.palette.type === "dark" ? classes.overlayDark : ""}`}
+      >
         <Paper className={classes.contentContainer}>
           <LockIcon className={classes.lockIcon} />
-          
+
           <Typography variant="h6" className={classes.title}>
             Conversa Bloqueada
           </Typography>
-          
+
           <Typography variant="body2" className={classes.subtitle}>
-            Este ticket está aguardando aceite. Aceite a conversa para visualizar 
-            e responder às mensagens do cliente.
+            Este ticket está aguardando aceite. Aceite a conversa para
+            visualizar e responder às mensagens do cliente.
           </Typography>
 
           <div className={classes.statusChip}>
@@ -200,7 +201,15 @@ const PendingTicketOverlay = ({
           {/* Informações do Contato */}
           <div className={classes.contactInfo}>
             <Avatar
-              src={contact?.urlPicture}
+              src={
+                contact?.urlPicture
+                  ? `${contact.urlPicture}?t=${
+                      contact.updatedAt
+                        ? new Date(contact.updatedAt).getTime()
+                        : Date.now()
+                    }`
+                  : ""
+              }
               alt={contact?.name}
               className={classes.contactAvatar}
             >
@@ -223,14 +232,20 @@ const PendingTicketOverlay = ({
               onClick={handleAcceptTicket}
               disabled={loading || isAccepting}
               className={classes.acceptButton}
-              startIcon={loading || isAccepting ? <CircularProgress size={16} color="inherit" /> : <AcceptIcon />}
+              startIcon={
+                loading || isAccepting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <AcceptIcon />
+                )
+              }
             >
-              {loading || isAccepting ? 'Aceitando...' : 'Aceitar Conversa'}
+              {loading || isAccepting ? "Aceitando..." : "Aceitar Conversa"}
             </Button>
           </div>
 
           <Typography className={classes.warningText}>
-          🚫 Você não pode visualizar as mensagens antes de aceitar o ticket
+            🚫 Você não pode visualizar as mensagens antes de aceitar o ticket
           </Typography>
         </Paper>
       </Box>

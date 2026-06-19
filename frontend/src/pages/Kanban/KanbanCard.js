@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import React, { useState } from "react";
+import { makeStyles } from "@material-ui/core/styles";
 import {
   Avatar,
   Button,
@@ -12,35 +12,36 @@ import {
   DialogActions,
   TextField,
   IconButton,
-} from '@material-ui/core';
-import CloseIcon from '@material-ui/icons/Close';
-import { format, parseISO, isSameDay } from 'date-fns';
-import { useHistory } from 'react-router-dom';
-import { Draggable } from 'react-beautiful-dnd';
-import api from '../../services/api';
+} from "@material-ui/core";
+import CloseIcon from "@material-ui/icons/Close";
+import { format, parseISO, isSameDay } from "date-fns";
+import { useHistory } from "react-router-dom";
+import { Draggable } from "react-beautiful-dnd";
+import ContactAvatar from "../../components/ContactAvatar";
+import api from "../../services/api";
 
-const useStyles = makeStyles(theme => ({
+const useStyles = makeStyles((theme) => ({
   card: {
     padding: theme.spacing(0.8),
-    background: '#fff',
+    background: "#fff",
     borderRadius: 8,
-    boxShadow: '0px 10px 17px -10px rgba(0, 0, 0, 0.59)',
+    boxShadow: "0px 10px 17px -10px rgba(0, 0, 0, 0.59)",
     marginBottom: theme.spacing(1),
-    cursor: 'grab',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
+    cursor: "grab",
+    display: "flex",
+    flexDirection: "column",
+    position: "relative",
     marginRight: theme.spacing(0.5),
   },
   header: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     marginBottom: theme.spacing(0.5),
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   leftHeader: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
   },
   avatar: {
     marginRight: theme.spacing(1),
@@ -48,74 +49,74 @@ const useStyles = makeStyles(theme => ({
     height: theme.spacing(3),
   },
   cardTitle: {
-    fontSize: '1rem',
-    fontWeight: 'bold',
+    fontSize: "1rem",
+    fontWeight: "bold",
     color: theme.mode === "light" ? theme.palette.text.primary : "#000",
   },
   ticketNumber: {
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
+    fontSize: "0.9rem",
+    fontWeight: "bold",
     color: "#757575",
   },
   divider: {
     background: "#e6e6e6",
   },
   lastMessageTime: {
-    fontSize: '0.8rem',
+    fontSize: "0.8rem",
     color: "#757575",
   },
   lastMessageTimeUnread: {
-    fontSize: '0.8rem',
+    fontSize: "0.8rem",
     color: theme.palette.success.main,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   cardDescription: {
-    fontSize: '0.9rem',
+    fontSize: "0.9rem",
     color: "#757575",
     flexGrow: 1,
     marginRight: theme.spacing(1),
   },
   valueRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: theme.spacing(1),
   },
   descriptionRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing(1),
   },
   footer: {
-    display: 'flex',
-    alignItems: 'center',
-    marginTop: 'auto',
+    display: "flex",
+    alignItems: "center",
+    marginTop: "auto",
   },
   cardButton: {
-    fontSize: '0.5rem',
-    padding: '2px 6px',
-    color: '#fff',
+    fontSize: "0.5rem",
+    padding: "2px 6px",
+    color: "#fff",
     backgroundColor: theme.palette.primary.main,
-    borderRadius: '10px',
-    '&:hover': {
+    borderRadius: "10px",
+    "&:hover": {
       backgroundColor: theme.palette.primary.dark,
     },
   },
   connectionTag: {
     background: "#000",
-    color: '#FFF',
-    padding: '2px 6px',
-    fontWeight: 'bold',
-    borderRadius: '10px',
-    fontSize: '0.5rem',
-    marginLeft: 'auto',
+    color: "#FFF",
+    padding: "2px 6px",
+    fontWeight: "bold",
+    borderRadius: "10px",
+    fontSize: "0.5rem",
+    marginLeft: "auto",
   },
   opportunityValue: {
-    fontSize: '0.9rem',
+    fontSize: "0.9rem",
     color: theme.palette.primary.main,
-    fontWeight: 'bold',
-    cursor: 'pointer',
+    fontWeight: "bold",
+    cursor: "pointer",
   },
   removeValueButton: {
     padding: 0,
@@ -123,15 +124,15 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.error.main,
   },
   textField: {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: '10px',
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "10px",
     },
   },
   dialogPaper: {
-    borderRadius: '10px',
+    borderRadius: "10px",
   },
   dialogButton: {
-    borderRadius: '10px',
+    borderRadius: "10px",
   },
 }));
 
@@ -140,7 +141,7 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
   const history = useHistory();
 
   const [open, setOpen] = useState(false);
-  const [newValue, setNewValue] = useState('');
+  const [newValue, setNewValue] = useState("");
 
   const handleCardClick = () => {
     history.push(`/tickets/${ticket.uuid}`);
@@ -152,12 +153,15 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
       : classes.lastMessageTime;
 
   const customFields = ticket.contact.extraInfo || [];
-  const valueFieldIndex = customFields.findIndex(field => field.name === 'valor');
-  const valueField = valueFieldIndex !== -1 ? customFields[valueFieldIndex] : null;
+  const valueFieldIndex = customFields.findIndex(
+    (field) => field.name === "valor",
+  );
+  const valueField =
+    valueFieldIndex !== -1 ? customFields[valueFieldIndex] : null;
   const opportunityValue = valueField ? parseFloat(valueField.value) : null;
 
   const handleOpenModal = () => {
-    setNewValue(valueField ? valueField.value.toString() : '');
+    setNewValue(valueField ? valueField.value.toString() : "");
     setOpen(true);
   };
 
@@ -168,10 +172,10 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
   const updateContactValue = async (contactId, value) => {
     try {
       await api.put(`/contacts/${contactId}`, {
-        extraInfo: [{ name: 'valor', value: value.toString() }],
+        extraInfo: [{ name: "valor", value: value.toString() }],
       });
     } catch (error) {
-      console.error('Erro ao atualizar o valor:', error);
+      console.error("Erro ao atualizar o valor:", error);
     }
   };
 
@@ -186,9 +190,8 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
       }
 
       updateTicket({ ...ticket });
-
     } catch (error) {
-      console.error('Erro ao remover o valor:', error);
+      console.error("Erro ao remover o valor:", error);
     }
   };
 
@@ -201,7 +204,7 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
       if (!ticket.contact.extraInfo) {
         ticket.contact.extraInfo = [];
       }
-      ticket.contact.extraInfo.push({ name: 'valor', value: newValue });
+      ticket.contact.extraInfo.push({ name: "valor", value: newValue });
     }
 
     updateTicket({ ...ticket });
@@ -220,10 +223,26 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
         >
           <div className={classes.header}>
             <div className={classes.leftHeader}>
-              <Avatar src={ticket.contact.urlPicture} className={classes.avatar} />
+              {/* <Avatar
+                src={
+                  ticket.contact.urlPicture
+                    ? `${ticket.contact.urlPicture}?t=${
+                        ticket.contact.updatedAt
+                          ? new Date(ticket.contact.updatedAt).getTime()
+                          : Date.now()
+                      }`
+                    : ""
+                }
+                className={classes.avatar}
+              /> */}
+              <ContactAvatar
+                contact={ticket.contact}
+                size={24}
+                className={classes.avatar}
+              />
               <Tooltip title={ticket.contact.name}>
                 <Typography className={classes.cardTitle}>
-                  {ticket.contact.name?.substring(0, 10) || ' '}
+                  {ticket.contact.name?.substring(0, 10) || " "}
                 </Typography>
               </Tooltip>
             </div>
@@ -233,14 +252,14 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
           </div>
           <Divider className={classes.divider} />
           <div className={classes.valueRow}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
               <Typography
                 className={classes.opportunityValue}
                 onClick={handleOpenModal}
               >
                 {opportunityValue !== null
                   ? `Valor: R$ ${opportunityValue.toFixed(2)}`
-                  : 'Atribuir Valor'}
+                  : "Atribuir Valor"}
               </Typography>
               {opportunityValue !== null && (
                 <Tooltip title={"Remover"}>
@@ -256,15 +275,15 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
             </div>
           </div>
           <div className={classes.descriptionRow}>
-            <Tooltip title={ticket.lastMessage || ' '}>
+            <Tooltip title={ticket.lastMessage || " "}>
               <Typography className={classes.cardDescription}>
-                {ticket.lastMessage?.substring(0, 20) || ' '}
+                {ticket.lastMessage?.substring(0, 20) || " "}
               </Typography>
             </Tooltip>
             <Typography className={lastMessageTimeClass}>
               {isSameDay(parseISO(ticket.updatedAt), new Date())
-                ? format(parseISO(ticket.updatedAt), 'HH:mm')
-                : format(parseISO(ticket.updatedAt), 'dd/MM/yyyy')}
+                ? format(parseISO(ticket.updatedAt), "HH:mm")
+                : format(parseISO(ticket.updatedAt), "dd/MM/yyyy")}
             </Typography>
           </div>
           <div className={classes.footer}>
@@ -286,7 +305,9 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
             onClose={handleCloseModal}
             classes={{ paper: classes.dialogPaper }}
           >
-            <DialogTitle>{valueField ? 'Editar' : 'Atribuir'} Valor da Oportunidade</DialogTitle>
+            <DialogTitle>
+              {valueField ? "Editar" : "Atribuir"} Valor da Oportunidade
+            </DialogTitle>
             <DialogContent>
               <TextField
                 label="Valor"
@@ -296,7 +317,8 @@ const KanbanCard = ({ ticket, index, updateTicket }) => {
                 onChange={(e) => setNewValue(e.target.value)}
                 variant="outlined"
                 size="small"
-                className={classes.textField} personalizados
+                className={classes.textField}
+                personalizados
               />
             </DialogContent>
             <DialogActions>

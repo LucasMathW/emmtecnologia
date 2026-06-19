@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { toast } from "react-toastify";
 import { useHistory } from "react-router-dom";
-
+import ContactAvatar from "../../components/ContactAvatar";
 import { makeStyles } from "@material-ui/core/styles";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -71,11 +71,40 @@ import useCompanySettings from "../../hooks/useSettings/companySettings";
 import { TicketsContext } from "../../context/Tickets/TicketsContext";
 
 const reducer = (state, action) => {
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
+
+  const normalizeContact = (contact) => {
+    if (contact.urlPicture && !contact.urlPicture.startsWith("http")) {
+      contact.urlPicture = `${backendUrl}/${contact.urlPicture}`;
+    }
+    contact._picCachedBust = contact.updatedAt
+      ? new Date(contact.updatedAt).getTime()
+      : Date.now();
+    return contact;
+  };
+
+  // if (action.type === "LOAD_CONTACTS") {
+  //   const contacts = action.payload;
+  //   const newContacts = [];
+
+  //   contacts.forEach((contact) => {
+  //     const contactIndex = state.findIndex((c) => c.id === contact.id);
+  //     if (contactIndex !== -1) {
+  //       state[contactIndex] = contact;
+  //     } else {
+  //       newContacts.push(contact);
+  //     }
+  //   });
+
+  //   return [...state, ...newContacts];
+  // }
+
   if (action.type === "LOAD_CONTACTS") {
     const contacts = action.payload;
     const newContacts = [];
 
     contacts.forEach((contact) => {
+      normalizeContact(contact); // ← adiciona isso
       const contactIndex = state.findIndex((c) => c.id === contact.id);
       if (contactIndex !== -1) {
         state[contactIndex] = contact;
@@ -89,22 +118,35 @@ const reducer = (state, action) => {
 
   if (action.type === "UPDATE_CONTACTS") {
     const contact = action.payload;
+    normalizeContact(contact); // ← já normaliza e gera busting
+
     const contactIndex = state.findIndex((c) => c.id === contact.id);
-
-    // ✅ UMA LINHA SÓ:
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
-    if (contact.urlPicture && !contact.urlPicture.startsWith("http")) {
-      contact.urlPicture = `${backendUrl}/${contact.urlPicture}`;
-    }
-
     if (contactIndex !== -1) {
-      contact._picCachedBust = Date.now();
       state[contactIndex] = contact;
       return [...state];
     } else {
       return [contact, ...state];
     }
   }
+
+  // if (action.type === "UPDATE_CONTACTS") {
+  //   const contact = action.payload;
+  //   const contactIndex = state.findIndex((c) => c.id === contact.id);
+
+  //   // ✅ UMA LINHA SÓ:
+  //   const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
+  //   if (contact.urlPicture && !contact.urlPicture.startsWith("http")) {
+  //     contact.urlPicture = `${backendUrl}/${contact.urlPicture}`;
+  //   }
+
+  //   if (contactIndex !== -1) {
+  //     contact._picCachedBust = Date.now();
+  //     state[contactIndex] = contact;
+  //     return [...state];
+  //   } else {
+  //     return [contact, ...state];
+  //   }
+  // }
 
   if (action.type === "DELETE_CONTACT") {
     const contactId = action.payload;
@@ -956,7 +998,21 @@ const Contacts = () => {
                       {contact.id}
                     </TableCell>
                     <TableCell className={classes.avatarCell} align="center">
-                      <Avatar
+                      <ContactAvatar
+                        contact={contact}
+                        size={40}
+                        className={classes.clickableAvatar}
+                        onClick={() =>
+                          handleOpenImageModal(
+                            contact?.urlPicture &&
+                              !contact.urlPicture.includes("nopicture")
+                              ? `${contact.urlPicture}?t=${contact._picCachedBust || Date.now()}`
+                              : "",
+                            contact.name,
+                          )
+                        }
+                      />
+                      {/* <Avatar
                         src={
                           contact?.urlPicture
                             ? `${contact.urlPicture}?t=${contact._picCachedBust || ""}`
@@ -965,11 +1021,13 @@ const Contacts = () => {
                         className={classes.clickableAvatar}
                         onClick={() =>
                           handleOpenImageModal(
-                            contact?.urlPicture,
+                            contact?.urlPicture
+                              ? `${contact.urlPicture}?t=${contact._picCachedBust || Date.now()}`
+                              : "",
                             contact.name,
                           )
                         }
-                      />
+                      /> */}
                     </TableCell>
                     <TableCell>{contact.name}</TableCell>
                     <TableCell align="center">
