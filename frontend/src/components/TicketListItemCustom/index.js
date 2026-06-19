@@ -56,7 +56,7 @@ import {
   Button,
   DialogContent,
 } from "@material-ui/core";
-import ContactAvatar from "../ContactAvatar";
+import ContactAvatar, { NoProfileSvg } from "../ContactAvatar";
 
 const useStyles = makeStyles((theme) => ({
   ticket: {
@@ -280,13 +280,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
   // Função para abrir modal da imagem
   const handleImageClick = (e) => {
-    e.stopPropagation(); // Prevenir que o clique no avatar selecione o ticket
-    if (
-      ticket?.contact?.urlPicture &&
-      !ticket.contact.urlPicture.includes("nopicture")
-    ) {
-      setImageModalOpen(true);
-    }
+    e.stopPropagation();
+    // Abrir modal sempre, mesmo sem foto
+    setImageModalOpen(true);
   };
 
   // Função para fechar modal da imagem
@@ -1351,22 +1347,30 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
               className={classes.expandedImage}
               onError={(e) => {
                 e.target.style.display = "none";
+                const iconContainer = e.target.nextElementSibling;
+                if (iconContainer) {
+                  iconContainer.style.display = "flex";
+                }
               }}
             />
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "200px",
-                color: "#666",
-                fontSize: "14px",
-              }}
-            >
-              Sem foto de perfil
-            </div>
-          )}
+          ) : null}
+
+          {/* Ícone de fallback - sempre visível quando não há imagem */}
+          <div
+            style={{
+              display:
+                ticket?.contact?.urlPicture &&
+                !ticket.contact.urlPicture.includes("nopicture")
+                  ? "none"
+                  : "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "40px",
+            }}
+          >
+            <NoProfileSvg size={200} />
+          </div>
         </DialogContent>
       </Dialog>
     </React.Fragment>

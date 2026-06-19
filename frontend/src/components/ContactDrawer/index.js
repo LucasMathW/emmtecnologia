@@ -511,9 +511,8 @@ const ContactDrawer = ({
 
   // Função para abrir modal da imagem
   const handleImageClick = () => {
-    if (contact?.urlPicture) {
-      setImageModalOpen(true);
-    }
+    // Abrir modal sempre, mesmo sem foto
+    setImageModalOpen(true);
   };
 
   // Função para fechar modal da imagem

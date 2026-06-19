@@ -50,10 +50,9 @@ const TicketInfo = ({ contact, ticket, onClick }) => {
 
   // Função para abrir modal da imagem
   const handleImageClick = (e) => {
-    e.stopPropagation(); // Prevenir que o clique no avatar execute outros handlers
-    if (contact?.urlPicture) {
-      setImageModalOpen(true);
-    }
+    e.stopPropagation();
+    // Abrir modal sempre, mesmo sem foto
+    setImageModalOpen(true);
   };
 
   // Função para fechar modal da imagem
