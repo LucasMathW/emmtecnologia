@@ -4,6 +4,7 @@ import CompaniesSettings from "../../models/CompaniesSettings";
 import Contact from "../../models/Contact";
 import ContactCustomField from "../../models/ContactCustomField";
 import fs from "fs";
+const fsp = fs.promises;
 import path, { join } from "path";
 import logger from "../../utils/logger";
 import { isNil } from "lodash";
@@ -286,53 +287,134 @@ const CreateOrUpdateContactService = async ({
           contact.remoteJid || fallbackRemoteJid
         )?.includes("@g.us");
 
+        // if (wbot && currentPicIsInvalid) {
+        //   try {
+        //     const targetJid = contact.remoteJid || fallbackRemoteJid;
+        //     logger.info(
+        //       `[PIC-DEBUG2] Tentando buscar foto para JID: ${targetJid}`
+        //     );
+        //     logger.info(
+        //       `[PIC-DEBUG2] contact.urlPicture=${contact.urlPicture}`
+        //     );
+        //     logger.info(
+        //       `[PIC-DEBUG2] fileExistsAndValid=${fileExistsAndValid}`
+        //     );
+        //     logger.info(
+        //       `[PIC-DEBUG2] currentPicIsInvalid=${currentPicIsInvalid}`
+        //     );
+        //     logger.info(`[PIC-DEBUG2] fileName=${fileName}`);
+
+        //     const fetched = await wbot.profilePictureUrl(targetJid, "image");
+
+        //     logger.info(`[PIC-DEBUG2] fetched=${fetched}`);
+
+        //     if (fetched && !fetched.includes("nopicture")) {
+        //       profilePicUrl = fetched;
+        //       contact.profilePicUrl = profilePicUrl;
+        //       updateImage = true;
+        //       logger.info(
+        //         `[PIC] Foto obtida via wbot para contato ${contact.number}: ${profilePicUrl}`
+        //       );
+        //     } else {
+        //       logger.info(
+        //         `[PIC] wbot não retornou foto válida para ${contact.number}, mantendo estado atual`
+        //       );
+        //       // Não altera updateImage nem profilePicUrl — mantém o que tinha
+        //     }
+        //   } catch (e) {
+        //     logger.info(
+        //       `[PIC] Sem foto de perfil disponível para ${contact.number}: ${e.message}`
+        //     );
+        //     // Não altera updateImage — não força nopicture
+        //   }
+        // } else if (!wbot && currentPicIsInvalid) {
+        //   // Sem wbot e sem foto válida: mantém o estado, não força nopicture
+        //   logger.info(
+        //     `[PIC] Sem wbot para buscar foto de ${contact.number}, mantendo estado atual`
+        //   );
+        // }
+        // Se fileExistsAndValid === true: arquivo já existe em disco, não precisa rebaixar
+
+        // 🔥 REFACTORED: Busca de foto em BACKGROUND (fire-and-forget)
         if (wbot && currentPicIsInvalid) {
-          try {
-            const targetJid = contact.remoteJid || fallbackRemoteJid;
-            logger.info(
-              `[PIC-DEBUG2] Tentando buscar foto para JID: ${targetJid}`
-            );
-            logger.info(
-              `[PIC-DEBUG2] contact.urlPicture=${contact.urlPicture}`
-            );
-            logger.info(
-              `[PIC-DEBUG2] fileExistsAndValid=${fileExistsAndValid}`
-            );
-            logger.info(
-              `[PIC-DEBUG2] currentPicIsInvalid=${currentPicIsInvalid}`
-            );
-            logger.info(`[PIC-DEBUG2] fileName=${fileName}`);
+          const targetJid = contact.remoteJid || fallbackRemoteJid;
+          logger.info(
+            `[PIC-BG] 🚀 Disparando busca de foto em background para JID: ${targetJid}`
+          );
+          logger.info(`[PIC-BG] contact.urlPicture=${contact.urlPicture}`);
+          logger.info(`[PIC-BG] fileExistsAndValid=${fileExistsAndValid}`);
+          logger.info(`[PIC-BG] currentPicIsInvalid=${currentPicIsInvalid}`);
+          logger.info(`[PIC-BG] fileName=${fileName}`);
 
-            const fetched = await wbot.profilePictureUrl(targetJid, "image");
+          // ✅ FIRE-AND-FORGET: Busca URL e baixa foto SEM bloquear o retorno
+          (async () => {
+            try {
+              // 1. Busca URL da foto com timeout de 5s
+              const fetched = await Promise.race([
+                wbot.profilePictureUrl(targetJid, "image"),
+                new Promise<null>(resolve =>
+                  setTimeout(() => resolve(null), 5000)
+                )
+              ]);
 
-            logger.info(`[PIC-DEBUG2] fetched=${fetched}`);
+              logger.info(`[PIC-BG] fetched=${fetched}`);
 
-            if (fetched && !fetched.includes("nopicture")) {
-              profilePicUrl = fetched;
-              contact.profilePicUrl = profilePicUrl;
-              updateImage = true;
-              logger.info(
-                `[PIC] Foto obtida via wbot para contato ${contact.number}: ${profilePicUrl}`
+              if (fetched && !fetched.includes("nopicture")) {
+                logger.info(
+                  `[PIC-BG] ✅ URL obtida para ${contact.number}: ${fetched}`
+                );
+
+                // 2. Baixa a imagem com timeout de 8s
+                const response = await axios.get(fetched, {
+                  responseType: "arraybuffer",
+                  timeout: 8000
+                });
+
+                // 3. Salva em disco (assíncrono)
+                const filename = `${contact.id}.jpeg`;
+                const filePath = path.join(folder, filename);
+                await fsp.writeFile(filePath, response.data);
+                logger.info(`[PIC-BG] 💾 Foto salva em disco: ${filePath}`);
+
+                // 4. Atualiza o contato no banco
+                await contact.update({
+                  profilePicUrl: fetched,
+                  urlPicture: filename,
+                  pictureUpdated: true
+                });
+
+                // 5. Emite socket para atualizar UI em tempo real
+                const io = getIO();
+                io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+                  action: "update",
+                  contact: contact.toJSON()
+                });
+
+                logger.info(
+                  `[PIC-BG] ✅ Foto atualizada com sucesso para contato ${contact.number}`
+                );
+              } else {
+                logger.info(
+                  `[PIC-BG] ⚠️ wbot não retornou foto válida para ${contact.number}, mantendo estado atual`
+                );
+              }
+            } catch (e) {
+              logger.warn(
+                `[PIC-BG] ⚠️ Sem foto de perfil disponível para ${contact.number}: ${e.message}`
               );
-            } else {
-              logger.info(
-                `[PIC] wbot não retornou foto válida para ${contact.number}, mantendo estado atual`
-              );
-              // Não altera updateImage nem profilePicUrl — mantém o que tinha
             }
-          } catch (e) {
-            logger.info(
-              `[PIC] Sem foto de perfil disponível para ${contact.number}: ${e.message}`
-            );
-            // Não altera updateImage — não força nopicture
-          }
+          })().catch(err => {
+            logger.error(`[PIC-BG] ❌ Erro não capturado: ${err.message}`);
+          });
+
+          // ⚠️ NÃO alteramos updateImage nem profilePicUrl aqui
+          // O contato será retornado imediatamente sem a foto
         } else if (!wbot && currentPicIsInvalid) {
           // Sem wbot e sem foto válida: mantém o estado, não força nopicture
           logger.info(
             `[PIC] Sem wbot para buscar foto de ${contact.number}, mantendo estado atual`
           );
         }
-        // Se fileExistsAndValid === true: arquivo já existe em disco, não precisa rebaixar
 
         if (contact.name === number) {
           contact.name = name;
@@ -594,28 +676,6 @@ const CreateOrUpdateContactService = async ({
           "@g.us"
         );
 
-        // if (
-        //   wbot &&
-        //   (!profilePicUrl || profilePicUrl.includes("nopicture")) &&
-        //   !isGroupPic
-        // ) {
-        //   try {
-        //     const targetJid = contact.remoteJid || fallbackRemoteJid;
-        //     const fetched = await wbot.profilePictureUrl(targetJid, "image");
-        //     if (fetched && !fetched.includes("nopicture")) {
-        //       profilePicUrl = fetched;
-        //       contact.profilePicUrl = profilePicUrl;
-        //       logger.info(
-        //         `[PIC] Foto obtida na última tentativa para contato ${contact.number}`
-        //       );
-        //     }
-        //   } catch (e) {
-        //     logger.info(
-        //       `[PIC] Última tentativa falhou para ${contact.number}: ${e.message}`
-        //     );
-        //   }
-        // }
-
         let filename: string;
         if (isNil(profilePicUrl) || profilePicUrl.includes("nopicture")) {
           filename = "";
@@ -645,16 +705,58 @@ const CreateOrUpdateContactService = async ({
               }
             }
 
-            try {
-              const response = await axios.get(profilePicUrl, {
-                responseType: "arraybuffer"
-              });
-              fs.writeFileSync(filePath, response.data);
-              logger.info(`[PIC] Foto salva em disco: ${filePath}`);
-            } catch (e) {
-              logger.error(`[PIC] Erro ao baixar/salvar foto: ${e.message}`);
-              filename = "nopicture.png";
-            }
+            // ✅ REFACTORED: Download de foto em background (não bloqueia o fluxo principal)
+            const downloadProfilePicture = async () => {
+              try {
+                logger.info(
+                  `[PIC-ASYNC] Iniciando download assíncrono da foto: ${profilePicUrl}`
+                );
+
+                const response = await axios.get(profilePicUrl, {
+                  responseType: "arraybuffer",
+                  timeout: 10000 // 10s timeout para evitar travamento
+                });
+
+                // ✅ Usar fs.promises.writeFile (assíncrono) ao invés de writeFileSync
+                await fsp.writeFile(filePath, response.data);
+                logger.info(`[PIC-ASYNC] ✅ Foto salva em disco: ${filePath}`);
+
+                // ✅ Atualizar o contato no banco após salvar a foto
+                await contact.update({
+                  urlPicture: filename,
+                  pictureUpdated: true
+                });
+
+                // ✅ Emitir evento via Socket para atualizar a UI em tempo real
+                const io = getIO();
+                io.of(String(contact.companyId)).emit(
+                  `company-${contact.companyId}-contact`,
+                  {
+                    action: "update",
+                    contact: contact.toJSON()
+                  }
+                );
+
+                logger.info(
+                  `[PIC-ASYNC] ✅ Contato atualizado com foto via Socket`
+                );
+              } catch (e) {
+                logger.error(
+                  `[PIC-ASYNC] ❌ Erro ao baixar/salvar foto: ${e.message}`
+                );
+                // Não altera o filename para nopicture.png - mantém o estado atual
+              }
+            };
+
+            // ✅ Disparar o download em background SEM await (fire-and-forget)
+            downloadProfilePicture().catch(err => {
+              logger.error(`[PIC-ASYNC] Erro não capturado: ${err.message}`);
+            });
+
+            // ✅ Retornar imediatamente - a foto será atualizada depois
+            logger.info(
+              `[PIC-ASYNC] 🚀 Download disparado em background, retornando contato imediatamente`
+            );
           }
         }
 

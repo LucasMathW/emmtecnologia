@@ -202,8 +202,6 @@ export async function verifyContact(
   let number = extractedPhone;
   let originalLid = msgContact.lid || null;
 
-  // ❌ REMOVIDO: Teste de Redis (pic:test) - gerava 2 I/Os por mensagem!
-
   if (isWhatsappNet && extractedId.includes(":")) {
     logger.info(
       `[RDS-LID-FIX] ID contém separador ':' - extraindo apenas o telefone: ${extractedPhone}`
