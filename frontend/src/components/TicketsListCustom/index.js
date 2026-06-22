@@ -427,16 +427,14 @@ const TicketsListCustom = (props) => {
   let [ticketsList, dispatch] = useReducer(reducer, []);
   const { user, socket } = useContext(AuthContext);
 
-  // Preservar fotos mais recentes dos contatos entre RESET/load
   const preservedPicsRef = useRef({});
 
-  // Junto com os outros refs
   const recentTicketsRef = useRef({}); // { [ticketId]: ticket }
 
-  //Adicionar junto com os outros refs, após o useReducer
   const presenceCacheRef = useRef({});
 
-  // Salvar fotos atualizadas na ref quando chegam
+  const presenceTimeoutsRef = useRef({});
+
   useEffect(() => {
     ticketsList.forEach((t) => {
       if (t.contact?.urlPicture && t.contact.urlPicture.includes("?t=")) {
@@ -622,7 +620,6 @@ const TicketsListCustom = (props) => {
 
         if (!presenceTicket) return;
 
-        // Atualiza pelo ticketId específico — mesmo critério que UPDATE_TICKET usa
         dispatch({
           type: "UPDATE_TICKET_PRESENCE",
           payload: {
@@ -633,14 +630,33 @@ const TicketsListCustom = (props) => {
           },
         });
 
-        // Atualiza cache por contactId para sobreviver ao RESET/LOAD
         if (presenceStatus) {
           presenceCacheRef.current[`contact-${presenceTicket.contactId}`] =
             presenceStatus;
+
+          clearTimeout(presenceTimeoutsRef.current[presenceTicket.id]);
+
+          setTimeout(() => {
+            dispatch({
+              type: "UPDATE_TICKET_PRESENCE",
+              payload: {
+                ticketId: presenceTicket.id,
+                contactId: presenceTicket.contactId,
+                status: null,
+                memberName: null,
+              },
+            });
+            delete presenceCacheRef.current[
+              `contact-${presenceTicket.contactId}`
+            ];
+            delete presenceTimeoutsRef.current[presenceTicket.id];
+          }, 10_000);
         } else {
+          clearTimeout(presenceTimeoutsRef.current[presenceTicket.id]);
           delete presenceCacheRef.current[
             `contact-${presenceTicket.contactId}`
           ];
+          delete presenceTimeoutsRef.current[presenceTicket.id];
         }
         return;
       }
