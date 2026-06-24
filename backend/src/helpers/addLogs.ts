@@ -1,35 +1,28 @@
-import * as fsp from 'fs/promises';
+import * as fsp from "fs/promises";
 import path from "path";
 import * as fs from "fs";
 // const filePath = 'caminho/do/seu/arquivo.txt';
 
-export async function addLogs({fileName, text, forceNewFile=false}) {
-        const logs = path.resolve(__dirname, "..","..", "logs");  
-        const filePath  = path.resolve(logs,fileName)
-
-
-    try {
-
-        if (!fs.existsSync(logs)) {
-          fs.mkdirSync(logs);
-        }
-    } catch (error) {
-
-    }
+export async function addLogs({ fileName, text, forceNewFile = false }) {
+  const logs = path.resolve(__dirname, "..", "..", "logs");
+  const filePath = path.resolve(logs, fileName);
 
   try {
-    if(forceNewFile){
-      await fsp.writeFile(filePath,  `${text} \n`);
+    if (!fs.existsSync(logs)) {
+      fs.mkdirSync(logs);
+    }
+  } catch (error) {}
 
-    }else
-
-    await fsp.appendFile(filePath, `${text} \n` );
+  try {
+    if (forceNewFile) {
+      await fsp.writeFile(filePath, `${text} \n`);
+    } else await fsp.appendFile(filePath, `${text} \n`);
   } catch (err) {
-    if (err.code === 'ENOENT') {
+    if (err.code === "ENOENT") {
       // O arquivo não existe, então cria e adiciona o texto
-      await fsp.writeFile(filePath,  `${text} \n`);
+      await fsp.writeFile(filePath, `${text} \n`);
     } else {
-      console.error('Erro ao manipular o arquivo de log:', err);
+      console.error("Erro ao manipular o arquivo de log:", err);
     }
   }
 }

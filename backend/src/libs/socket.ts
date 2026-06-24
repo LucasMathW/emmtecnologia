@@ -1,7 +1,7 @@
 import { Server as SocketIO } from "socket.io";
 import { Server } from "http";
 import AppError from "../errors/AppError";
-import logger from "../utils/logger";
+import logger, { debugLog } from "../utils/logger";
 import { instrument } from "@socket.io/admin-ui";
 import User from "../models/User";
 import { ReceibedWhatsAppService } from "../services/WhatsAppOficial/ReceivedWhatsApp";
@@ -265,7 +265,7 @@ export const initIO = (httpServer: Server): SocketIO => {
       try {
         const companyId = parseInt(socket.nsp.name.split("/")[1]);
 
-        console.log(
+        debugLog(
           `[PRESENCE:SEND] ticketId: ${ticketId} | status: ${status} | companyId: ${companyId}`
         );
 
@@ -274,7 +274,7 @@ export const initIO = (httpServer: Server): SocketIO => {
         });
 
         if (!ticket?.whatsappId) {
-          console.log(
+          debugLog(
             `[PRESENCE:SEND] ❌ ticket não encontrado ou sem whatsappId`
           );
           return;

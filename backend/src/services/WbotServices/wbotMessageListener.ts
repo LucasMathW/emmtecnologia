@@ -132,6 +132,16 @@ setInterval(() => {
   i = 0;
 }, 5000);
 
+const ticketMutexMap = new Map<string, Mutex>();
+
+const getTicketMutex = (key: string): Mutex => {
+  if (!ticketMutexMap.has(key)) {
+    ticketMutexMap.set(key, new Mutex());
+    setTimeout(() => ticketMutexMap.delete(key), 30_000);
+  }
+  return ticketMutexMap.get(key)!;
+};
+
 interface ImessageUpsert {
   messages: WAMessageSafe[];
   type: MessageUpsertType;
@@ -152,8 +162,6 @@ export interface IMe {
   lid?: string;
   senderPn?: string;
 }
-
-const lidUpdateMutex = new Mutex();
 
 interface SessionOpenAi extends OpenAI {
   id?: number;
@@ -2680,16 +2688,6 @@ export const flowbuilderIntegration = async (
     companyId
   );
 
-  // DEBUG - Verificar configurações de fluxo
-  // console.log(
-  //   `[FLOW-DEBUG] Configurações de fluxo - flowIdNotPhrase: ${whatsapp.flowIdNotPhrase}, flowIdWelcome: ${whatsapp.flowIdWelcome}`
-  // );
-
-  // // *** PRIORIDADE MÁXIMA: CAMPANHAS SEMPRE SÃO VERIFICADAS PRIMEIRO ***
-  // console.log(
-  //   `[CAMPANHAS] Verificando campanhas para: "${body}" na conexão ${whatsapp.id} (${whatsapp.name})`
-  // );
-
   try {
     // Buscar campanhas ativas da empresa
     const activeCampaigns = await FlowCampaignModel.findAll({
@@ -2762,16 +2760,17 @@ export const flowbuilderIntegration = async (
 
       // ✅ MARCAR QUE CAMPANHA FOI EXECUTADA NO CACHE
       if (messageId) {
-        await cacheLayer.set(cacheKey, "300"); // 5 minutos de cache
+        // await cacheLayer.set(cacheKey, "300"); // 5 minutos de cache
+        await cacheLayer.set(cacheKey, "1", "EX", 300);
       }
 
       // Verificar se pode disparar campanha (não está em outro fluxo)
-      if (msg && ticket.flowWebhook && ticket.lastFlowId) {
-        console.log(
-          `[CAMPANHAS] ⚠️ Ticket ${ticket.id} já em fluxo ativo (lastFlowId: ${ticket.lastFlowId}), aguardando...`
-        );
-        return false;
-      }
+      // if (msg && ticket.flowWebhook && ticket.lastFlowId) {
+      //   console.log(
+      //     `[CAMPANHAS] ⚠️ Ticket ${ticket.id} já em fluxo ativo (lastFlowId: ${ticket.lastFlowId}), aguardando...`
+      //   );
+      //   return false;
+      // }
 
       // *** IMPORTANTE: LIMPAR FLUXO ANTERIOR ANTES DE EXECUTAR CAMPANHA ***
       console.log(
@@ -4103,16 +4102,6 @@ const handleMessage = async (
       order: [["id", "DESC"]]
     });
 
-    const ticketMutexMap = new Map<string, Mutex>();
-
-    const getTicketMutex = (key: string): Mutex => {
-      if (!ticketMutexMap.has(key)) {
-        ticketMutexMap.set(key, new Mutex());
-        setTimeout(() => ticketMutexMap.delete(key), 30_000);
-      }
-      return ticketMutexMap.get(key)!;
-    };
-
     const ticket = await getTicketMutex(
       `ticket:${companyId}:${contact.id}`
     ).runExclusive(() =>
@@ -5281,94 +5270,183 @@ const handleMessage = async (
       ticket.status === "pending"
     ) {
       // Aguardar um pouco para garantir que outros processamentos terminaram
-      setTimeout(async () => {
-        try {
-          logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
+      // setTimeout(async () => {
+      //   try {
+      //     logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
+      //     logger.info(
+      //       `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+      //     );
+
+      //     await ticket.reload({
+      //       include: [{ model: Contact, as: "contact" }]
+      //     });
+
+      //     logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
+      //     logger.info(
+      //       `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+      //     );
+
+      //     // Só verificar se não entrou em fluxo
+      //     if (!ticket.flowWebhook || !ticket.lastFlowId) {
+      //       logger.info(
+      //         `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
+      //       );
+      //     } else {
+      //       logger.info(
+      //         `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
+      //       );
+      //       logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
+      //       return;
+      //     }
+
+      //     if (!ticket.flowWebhook || !ticket.lastFlowId) {
+      //       const contactForCampaign = await ShowContactService(
+      //         ticket.contactId,
+      //         ticket.companyId
+      //       );
+
+      //       // Verificar se existe integrationId antes de prosseguir
+      //       try {
+      //         if (!whatsapp.integrationId) {
+      //           logger.info(
+      //             "[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: " +
+      //               whatsapp.id
+      //           );
+      //           return; // Encerrar execução se não houver integrationId
+      //         }
+
+      //         const queueIntegrations = await ShowQueueIntegrationService(
+      //           whatsapp.integrationId,
+      //           companyId
+      //         );
+
+      //         // DEBUG - Verificar tipo de integração para diagnóstico
+      //         logger.info(
+      //           `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
+      //             ticket.id
+      //           }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
+      //         );
+
+      //         // ✅ VERIFICAÇÃO FINAL APENAS SE NECESSÁRIO
+      //         await flowbuilderIntegration(
+      //           msg,
+      //           wbot,
+      //           companyId,
+      //           queueIntegrations,
+      //           ticket,
+      //           contactForCampaign
+      //         );
+
+      //         await ticket.reload();
+
+      //         // DEBUG - Verificar se flowbuilder foi executado com sucesso
+      //         logger.info(
+      //           `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
+      //         );
+      //       } catch (integrationError) {
+      //         logger.error(
+      //           "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
+      //           integrationError
+      //         );
+      //       }
+      //     }
+      //   } catch (error) {
+      //     logger.error(
+      //       "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
+      //       error
+      //     );
+      //   }
+      // }, 1000);
+
+      // Aguarda 1 segundo (1000ms) antes de continuar a execução
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      try {
+        logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
+        logger.info(
+          `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+        );
+
+        await ticket.reload({
+          include: [{ model: Contact, as: "contact" }]
+        });
+
+        logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
+        logger.info(
+          `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+        );
+
+        // Só verificar se não entrou em fluxo
+        if (!ticket.flowWebhook || !ticket.lastFlowId) {
           logger.info(
-            `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+            `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
           );
-
-          await ticket.reload({
-            include: [{ model: Contact, as: "contact" }]
-          });
-
-          logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
+        } else {
           logger.info(
-            `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+            `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
           );
-
-          // Só verificar se não entrou em fluxo
-          if (!ticket.flowWebhook || !ticket.lastFlowId) {
-            logger.info(
-              `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
-            );
-          } else {
-            logger.info(
-              `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
-            );
-            logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
-            return;
-          }
-
-          if (!ticket.flowWebhook || !ticket.lastFlowId) {
-            const contactForCampaign = await ShowContactService(
-              ticket.contactId,
-              ticket.companyId
-            );
-
-            // Verificar se existe integrationId antes de prosseguir
-            try {
-              if (!whatsapp.integrationId) {
-                logger.info(
-                  "[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: " +
-                    whatsapp.id
-                );
-                return; // Encerrar execução se não houver integrationId
-              }
-
-              const queueIntegrations = await ShowQueueIntegrationService(
-                whatsapp.integrationId,
-                companyId
-              );
-
-              // DEBUG - Verificar tipo de integração para diagnóstico
-              logger.info(
-                `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
-                  ticket.id
-                }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
-              );
-
-              // ✅ VERIFICAÇÃO FINAL APENAS SE NECESSÁRIO
-              await flowbuilderIntegration(
-                msg,
-                wbot,
-                companyId,
-                queueIntegrations,
-                ticket,
-                contactForCampaign
-              );
-
-              // DEBUG - Verificar se flowbuilder foi executado com sucesso
-              logger.info(
-                `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
-              );
-            } catch (integrationError) {
-              logger.error(
-                "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
-                integrationError
-              );
-            }
-          }
-        } catch (error) {
-          logger.error(
-            "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
-            error
-          );
+          logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
+          return;
         }
-      }, 1000);
-    }
 
-    await ticket.reload();
+        if (!ticket.flowWebhook || !ticket.lastFlowId) {
+          const contactForCampaign = await ShowContactService(
+            ticket.contactId,
+            ticket.companyId
+          );
+
+          // Verificar se existe integrationId antes de prosseguir
+          try {
+            if (!whatsapp.integrationId) {
+              logger.info(
+                "[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: " +
+                  whatsapp.id
+              );
+              return; // Encerrar execução se não houver integrationId
+            }
+
+            const queueIntegrations = await ShowQueueIntegrationService(
+              whatsapp.integrationId,
+              companyId
+            );
+
+            // DEBUG - Verificar tipo de integração para diagnóstico
+            logger.info(
+              `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
+                ticket.id
+              }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
+            );
+
+            // ✅ VERIFICAÇÃO FINAL APENAS SE NECESSÁRIO
+            await flowbuilderIntegration(
+              msg,
+              wbot,
+              companyId,
+              queueIntegrations,
+              ticket,
+              contactForCampaign
+            );
+
+            await ticket.reload();
+
+            // DEBUG - Verificar se flowbuilder foi executado com sucesso
+            logger.info(
+              `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
+            );
+          } catch (integrationError) {
+            logger.error(
+              "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
+              integrationError
+            );
+          }
+        }
+      } catch (error) {
+        logger.error(
+          "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
+          error
+        );
+      }
+    }
   } catch (err) {
     Sentry.captureException(err);
     logger.error(`Error handling whatsapp message: Err: ${err}`);
@@ -5602,7 +5680,7 @@ const filterMessages = (msg: WAMessage): boolean => {
       WAMessageStubType.CIPHERTEXT
     ].includes(msg.messageStubType)
   )
-    return true;
+    return false;
 
   return true;
 };
@@ -5632,59 +5710,155 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("groups.update");
   wbot.ev.removeAllListeners("group-participants.update");
 
+  // wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
+  //   const rawMessages = messageUpsert.messages;
+  //   if (!rawMessages || rawMessages.length === 0) return;
+
+  //   // Reactions têm handler próprio
+  //   for (const message of rawMessages) {
+  //     if (message.message?.reactionMessage) {
+  //       await handleBaileysReaction(message, wbot, companyId);
+  //     }
+  //   }
+
+  //   const messages = rawMessages.filter(
+  //     msg => filterMessages(msg) && !msg.message?.reactionMessage
+  //   );
+
+  //   if (!messages?.length) return;
+
+  //   for (const message of messages) {
+  //     const messageExists = await Message.count({
+  //       where: { wid: message.key.id!, companyId }
+  //     });
+
+  //     if (!messageExists) {
+  //       await handleMessage(message, wbot, companyId);
+  //       await verifyRecentCampaign(message, companyId);
+  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
+  //     }
+
+  //     if (message.key.remoteJid?.endsWith("@g.us")) {
+  //       handleMsgAck(message, 2);
+  //     }
+  //   }
+
+  //   messages.forEach(async (message: WAMessageSafe) => {
+  //     if (
+  //       message?.messageStubParameters?.length &&
+  //       message.messageStubParameters[0].includes("absent")
+  //     ) {
+  //       const msg = {
+  //         companyId: companyId,
+  //         whatsappId: wbot.id,
+  //         message: message
+  //       };
+  //       logger.warn("MENSAGEM PERDIDA", JSON.stringify(msg));
+  //     }
+  //     const messageExists = await Message.count({
+  //       where: { wid: message.key.id!, companyId }
+  //     });
+
+  //     if (!messageExists) {
+  //       let isCampaign = false;
+  //       let body = await getBodyMessage(message);
+  //       const fromMe = message?.key?.fromMe;
+  //       if (fromMe) {
+  //         isCampaign = /\u200c/.test(body);
+  //       } else {
+  //         if (/\u200c/.test(body)) body = body.replace(/\u200c/, "");
+  //         logger.debug(
+  //           "Validação de mensagem de campanha enviada por terceiros: " + body
+  //         );
+  //       }
+
+  //       if (!isCampaign) {
+  //         if (REDIS_URI_MSG_CONN !== "") {
+  //           //} && (!message.key.fromMe || (message.key.fromMe && !message.key.id.startsWith('BAE')))) {
+  //           try {
+  //             await BullQueues.add(
+  //               `${process.env.DB_NAME}-handleMessage`,
+  //               { message, wbot: wbot.id, companyId },
+  //               {
+  //                 priority: 1,
+  //                 jobId: `${wbot.id}-handleMessage-${message.key.id}`
+  //               }
+  //             );
+  //           } catch (e) {
+  //             Sentry.captureException(e);
+  //           }
+  //         } else {
+  //           await handleMessage(message, wbot, companyId);
+  //         }
+  //       }
+
+  //       await verifyRecentCampaign(message, companyId);
+  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
+  //     }
+
+  //     if (message.key.remoteJid?.endsWith("@g.us")) {
+  //       if (REDIS_URI_MSG_CONN !== "") {
+  //         BullQueues.add(
+  //           `${process.env.DB_NAME}-handleMessageAck`,
+  //           { msg: message, chat: 2 },
+  //           {
+  //             priority: 1,
+  //             jobId: `${wbot.id}-handleMessageAck-${message.key.id}`
+  //           }
+  //         );
+  //       } else {
+  //         handleMsgAck(message, 2);
+  //       }
+  //     }
+  //   });
+  // });
+
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
-    // Reactions têm handler próprio
+    // 1. Reações têm handler próprio (Processamento rápido e isolado)
     for (const message of rawMessages) {
       if (message.message?.reactionMessage) {
         await handleBaileysReaction(message, wbot, companyId);
       }
     }
 
+    // 2. Filtra mensagens normais
     const messages = rawMessages.filter(
       msg => filterMessages(msg) && !msg.message?.reactionMessage
     );
-
     if (!messages?.length) return;
 
+    // 3. Loop principal (Sequencial e seguro)
     for (const message of messages) {
-      const messageExists = await Message.count({
-        where: { wid: message.key.id!, companyId }
-      });
-
-      if (!messageExists) {
-        await handleMessage(message, wbot, companyId);
-        await verifyRecentCampaign(message, companyId);
-        await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-      }
-
-      if (message.key.remoteJid?.endsWith("@g.us")) {
-        handleMsgAck(message, 2);
-      }
-    }
-
-    messages.forEach(async (message: WAMessageSafe) => {
+      // Log de segurança para mensagens perdidas
       if (
         message?.messageStubParameters?.length &&
-        message.messageStubParameters[0].includes("absent")
+        message.messageStubParameters[0]?.includes("absent")
       ) {
-        const msg = {
-          companyId: companyId,
-          whatsappId: wbot.id,
-          message: message
-        };
-        logger.warn("MENSAGEM PERDIDA", JSON.stringify(msg));
+        logger.warn(
+          "MENSAGEM PERDIDA",
+          JSON.stringify({
+            companyId,
+            whatsappId: wbot.id,
+            message
+          })
+        );
       }
+
+      // Verifica UMA ÚNICA VEZ se a mensagem já foi processada
       const messageExists = await Message.count({
         where: { wid: message.key.id!, companyId }
       });
 
+      // Se a mensagem já existe, ignoramos o resto. O Baileys costuma disparar o evento duplicado.
       if (!messageExists) {
         let isCampaign = false;
         let body = await getBodyMessage(message);
         const fromMe = message?.key?.fromMe;
+
+        // Validação de Campanha
         if (fromMe) {
           isCampaign = /\u200c/.test(body);
         } else {
@@ -5694,9 +5868,9 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           );
         }
 
+        // Processamento da Mensagem: Fila (Redis) OU Direto
         if (!isCampaign) {
           if (REDIS_URI_MSG_CONN !== "") {
-            //} && (!message.key.fromMe || (message.key.fromMe && !message.key.id.startsWith('BAE')))) {
             try {
               await BullQueues.add(
                 `${process.env.DB_NAME}-handleMessage`,
@@ -5714,25 +5888,33 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           }
         }
 
+        // ✅ Movido para DENTRO do if (!messageExists)
+        // Só faz sentido verificar campanhas e fechar tickets se a mensagem for NOVA
         await verifyRecentCampaign(message, companyId);
         await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-      }
 
-      if (message.key.remoteJid?.endsWith("@g.us")) {
-        if (REDIS_URI_MSG_CONN !== "") {
-          BullQueues.add(
-            `${process.env.DB_NAME}-handleMessageAck`,
-            { msg: message, chat: 2 },
-            {
-              priority: 1,
-              jobId: `${wbot.id}-handleMessageAck-${message.key.id}`
+        // ✅ Movido para DENTRO do if (!messageExists)
+        // Evita dar "recebido" (ACK) várias vezes para a mesma mensagem em grupos
+        if (message.key.remoteJid?.endsWith("@g.us")) {
+          if (REDIS_URI_MSG_CONN !== "") {
+            try {
+              await BullQueues.add(
+                `${process.env.DB_NAME}-handleMessageAck`,
+                { msg: message, chat: 2 },
+                {
+                  priority: 1,
+                  jobId: `${wbot.id}-handleMessageAck-${message.key.id}`
+                }
+              );
+            } catch (e) {
+              Sentry.captureException(e);
             }
-          );
-        } else {
-          handleMsgAck(message, 2);
+          } else {
+            handleMsgAck(message, 2);
+          }
         }
       }
-    });
+    }
   });
 
   wbot.ev.on("messages.reaction", async reactions => {

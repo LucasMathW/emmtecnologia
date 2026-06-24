@@ -19,7 +19,7 @@ import makeWASocket, {
 } from "baileys";
 import { FindOptions } from "sequelize/types";
 import Whatsapp from "../models/Whatsapp";
-import logger from "../utils/logger";
+import logger, { debugLog } from "../utils/logger";
 import MAIN_LOGGER from "baileys/lib/Utils/logger";
 import { useMultiFileAuthState } from "../helpers/useMultiFileAuthState";
 // import { useMultiFileAuthState } from "../helpers/useMultiFileAuthState_json";
@@ -68,10 +68,10 @@ async function deleteFolder(folder) {
 export const getWbot = async (whatsappId: number): Promise<Session> => {
   const whatsapp = await Whatsapp.findByPk(whatsappId);
 
-  console.log(`[DEBUG] getWbot - whatsappId: ${whatsappId}`);
-  console.log(`[DEBUG] Channel: ${whatsapp?.channel}`);
-  console.log(`[DEBUG] Sessions array length: ${sessions.length}`);
-  console.log(`[DEBUG] Sessions IDs: ${sessions.map(s => s.id).join(", ")}`);
+  debugLog(`getWbot - whatsappId: ${whatsappId}`);
+  debugLog(`Channel: ${whatsapp?.channel}`);
+  debugLog(`Sessions array length: ${sessions.length}`);
+  debugLog(`Sessions IDs: ${sessions.map(s => s.id).join(", ")}`);
 
   if (whatsapp.channel !== "whatsapp_oficial") {
     const sessionIndex = sessions.findIndex(s => s.id === whatsappId);

@@ -5,6 +5,7 @@ import Ticket from "../../models/Ticket";
 import Queue from "../../models/Queue";
 import User from "../../models/User";
 import Whatsapp from "../../models/Whatsapp";
+import { warnLog, debugLog } from "../../utils/logger";
 
 interface PresencePayload {
   remoteJid: string; // JID do chat (grupo ou individual)
@@ -47,7 +48,7 @@ export const handlePresenceUpdate = async ({
     });
 
     if (!contact) {
-      console.log(`[PRESENCE] grupo não encontrado: ${remoteJid}`);
+      warnLog(`[PRESENCE] grupo não encontrado: ${remoteJid}`);
       return;
     }
 
@@ -120,7 +121,7 @@ export const handlePresenceUpdate = async ({
     });
 
     if (!contact) {
-      console.log(`[PRESENCE] contato não encontrado: ${remoteJid}`);
+      warnLog(`[PRESENCE] contato não encontrado: ${remoteJid}`);
       return;
     }
 
@@ -147,9 +148,10 @@ export const handlePresenceUpdate = async ({
   }
 
   if (!ticket) {
-    console.log(
+    debugLog(
       `[PRESENCE] nenhum ticket ativo — chip: ${whatsappId} | jid: ${remoteJid} | grupo: ${isGroup}`
     );
+
     return;
   }
 
@@ -159,7 +161,7 @@ export const handlePresenceUpdate = async ({
   if (presenceCache.get(cacheKey) === newPresence) return;
   // presenceCache.set(cacheKey, newPresence);
 
-  console.log(
+  debugLog(
     `[PRESENCE] ✅ ${
       isGroup ? "grupo" : "individual"
     } | chip: ${whatsappId} | contact: ${contact.id} (${
