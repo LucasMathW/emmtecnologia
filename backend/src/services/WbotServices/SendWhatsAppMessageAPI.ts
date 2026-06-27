@@ -49,7 +49,11 @@ const SendWhatsAppMessage = async ({
   if (quotedMsg) {
     const quotedId: any = (quotedMsg as any)?.id ?? quotedMsg;
     let chatMessages: Message | null = null;
-    if (quotedId !== undefined && quotedId !== null && String(quotedId).trim() !== "") {
+    if (
+      quotedId !== undefined &&
+      quotedId !== null &&
+      String(quotedId).trim() !== ""
+    ) {
       chatMessages = await Message.findOne({
         where: {
           id: quotedId

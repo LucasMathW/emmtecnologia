@@ -23,19 +23,13 @@ const ForceProfilePicRefresh = async (
     return { contact, updated: false };
   }
 
-  const publicFolder = path.resolve(
-    __dirname,
-    "..",
-    "..",
-    "..",
-    "public"
-  );
+  const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
 
   const folder = path.resolve(publicFolder, `company${companyId}`, "contacts");
 
   if (!fs.existsSync(folder)) {
     fs.mkdirSync(folder, { recursive: true });
-    fs.chmodSync(folder, 0o777);
+    fs.chmodSync(folder, 0o755);
   }
 
   const oldUrlPicture = contact.urlPicture;
@@ -80,12 +74,12 @@ const ForceProfilePicRefresh = async (
       }
     }
 
-    await contact.update({
-      profilePicUrl,
-      urlPicture: filename,
-      pictureUpdated: true
-    });
-
+    // setDataValue é necessário pois urlPicture é um getter Sequelize
+    // contact.update({ urlPicture }) não persiste silenciosamente
+    contact.setDataValue("urlPicture", filename);
+    contact.setDataValue("profilePicUrl", profilePicUrl);
+    contact.setDataValue("pictureUpdated", true);
+    await contact.save();
     await contact.reload();
 
     logger.info(

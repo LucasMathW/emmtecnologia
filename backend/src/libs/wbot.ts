@@ -433,99 +433,106 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
               }`
             );
 
+            // if (connection === "close") {
+            //   logger.info(
+            //     `Socket  ${name} Connection Update ${connection || ""} ${
+            //       lastDisconnect ? lastDisconnect.error.message : ""
+            //     }`
+            //   );
+            //   if ((lastDisconnect?.error as Boom)?.output?.statusCode === 403) {
+            //     await whatsapp.update({ status: "PENDING", session: "" });
+            //     await DeleteBaileysService(whatsapp.id);
+            //     // await deleteFolder(folderSessions);
+            //     await cacheLayer.delFromPattern(`sessions:${whatsapp.id}:*`);
+            //     io.of(String(companyId)).emit(
+            //       `company-${whatsapp.companyId}-whatsappSession`,
+            //       {
+            //         action: "update",
+            //         session: whatsapp
+            //       }
+            //     );
+            //     removeWbot(id, false);
+            //   }
+            //   if (
+            //     (lastDisconnect?.error as Boom)?.output?.statusCode !==
+            //     DisconnectReason.loggedOut
+            //   ) {
+            //     removeWbot(id, false);
+            //     setTimeout(
+            //       () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
+            //       2000
+            //     );
+            //   } else {
+            //     await whatsapp.update({ status: "PENDING", session: "" });
+            //     await DeleteBaileysService(whatsapp.id);
+            //     // await deleteFolder(folderSessions);
+            //     await cacheLayer.delFromPattern(`sessions:${whatsapp.id}:*`);
+            //     io.of(String(companyId)).emit(
+            //       `company-${whatsapp.companyId}-whatsappSession`,
+            //       {
+            //         action: "update",
+            //         session: whatsapp
+            //       }
+            //     );
+            //     removeWbot(id, false);
+            //     setTimeout(
+            //       () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
+            //       2000
+            //     );
+            //   }
+            // }
+
             if (connection === "close") {
+              const statusCode = (lastDisconnect?.error as Boom)?.output
+                ?.statusCode;
+              const errorMessage = (
+                lastDisconnect?.error?.message || ""
+              ).toLowerCase();
+
               logger.info(
-                `Socket  ${name} Connection Update ${connection || ""} ${
-                  lastDisconnect ? lastDisconnect.error.message : ""
-                }`
+                `Socket ${name} Connection Update ${
+                  connection || ""
+                } | statusCode: ${statusCode} | error: ${errorMessage}`
               );
-              if ((lastDisconnect?.error as Boom)?.output?.statusCode === 403) {
-                await whatsapp.update({ status: "PENDING", session: "" });
+
+              const isLoggedOut =
+                statusCode === DisconnectReason.loggedOut ||
+                statusCode === 401 ||
+                statusCode === 403 ||
+                statusCode === 408 ||
+                statusCode === 440 ||
+                errorMessage.includes("conflict") ||
+                errorMessage.includes("loggedout") ||
+                errorMessage.includes("logged out");
+
+              if (isLoggedOut) {
+                logger.warn(
+                  `[SESSION] Sessão ${name} encerrada definitivamente (código ${statusCode}). Marcando como DISCONNECTED.`
+                );
+                await whatsapp.update({ status: "DISCONNECTED", session: "" });
                 await DeleteBaileysService(whatsapp.id);
-                // await deleteFolder(folderSessions);
                 await cacheLayer.delFromPattern(`sessions:${whatsapp.id}:*`);
+
+                const freshWhatsapp = await Whatsapp.findByPk(whatsapp.id);
                 io.of(String(companyId)).emit(
                   `company-${whatsapp.companyId}-whatsappSession`,
                   {
                     action: "update",
-                    session: whatsapp
+                    session: freshWhatsapp
                   }
                 );
                 removeWbot(id, false);
-              }
-              if (
-                (lastDisconnect?.error as Boom)?.output?.statusCode !==
-                DisconnectReason.loggedOut
-              ) {
-                removeWbot(id, false);
-                setTimeout(
-                  () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
-                  2000
-                );
               } else {
-                await whatsapp.update({ status: "PENDING", session: "" });
-                await DeleteBaileysService(whatsapp.id);
-                // await deleteFolder(folderSessions);
-                await cacheLayer.delFromPattern(`sessions:${whatsapp.id}:*`);
-                io.of(String(companyId)).emit(
-                  `company-${whatsapp.companyId}-whatsappSession`,
-                  {
-                    action: "update",
-                    session: whatsapp
-                  }
+                logger.info(
+                  `[SESSION] Desconexão temporária para ${name} (código ${statusCode}). Reconectando em 5s...`
                 );
                 removeWbot(id, false);
                 setTimeout(
                   () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
-                  2000
+                  5000
                 );
               }
             }
-
-            // if (connection === "open") {
-
-            //   wsocket.myLid = jidNormalizedUser(wsocket.user?.lid)
-            //   wsocket.myJid = jidNormalizedUser(wsocket.user.id)
-
-            //   await whatsapp.update({
-            //     status: "CONNECTED",
-            //     qrcode: "",
-            //     retries: 0,
-            //     number:
-            //       wsocket.type === "md"
-            //         ? jidNormalizedUser((wsocket as WASocket).user.id).split("@")[0]
-            //         : "-"
-            //   });
-
-            //   logger.debug(
-            //     {
-            //       id: jidNormalizedUser(wsocket.user.id),
-            //       name: wsocket.user.name,
-            //       lid: jidNormalizedUser(wsocket.user?.lid),
-            //       notify: wsocket.user?.notify,
-            //       verifiedName: wsocket.user?.verifiedName,
-            //       imgUrl: wsocket.user?.imgUrl,
-            //       status: wsocket.user?.status
-            //     },
-            //     `Session ${name} details`
-            //   );
-
-            //   io.of(String(companyId))
-            //     .emit(`company-${whatsapp.companyId}-whatsappSession`, {
-            //       action: "update",
-            //       session: whatsapp
-            //     });
-
-            //   const sessionIndex = sessions.findIndex(
-            //     s => s.id === whatsapp.id
-            //   );
-            //   if (sessionIndex === -1) {
-            //     wsocket.id = whatsapp.id;
-            //     sessions.push(wsocket);
-            //   }
-
-            //   resolve(wsocket);
-            // }
 
             if (connection === "open") {
               const rawUserId = wsocket?.user?.id;

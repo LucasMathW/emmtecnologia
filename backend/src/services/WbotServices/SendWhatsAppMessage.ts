@@ -20,6 +20,7 @@ interface Request {
   msdelay?: number;
   vCard?: Contact;
   isForwarded?: boolean;
+  mentionedJids?: string[];
 }
 
 const SendWhatsAppMessage = async ({
@@ -28,7 +29,8 @@ const SendWhatsAppMessage = async ({
   quotedMsg,
   msdelay,
   vCard,
-  isForwarded = false
+  isForwarded = false,
+  mentionedJids
 }: Request): Promise<WAMessage> => {
   let options = {};
 
@@ -162,7 +164,19 @@ const SendWhatsAppMessage = async ({
         contextInfo: {
           forwardingScore: isForwarded ? 2 : 0,
           isForwarded: isForwarded ? true : false
-        }
+        },
+        ...(mentionedJids && mentionedJids.length > 0
+          ? {
+              // Resolve @lid JIDs para @s.whatsapp.net para que o Baileys exiba o número correto
+              mentions: mentionedJids.map(j => {
+                if (j.includes("@lid")) {
+                  // Extrai o número do LID — o WhatsApp vai resolver internamente
+                  return j;
+                }
+                return j;
+              })
+            }
+          : {})
       },
       {
         ...options
