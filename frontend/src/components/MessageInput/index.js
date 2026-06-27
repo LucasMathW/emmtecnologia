@@ -507,6 +507,12 @@ const MessageInput = ({
   const [recording, setRecording] = useState(false);
   const [quickAnswers, setQuickAnswer] = useState([]);
   const [typeBar, setTypeBar] = useState(false);
+  // ─── Menções (@) ──────────────────────────────────────────────────────────
+  const [groupParticipants, setGroupParticipants] = useState([]);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionedJids, setMentionedJids] = useState([]);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const inputRef = useRef();
   const recordingPresenceIntervalRef = useRef(null);
   const [onDragEnter, setOnDragEnter] = useState(false);
@@ -698,6 +704,24 @@ const MessageInput = ({
     };
   }, [ticketId, setReplyingMessage, setEditingMessage]);
 
+  // ─── Carrega participantes do grupo para menções ──────────────────────────
+  useEffect(() => {
+    if (ticketStatus !== "group" || !contactId) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data } = await api.get(`/contacts/${contactId}/participants`);
+        if (!cancelled) setGroupParticipants(data || []);
+      } catch (e) {
+        // silencioso
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketStatus, contactId]);
+
   useEffect(() => {
     let isProcessing = false;
 
@@ -839,6 +863,33 @@ const MessageInput = ({
   // NAVEGAÇÃO POR TECLADO
   const handleKeyDown = useCallback(
     (e) => {
+      // ─── Navegação de menções com teclado ──────────────────────────────
+      if (mentionSuggestions.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSelectedMentionIndex((prev) =>
+            prev < mentionSuggestions.length - 1 ? prev + 1 : 0,
+          );
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSelectedMentionIndex((prev) =>
+            prev > 0 ? prev - 1 : mentionSuggestions.length - 1,
+          );
+          return;
+        }
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          handleMentionSelect(mentionSuggestions[selectedMentionIndex]);
+          return;
+        }
+        if (e.key === "Escape") {
+          setMentionSuggestions([]);
+          return;
+        }
+      }
+
       if (!typeBar || !Array.isArray(typeBar) || typeBar.length === 0) {
         setSelectedQuickAnswerIndex(-1);
         setIsNavigatingQuickAnswers(false);
@@ -1013,6 +1064,29 @@ const MessageInput = ({
       const value = e?.target?.value ?? e ?? "";
       setInputMessage(value);
 
+      // ─── Detecção de @ para menções ──────────────────────────────────────
+      if (ticketStatus === "group" && groupParticipants.length > 0) {
+        const cursorPos = e?.target?.selectionStart ?? value.length;
+        const textUpToCursor = value.slice(0, cursorPos);
+        const atMatch = textUpToCursor.match(/@(\w*)$/);
+        if (atMatch) {
+          const query = atMatch[1].toLowerCase();
+          setMentionQuery(query);
+          const filtered = groupParticipants.filter(
+            (p) =>
+              p.name?.toLowerCase().includes(query) ||
+              p.number?.includes(query),
+          );
+          setMentionSuggestions(filtered);
+          setSelectedMentionIndex(0);
+        } else {
+          setMentionSuggestions([]);
+          setMentionQuery("");
+        }
+      } else {
+        setMentionSuggestions([]);
+      }
+
       if (ticketStatus !== "open" && ticketStatus !== "group") return;
       if (privateMessage) return;
 
@@ -1050,7 +1124,57 @@ const MessageInput = ({
         );
       }, 8000);
     },
-    [ticketId, ticketStatus, privateMessage, sendPresence],
+    [ticketId, ticketStatus, privateMessage, sendPresence, groupParticipants],
+  );
+
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <strong style={{ color: theme.palette.primary.main }}>
+          {text.slice(idx, idx + query.length)}
+        </strong>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  };
+
+  // ─── Seleciona uma menção da lista ──────────────────────────────────────
+  const handleMentionSelect = useCallback(
+    (participant) => {
+      // Substitui o @query pelo @nome no texto
+      const cursorPos = inputRef.current?.selectionStart ?? inputMessage.length;
+      const textUpToCursor = inputMessage.slice(0, cursorPos);
+      const atMatch = textUpToCursor.match(/@(\w*)$/);
+      if (!atMatch) return;
+
+      const before = inputMessage.slice(0, cursorPos - atMatch[0].length);
+      const after = inputMessage.slice(cursorPos);
+      const mention = `@${participant.name} `;
+      const newText = before + mention + after;
+
+      setInputMessage(newText);
+      setMentionSuggestions([]);
+      setMentionQuery("");
+
+      // Sempre usa o número de telefone para menções (@s.whatsapp.net)
+      // Isso garante que o WhatsApp exibe o nome correto, não o LID interno
+      const jid = `${participant.number}@s.whatsapp.net`;
+      setMentionedJids((prev) => (prev.includes(jid) ? prev : [...prev, jid]));
+
+      // Foca e posiciona cursor após a menção
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const pos = before.length + mention.length;
+          inputRef.current.setSelectionRange(pos, pos);
+        }
+      }, 50);
+    },
+    [inputMessage],
   );
 
   const handlePrivateMessage = (e) => {
@@ -1261,6 +1385,7 @@ const MessageInput = ({
           : sendMessage,
       quotedMsg: quotedMsg,
       isPrivate: privateMessage || isTicketPending() ? "true" : "false",
+      mentionedJids: mentionedJids.length > 0 ? mentionedJids : undefined,
     };
 
     if (!editingMessage) {
@@ -1303,6 +1428,8 @@ const MessageInput = ({
     setShowEmoji(false);
     setLoading(false);
     setReplyingMessage(null);
+    setMentionedJids([]);
+    setMentionSuggestions([]);
     if (!isTicketPending()) {
       setPrivateMessage(false);
     }
@@ -2721,7 +2848,10 @@ const MessageInput = ({
               )}
               {!privateMessageInputVisible && !isTicketPending() && (
                 <div className={classes.flexItem}>
-                  <div className={classes.messageInputWrapper}>
+                  <div
+                    className={classes.messageInputWrapper}
+                    style={{ position: "relative" }}
+                  >
                     <InputBase
                       inputRef={(input) => {
                         input && input.focus();
@@ -2753,6 +2883,118 @@ const MessageInput = ({
                       }}
                       spellCheck={true}
                     />
+                    {mentionSuggestions.length > 0 && (
+                      <Box
+                        component="ul"
+                        style={{
+                          position: "absolute",
+                          bottom: "100%",
+                          left: 0,
+                          right: 0,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 8,
+                          boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          margin: 0,
+                          padding: "4px 0",
+                          listStyle: "none",
+                          zIndex: 9999,
+                        }}
+                      >
+                        {mentionSuggestions.map((participant, index) => {
+                          const isSelected = selectedMentionIndex === index;
+                          return (
+                            <li
+                              key={participant.id || participant.number}
+                              onClick={() => handleMentionSelect(participant)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "8px 14px",
+                                cursor: "pointer",
+                                backgroundColor: isSelected
+                                  ? theme.palette.primary.light + "30"
+                                  : "transparent",
+                                borderLeft: isSelected
+                                  ? `3px solid ${theme.palette.primary.main}`
+                                  : "3px solid transparent",
+                                transition: "background 0.15s",
+                              }}
+                            >
+                              {participant.profilePicUrl ? (
+                                <img
+                                  src={participant.profilePicUrl}
+                                  alt=""
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              ) : (
+                                <Box
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: "50%",
+                                    backgroundColor: theme.palette.primary.main,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#fff",
+                                    fontWeight: "bold",
+                                    fontSize: 14,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {(participant.name ||
+                                    participant.number ||
+                                    "?")[0].toUpperCase()}
+                                </Box>
+                              )}
+                              <Box>
+                                <Box
+                                  style={{
+                                    fontWeight: 600,
+                                    fontSize: 14,
+                                    lineHeight: 1.2,
+                                  }}
+                                >
+                                  {highlightMatch(
+                                    participant.name || participant.number,
+                                    mentionQuery,
+                                  )}
+                                </Box>
+                                <Box
+                                  style={{
+                                    fontSize: 12,
+                                    color: theme.palette.text.secondary,
+                                  }}
+                                >
+                                  +{participant.number}
+                                  {participant.isAdmin && (
+                                    <span
+                                      style={{
+                                        marginLeft: 6,
+                                        color: theme.palette.primary.main,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Admin
+                                    </span>
+                                  )}
+                                </Box>
+                              </Box>
+                            </li>
+                          );
+                        })}
+                      </Box>
+                    )}
                     {typeBar ? (
                       <ul className={classes.messageQuickAnswersWrapper}>
                         {typeBar.map((value, index) => {

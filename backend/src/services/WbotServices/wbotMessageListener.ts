@@ -99,7 +99,7 @@ import { verifyContact } from "./verifyContact";
 
 import os from "os";
 import request from "request";
-import { Session } from "../../libs/wbot";
+import { Session, getWbot } from "../../libs/wbot";
 import {
   getGroupMetadataCache,
   groupMetadataCache,
@@ -773,37 +773,122 @@ const downloadMedia = async (
     }
   }
 
+  // if (msg.message?.stickerMessage) {
+  //   const urlAnt = "https://web.whatsapp.net";
+  //   const directPath = msg.message?.stickerMessage?.directPath;
+  //   const newUrl = "https://mmg.whatsapp.net";
+  //   const final = newUrl + directPath;
+  //   if (msg.message?.stickerMessage?.url?.includes(urlAnt)) {
+  //     msg.message.stickerMessage.url = msg.message?.stickerMessage.url.replace(
+  //       urlAnt,
+  //       final
+  //     );
+  //   }
+  // }
+
+  // let buffer;
+  // try {
+  //   buffer = await downloadMediaMessage(
+  //     msg,
+  //     "buffer",
+  //     {},
+  //     {
+  //       logger,
+  //       reuploadRequest: wbot.updateMediaMessage
+  //     }
+  //   );
+  // } catch (err) {
+  //   if (isImported) {
+  //     console.log(
+  //       "Falha ao fazer o download de uma mensagem importada, provavelmente a mensagem já não esta mais disponível"
+  //     );
+  //   } else {
+  //     console.error("Erro ao baixar mídia:", err);
+  //   }
+  // }
+
   if (msg.message?.stickerMessage) {
-    const urlAnt = "https://web.whatsapp.net";
-    const directPath = msg.message?.stickerMessage?.directPath;
-    const newUrl = "https://mmg.whatsapp.net";
-    const final = newUrl + directPath;
-    if (msg.message?.stickerMessage?.url?.includes(urlAnt)) {
-      msg.message.stickerMessage.url = msg.message?.stickerMessage.url.replace(
-        urlAnt,
-        final
+    const stickerMsg = msg.message.stickerMessage;
+    const legacyHost = "https://web.whatsapp.net";
+    const modernHost = "https://mmg.whatsapp.net";
+
+    if (stickerMsg?.url?.startsWith(legacyHost)) {
+      stickerMsg.url = stickerMsg.url.replace(legacyHost, modernHost);
+    }
+
+    if (stickerMsg?.directPath && !stickerMsg?.url?.startsWith("https://")) {
+      stickerMsg.url = modernHost + stickerMsg.directPath;
+    }
+
+    if (stickerMsg?.isAnimated && !stickerMsg?.mediaKey) {
+      logger.warn(
+        `[STICKER] Sticker animado sem mediaKey - pode falhar no download | msgId: ${msg.key.id}`
       );
     }
   }
 
   let buffer;
-  try {
-    buffer = await downloadMediaMessage(
-      msg,
-      "buffer",
-      {},
-      {
-        logger,
-        reuploadRequest: wbot.updateMediaMessage
-      }
-    );
-  } catch (err) {
-    if (isImported) {
-      console.log(
-        "Falha ao fazer o download de uma mensagem importada, provavelmente a mensagem já não esta mais disponível"
+  const SAFE_MEDIA_HOST = "mmg.whatsapp.net";
+  const maxDownloadRetries = 3;
+
+  for (let attempt = 1; attempt <= maxDownloadRetries; attempt++) {
+    try {
+      buffer = await downloadMediaMessage(
+        msg,
+        "buffer",
+        { host: SAFE_MEDIA_HOST },
+        {
+          logger,
+          reuploadRequest: wbot.updateMediaMessage
+        }
       );
-    } else {
-      console.error("Erro ao baixar mídia:", err);
+      if (buffer) break;
+    } catch (err: any) {
+      const isNetworkError =
+        err?.cause?.code === "ENOTFOUND" ||
+        err?.cause?.code === "ECONNREFUSED" ||
+        err?.cause?.code === "ETIMEDOUT" ||
+        err?.message?.includes("fetch failed");
+
+      if (attempt < maxDownloadRetries) {
+        const delay = 2000 * attempt;
+        logger.warn(
+          `[MEDIA-DL] Tentativa ${attempt}/${maxDownloadRetries} falhou (${
+            err?.cause?.code || err?.message
+          }). Aguardando ${delay}ms...`
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        if (attempt === 2) {
+          try {
+            const reuploaded = await wbot.updateMediaMessage(msg);
+            buffer = await downloadMediaMessage(
+              reuploaded,
+              "buffer",
+              { host: SAFE_MEDIA_HOST },
+              {
+                logger,
+                reuploadRequest: wbot.updateMediaMessage
+              }
+            );
+            if (buffer) {
+              logger.info(
+                `[MEDIA-REUPLOAD] Sucesso via reupload | msgId: ${msg.key.id}`
+              );
+              break;
+            }
+          } catch (reupErr: any) {
+            logger.warn(`[MEDIA-REUPLOAD] Falhou: ${reupErr?.message}`);
+          }
+        }
+      } else {
+        if (isImported) {
+          console.log("Falha ao fazer o download de uma mensagem importada...");
+        } else {
+          console.error("Erro ao baixar mídia:", err);
+        }
+        break;
+      }
     }
   }
 
@@ -5710,109 +5795,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("groups.update");
   wbot.ev.removeAllListeners("group-participants.update");
 
-  // wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
-  //   const rawMessages = messageUpsert.messages;
-  //   if (!rawMessages || rawMessages.length === 0) return;
-
-  //   // Reactions têm handler próprio
-  //   for (const message of rawMessages) {
-  //     if (message.message?.reactionMessage) {
-  //       await handleBaileysReaction(message, wbot, companyId);
-  //     }
-  //   }
-
-  //   const messages = rawMessages.filter(
-  //     msg => filterMessages(msg) && !msg.message?.reactionMessage
-  //   );
-
-  //   if (!messages?.length) return;
-
-  //   for (const message of messages) {
-  //     const messageExists = await Message.count({
-  //       where: { wid: message.key.id!, companyId }
-  //     });
-
-  //     if (!messageExists) {
-  //       await handleMessage(message, wbot, companyId);
-  //       await verifyRecentCampaign(message, companyId);
-  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-  //     }
-
-  //     if (message.key.remoteJid?.endsWith("@g.us")) {
-  //       handleMsgAck(message, 2);
-  //     }
-  //   }
-
-  //   messages.forEach(async (message: WAMessageSafe) => {
-  //     if (
-  //       message?.messageStubParameters?.length &&
-  //       message.messageStubParameters[0].includes("absent")
-  //     ) {
-  //       const msg = {
-  //         companyId: companyId,
-  //         whatsappId: wbot.id,
-  //         message: message
-  //       };
-  //       logger.warn("MENSAGEM PERDIDA", JSON.stringify(msg));
-  //     }
-  //     const messageExists = await Message.count({
-  //       where: { wid: message.key.id!, companyId }
-  //     });
-
-  //     if (!messageExists) {
-  //       let isCampaign = false;
-  //       let body = await getBodyMessage(message);
-  //       const fromMe = message?.key?.fromMe;
-  //       if (fromMe) {
-  //         isCampaign = /\u200c/.test(body);
-  //       } else {
-  //         if (/\u200c/.test(body)) body = body.replace(/\u200c/, "");
-  //         logger.debug(
-  //           "Validação de mensagem de campanha enviada por terceiros: " + body
-  //         );
-  //       }
-
-  //       if (!isCampaign) {
-  //         if (REDIS_URI_MSG_CONN !== "") {
-  //           //} && (!message.key.fromMe || (message.key.fromMe && !message.key.id.startsWith('BAE')))) {
-  //           try {
-  //             await BullQueues.add(
-  //               `${process.env.DB_NAME}-handleMessage`,
-  //               { message, wbot: wbot.id, companyId },
-  //               {
-  //                 priority: 1,
-  //                 jobId: `${wbot.id}-handleMessage-${message.key.id}`
-  //               }
-  //             );
-  //           } catch (e) {
-  //             Sentry.captureException(e);
-  //           }
-  //         } else {
-  //           await handleMessage(message, wbot, companyId);
-  //         }
-  //       }
-
-  //       await verifyRecentCampaign(message, companyId);
-  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-  //     }
-
-  //     if (message.key.remoteJid?.endsWith("@g.us")) {
-  //       if (REDIS_URI_MSG_CONN !== "") {
-  //         BullQueues.add(
-  //           `${process.env.DB_NAME}-handleMessageAck`,
-  //           { msg: message, chat: 2 },
-  //           {
-  //             priority: 1,
-  //             jobId: `${wbot.id}-handleMessageAck-${message.key.id}`
-  //           }
-  //         );
-  //       } else {
-  //         handleMsgAck(message, 2);
-  //       }
-  //     }
-  //   });
-  // });
-
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
@@ -6060,68 +6042,36 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         // ── Resolve número e JID para busca de foto ──────────────────────────
         let number: string;
         let jidParaBuscarFoto: string;
+        let dbContact: any = null;
 
         if (isLid) {
           const lidNumber = contact.id.replace("@lid", "");
-          const foundContact = await Contact.findOne({
-            where: {
-              companyId,
-              [Op.or]: [{ lid: contact.id }, { number: lidNumber }]
-            }
-          });
 
-          // Contato @lid ainda não existe no banco — agenda busca assíncrona
-          if (!foundContact) {
-            console.log(
-              `[PIC-EVENT] Contato @lid não encontrado no banco: ${contact.id} — agendando busca assíncrona`
-            );
-
-            setTimeout(async () => {
-              try {
-                const retryContact = await Contact.findOne({
-                  where: {
-                    companyId,
-                    [Op.or]: [{ lid: contact.id }, { number: lidNumber }]
-                  }
-                });
-                if (!retryContact) return;
-
-                const jid = `${retryContact.number}@s.whatsapp.net`;
-                const pic = await Promise.race([
-                  wbot.profilePictureUrl(jid, "image"),
-                  new Promise<null>(resolve =>
-                    setTimeout(() => resolve(null), 8000)
-                  )
-                ]);
-
-                if (!pic || pic.includes("nopicture")) return;
-
-                await CreateOrUpdateContactService({
-                  name: retryContact.name,
-                  number: retryContact.number,
-                  isGroup: false,
-                  companyId,
-                  profilePicUrl: pic,
-                  whatsappId: wbot.id
-                });
-
-                console.log(
-                  `[PIC-EVENT] ✅ Foto atualizada via retry assíncrono para ${retryContact.number}`
-                );
-              } catch (e) {
-                console.log(
-                  `[PIC-EVENT] Erro no retry assíncrono: ${e.message}`
-                );
+          // Tenta encontrar o contato - com retry pois pode chegar antes de ser criado
+          for (let attempt = 0; attempt < 3; attempt++) {
+            dbContact = await Contact.findOne({
+              where: {
+                companyId,
+                [Op.or]: [{ lid: contact.id }, { number: lidNumber }]
               }
-            }, 3000);
+            });
+            if (dbContact) break;
+            if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+          }
 
+          if (!dbContact) {
+            console.log(
+              `[PIC-EVENT] Contato @lid não encontrado no banco após retries: ${contact.id}`
+            );
             continue;
           }
 
-          number = foundContact.number;
-          jidParaBuscarFoto = `${number}@s.whatsapp.net`;
+          number = dbContact.number;
+          // Usa o LID diretamente — o Baileys armazena tctoken pelo LID
+          // Usar @s.whatsapp.net falha pois getLIDForPN não mapeia corretamente
+          jidParaBuscarFoto = contact.id; // ex: 101756516184214@lid
           console.log(
-            `[PIC-EVENT] @lid resolvido para número: ${number}, buscando foto em: ${jidParaBuscarFoto}`
+            `[PIC-EVENT] @lid resolvido para número: ${number}, buscando foto via LID: ${jidParaBuscarFoto}`
           );
         } else {
           number = isGroup
@@ -6134,6 +6084,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           }
 
           jidParaBuscarFoto = contact.id;
+
+          dbContact = await Contact.findOne({ where: { companyId, number } });
         }
 
         // ── Sem informação de foto — ignora ──────────────────────────────────
@@ -6144,11 +6096,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
         // ── Contato removeu a foto ────────────────────────────────────────────
         if (contact.imgUrl === "" || contact.imgUrl === "removed") {
-          const existingContact = await Contact.findOne({
-            where: { companyId, number }
-          });
-
-          if (existingContact) {
+          if (dbContact) {
             const publicFolder = path.resolve(
               __dirname,
               "..",
@@ -6161,20 +6109,20 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
               `company${companyId}`,
               "contacts"
             );
-            const filePath = path.join(folder, `${existingContact.id}.jpeg`);
+            const filePath = path.join(folder, `${dbContact.id}.jpeg`);
 
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
-            await existingContact.update({
-              profilePicUrl: null,
-              urlPicture: null
-            });
+            dbContact.setDataValue("urlPicture", null);
+            dbContact.setDataValue("profilePicUrl", null);
+            dbContact.setDataValue("pictureUpdated", false);
+            await dbContact.save();
 
             await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
 
             io.of(String(companyId)).emit(`company-${companyId}-contact`, {
               action: "update",
-              contact: { ...existingContact.toJSON(), urlPicture: null }
+              contact: { ...dbContact.toJSON(), urlPicture: null }
             });
 
             console.log(`[PIC-EVENT] Foto removida para contato ${number}`);
@@ -6182,30 +6130,114 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           continue;
         }
 
-        // ── Busca foto atualizada ─────────────────────────────────────────────
+        // ── imgUrl === "changed" ou URL direta: busca com retry + backoff ─────
+        // O WhatsApp demora alguns segundos para propagar a nova foto nos CDNs
+        // por isso tentamos até 5 vezes com espera crescente
         console.log(
-          `[PIC-EVENT] Buscando foto atualizada para ${jidParaBuscarFoto}`
+          `[PIC-EVENT] Buscando foto atualizada para ${jidParaBuscarFoto} (imgUrl=${contact.imgUrl})`
         );
 
-        let profilePicUrl: string | null = null;
-        try {
-          profilePicUrl = await Promise.race([
-            wbot.profilePictureUrl(jidParaBuscarFoto, "image"),
-            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
-          ]);
-        } catch (e) {
-          console.log(`[PIC-EVENT] Erro ao buscar foto: ${e.message}`);
+        // Invalida cache de foto antes de buscar para garantir URL fresca
+        await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
+        if (dbContact) {
+          await cacheLayer.del(
+            `pic:${companyId}:${dbContact.lid || contact.id}`
+          );
         }
 
-        console.log(`[PIC-EVENT] profilePicUrl obtida: ${profilePicUrl}`);
+        let profilePicUrl: string | null = null;
+        const delays = [5000, 10000, 20000, 30000, 45000]; // backoff maior para LID
 
-        if (!profilePicUrl || profilePicUrl.includes("nopicture")) {
-          console.log(`[PIC-EVENT] Foto inválida ou nula para ${number}`);
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          // Aguarda antes de buscar (WA precisa de tempo para propagar)
+          await new Promise(r => setTimeout(r, delays[attempt]));
+
+          try {
+            // Sempre busca a sessão mais recente (pode ter reconectado entre tentativas)
+            let currentWbot: Session = wbot;
+            try {
+              currentWbot = (await getWbot(wbot.id)) as Session;
+            } catch (e: any) {
+              console.log(
+                `[PIC-EVENT] Sessão não disponível na tentativa ${
+                  attempt + 1
+                }, aguardando...`
+              );
+              continue;
+            }
+
+            try {
+              profilePicUrl = await Promise.race([
+                currentWbot.profilePictureUrl(
+                  jidParaBuscarFoto,
+                  isLid ? "preview" : "image"
+                ),
+                new Promise<null>(resolve =>
+                  setTimeout(() => resolve(null), 15000)
+                )
+              ]);
+            } catch (picErr: any) {
+              const picErrMsg = picErr?.message || "";
+              const picErrOutput = picErr?.output
+                ? JSON.stringify(picErr.output)
+                : "";
+              console.log(
+                `[PIC-EVENT] ⚠️ EXCEÇÃO profilePictureUrl tentativa ${
+                  attempt + 1
+                }: ${picErrMsg} | output: ${picErrOutput}`
+              );
+              if (
+                picErrMsg.includes("Connection Closed") ||
+                picErrMsg.includes("503") ||
+                picErrMsg.includes("Stream")
+              ) {
+                break;
+              }
+            }
+          } catch (e: any) {
+            const errMsg = e?.message || "";
+            if (
+              errMsg.includes("Connection Closed") ||
+              errMsg.includes("503") ||
+              errMsg.includes("Stream")
+            ) {
+              console.log(
+                `[PIC-EVENT] ⚠️ Sessão instável na tentativa ${
+                  attempt + 1
+                }, abortando para proteger a conexão`
+              );
+              break;
+            }
+            console.log(`[PIC-EVENT] Erro tentativa ${attempt + 1}: ${errMsg}`);
+          }
+
+          if (profilePicUrl && !profilePicUrl.includes("nopicture")) {
+            console.log(
+              `[PIC-EVENT] ✅ URL obtida na tentativa ${
+                attempt + 1
+              }: ${profilePicUrl}`
+            );
+            break;
+          }
+
+          console.log(
+            `[PIC-EVENT] Tentativa ${attempt + 1}/${
+              delays.length
+            } — foto ainda não disponível para ${number}`
+          );
+          profilePicUrl = null;
+        }
+
+        if (!profilePicUrl) {
+          console.log(
+            `[PIC-EVENT] ❌ Foto não obtida após todas as tentativas para ${number}`
+          );
           continue;
         }
 
+        // ── Baixa e salva a imagem em disco ──────────────────────────────────
         const updatedContact = await CreateOrUpdateContactService({
-          name: number,
+          name: dbContact?.name || number,
           number,
           isGroup,
           companyId,
@@ -6215,7 +6247,13 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           wbot
         });
 
-        await cacheLayer.del(`pic:${companyId}:${jidParaBuscarFoto}`);
+        // Atualiza cache de foto com nova URL
+        await cacheLayer.set(
+          `pic:${companyId}:${jidParaBuscarFoto}`,
+          profilePicUrl,
+          "EX",
+          3600
+        );
 
         const backendUrl = process.env.BACKEND_URL || "";
         const localPicUrl = `${backendUrl}/public/company${companyId}/contacts/${updatedContact.id}.jpeg`;
@@ -6231,9 +6269,9 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         console.log(
           `[PIC-EVENT] ✅ Foto atualizada em tempo real para contato ${number}`
         );
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
-          `[PIC-EVENT] Erro ao processar contato ${contact?.id}: ${error.message}`
+          `[PIC-EVENT] Erro ao processar contato ${contact?.id}: ${error?.message}\n${error?.stack}`
         );
       }
     }
