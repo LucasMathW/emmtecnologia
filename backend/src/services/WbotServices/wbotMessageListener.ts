@@ -1205,8 +1205,61 @@ export const verifyMessage = async (
 ) => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg);
-  const body = getBodyMessage(msg);
+  let body = getBodyMessage(msg);
   const companyId = ticket.companyId;
+
+  // ─── Resolve menções @número/@lid → @nome do contato ─────────────────────
+  if (body && body.includes("@")) {
+    try {
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo ||
+        msg.message?.imageMessage?.contextInfo ||
+        msg.message?.videoMessage?.contextInfo ||
+        msg.message?.documentMessage?.contextInfo ||
+        (msg.message as any)?.conversation?.contextInfo;
+
+      const mentionedJids: string[] = contextInfo?.mentionedJid || [];
+
+      if (mentionedJids.length > 0) {
+        for (const jid of mentionedJids) {
+          const rawNumber = jid
+            .replace("@s.whatsapp.net", "")
+            .replace("@lid", "")
+            .split(":")[0];
+
+          const mentionedContact = await Contact.findOne({
+            where: {
+              companyId,
+              [Op.or]: [{ number: rawNumber }, { lid: jid }]
+            }
+          });
+
+          if (mentionedContact?.name) {
+            const escapeRegex = (str: string) =>
+              str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            const patterns = [
+              new RegExp(`@${escapeRegex(rawNumber)}`, "g"),
+              new RegExp(
+                `@${escapeRegex(
+                  jid.replace("@s.whatsapp.net", "").replace("@lid", "")
+                )}`,
+                "g"
+              )
+            ];
+
+            for (const pattern of patterns) {
+              body = body.replace(pattern, `@${mentionedContact.name}`);
+            }
+          }
+        }
+      }
+    } catch (mentionErr: any) {
+      logger.warn(
+        `[MENTION RESOLVE] Erro ao resolver menções: ${mentionErr?.message}`
+      );
+    }
+  }
 
   const messageData = {
     wid: msg.key.id,
@@ -1248,12 +1301,6 @@ export const verifyMessage = async (
         { model: Whatsapp, as: "whatsapp" }
       ]
     });
-
-    // io.to("closed").emit(`company-${companyId}-ticket`, {
-    //   action: "delete",
-    //   ticket,
-    //   ticketId: ticket.id
-    // })
 
     if (!ticket.imported) {
       io.of(String(companyId))
@@ -5710,109 +5757,6 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("groups.update");
   wbot.ev.removeAllListeners("group-participants.update");
 
-  // wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
-  //   const rawMessages = messageUpsert.messages;
-  //   if (!rawMessages || rawMessages.length === 0) return;
-
-  //   // Reactions têm handler próprio
-  //   for (const message of rawMessages) {
-  //     if (message.message?.reactionMessage) {
-  //       await handleBaileysReaction(message, wbot, companyId);
-  //     }
-  //   }
-
-  //   const messages = rawMessages.filter(
-  //     msg => filterMessages(msg) && !msg.message?.reactionMessage
-  //   );
-
-  //   if (!messages?.length) return;
-
-  //   for (const message of messages) {
-  //     const messageExists = await Message.count({
-  //       where: { wid: message.key.id!, companyId }
-  //     });
-
-  //     if (!messageExists) {
-  //       await handleMessage(message, wbot, companyId);
-  //       await verifyRecentCampaign(message, companyId);
-  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-  //     }
-
-  //     if (message.key.remoteJid?.endsWith("@g.us")) {
-  //       handleMsgAck(message, 2);
-  //     }
-  //   }
-
-  //   messages.forEach(async (message: WAMessageSafe) => {
-  //     if (
-  //       message?.messageStubParameters?.length &&
-  //       message.messageStubParameters[0].includes("absent")
-  //     ) {
-  //       const msg = {
-  //         companyId: companyId,
-  //         whatsappId: wbot.id,
-  //         message: message
-  //       };
-  //       logger.warn("MENSAGEM PERDIDA", JSON.stringify(msg));
-  //     }
-  //     const messageExists = await Message.count({
-  //       where: { wid: message.key.id!, companyId }
-  //     });
-
-  //     if (!messageExists) {
-  //       let isCampaign = false;
-  //       let body = await getBodyMessage(message);
-  //       const fromMe = message?.key?.fromMe;
-  //       if (fromMe) {
-  //         isCampaign = /\u200c/.test(body);
-  //       } else {
-  //         if (/\u200c/.test(body)) body = body.replace(/\u200c/, "");
-  //         logger.debug(
-  //           "Validação de mensagem de campanha enviada por terceiros: " + body
-  //         );
-  //       }
-
-  //       if (!isCampaign) {
-  //         if (REDIS_URI_MSG_CONN !== "") {
-  //           //} && (!message.key.fromMe || (message.key.fromMe && !message.key.id.startsWith('BAE')))) {
-  //           try {
-  //             await BullQueues.add(
-  //               `${process.env.DB_NAME}-handleMessage`,
-  //               { message, wbot: wbot.id, companyId },
-  //               {
-  //                 priority: 1,
-  //                 jobId: `${wbot.id}-handleMessage-${message.key.id}`
-  //               }
-  //             );
-  //           } catch (e) {
-  //             Sentry.captureException(e);
-  //           }
-  //         } else {
-  //           await handleMessage(message, wbot, companyId);
-  //         }
-  //       }
-
-  //       await verifyRecentCampaign(message, companyId);
-  //       await verifyCampaignMessageAndCloseTicket(message, companyId, wbot);
-  //     }
-
-  //     if (message.key.remoteJid?.endsWith("@g.us")) {
-  //       if (REDIS_URI_MSG_CONN !== "") {
-  //         BullQueues.add(
-  //           `${process.env.DB_NAME}-handleMessageAck`,
-  //           { msg: message, chat: 2 },
-  //           {
-  //             priority: 1,
-  //             jobId: `${wbot.id}-handleMessageAck-${message.key.id}`
-  //           }
-  //         );
-  //       } else {
-  //         handleMsgAck(message, 2);
-  //       }
-  //     }
-  //   });
-  // });
-
   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
@@ -5828,6 +5772,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const messages = rawMessages.filter(
       msg => filterMessages(msg) && !msg.message?.reactionMessage
     );
+
     if (!messages?.length) return;
 
     // 3. Loop principal (Sequencial e seguro)
