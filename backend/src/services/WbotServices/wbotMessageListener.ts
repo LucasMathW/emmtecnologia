@@ -1290,8 +1290,61 @@ export const verifyMessage = async (
 ) => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg);
-  const body = getBodyMessage(msg);
+  let body = getBodyMessage(msg);
   const companyId = ticket.companyId;
+
+  // ─── Resolve menções @número/@lid → @nome do contato ─────────────────────
+  if (body && body.includes("@")) {
+    try {
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo ||
+        msg.message?.imageMessage?.contextInfo ||
+        msg.message?.videoMessage?.contextInfo ||
+        msg.message?.documentMessage?.contextInfo ||
+        (msg.message as any)?.conversation?.contextInfo;
+
+      const mentionedJids: string[] = contextInfo?.mentionedJid || [];
+
+      if (mentionedJids.length > 0) {
+        for (const jid of mentionedJids) {
+          const rawNumber = jid
+            .replace("@s.whatsapp.net", "")
+            .replace("@lid", "")
+            .split(":")[0];
+
+          const mentionedContact = await Contact.findOne({
+            where: {
+              companyId,
+              [Op.or]: [{ number: rawNumber }, { lid: jid }]
+            }
+          });
+
+          if (mentionedContact?.name) {
+            const escapeRegex = (str: string) =>
+              str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            const patterns = [
+              new RegExp(`@${escapeRegex(rawNumber)}`, "g"),
+              new RegExp(
+                `@${escapeRegex(
+                  jid.replace("@s.whatsapp.net", "").replace("@lid", "")
+                )}`,
+                "g"
+              )
+            ];
+
+            for (const pattern of patterns) {
+              body = body.replace(pattern, `@${mentionedContact.name}`);
+            }
+          }
+        }
+      }
+    } catch (mentionErr: any) {
+      logger.warn(
+        `[MENTION RESOLVE] Erro ao resolver menções: ${mentionErr?.message}`
+      );
+    }
+  }
 
   const messageData = {
     wid: msg.key.id,
@@ -1333,12 +1386,6 @@ export const verifyMessage = async (
         { model: Whatsapp, as: "whatsapp" }
       ]
     });
-
-    // io.to("closed").emit(`company-${companyId}-ticket`, {
-    //   action: "delete",
-    //   ticket,
-    //   ticketId: ticket.id
-    // })
 
     if (!ticket.imported) {
       io.of(String(companyId))
@@ -5810,6 +5857,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const messages = rawMessages.filter(
       msg => filterMessages(msg) && !msg.message?.reactionMessage
     );
+
     if (!messages?.length) return;
 
     // 3. Loop principal (Sequencial e seguro)
