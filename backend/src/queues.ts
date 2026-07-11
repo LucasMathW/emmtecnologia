@@ -61,8 +61,8 @@ import fs from "fs";
 import SendWhatsAppMessageAPI from "./services/WbotServices/SendWhatsAppMessageAPI";
 import delay from "./utils/delay";
 const connection = process.env.REDIS_URI || "";
-const limiterMax = process.env.REDIS_OPT_LIMITER_MAX || 1;
-const limiterDuration = process.env.REDIS_OPT_LIMITER_DURATION || 3000;
+const limiterMax = Number(process.env.REDIS_OPT_LIMITER_MAX) || 1;
+const limiterDuration = Number(process.env.REDIS_OPT_LIMITER_DURATION) || 3000;
 
 interface ProcessCampaignData {
   id: number;

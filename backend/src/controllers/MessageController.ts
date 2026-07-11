@@ -83,6 +83,7 @@ type MessageData = {
   number?: string;
   isPrivate?: string;
   vCard?: Contact;
+  mentionedJids?: string[];
 };
 
 type MessageTemplateData = {
@@ -204,7 +205,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     quotedMsg,
     vCard,
     isPrivate = "false",
-    isSticker
+    isSticker,
+    mentionedJids
   }: MessageData & { isSticker?: string } = req.body;
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
@@ -256,7 +258,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
             quotedMsg,
             body: Array.isArray(body) ? body[index] : body,
             isPrivate: isPrivate === "true",
-            isForwarded: false
+            isForwarded: false,
+            mentionedJids
           });
         }
 
@@ -287,7 +290,13 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     } else {
       // Tratamento para mensagens sem mídia (código existente)
       if (ticket.channel === "whatsapp" && isPrivate === "false") {
-        await SendWhatsAppMessage({ body, ticket, quotedMsg, vCard });
+        await SendWhatsAppMessage({
+          body,
+          ticket,
+          quotedMsg,
+          vCard,
+          mentionedJids
+        });
       } else if (
         ticket.channel == "whatsapp_oficial" &&
         isPrivate === "false"

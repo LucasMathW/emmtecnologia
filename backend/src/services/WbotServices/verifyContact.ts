@@ -69,6 +69,35 @@ const smartUpdateContact = async (
     }
   }
 
+  // ─── Verifica se tem URL de foto mas o arquivo ainda não existe em disco ───
+  // Isso acontece quando a URL foi salva mas o download nunca foi concluído
+  const picUrl = updates.profilePicUrl || contact.profilePicUrl;
+  if (picUrl && !picUrl.includes("nopicture") && picUrl.startsWith("http")) {
+    const urlPic = contact.getDataValue("urlPicture") as string | null;
+    const isUrlDirect = urlPic?.startsWith("http");
+
+    if (!isUrlDirect) {
+      // Verifica se o arquivo local existe
+      const path = require("path");
+      const fs = require("fs");
+      const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
+      const folder = path.resolve(
+        publicFolder,
+        `company${contact.companyId}`,
+        "contacts"
+      );
+      const expectedFile = path.join(folder, `${contact.id}.jpeg`);
+
+      if (!fs.existsSync(expectedFile)) {
+        // Arquivo não existe em disco — força download mesmo sem mudança de URL
+        changedFields["profilePicUrl"] = picUrl;
+        logger.info(
+          `[SMART-UPDATE] ${context} - Arquivo de foto ausente em disco para ${contact.number}, forçando download`
+        );
+      }
+    }
+  }
+
   // Se nada mudou, retorna sem fazer UPDATE no banco
   if (Object.keys(changedFields).length === 0) {
     return contact;
@@ -216,8 +245,14 @@ export async function verifyContact(
 
   // ─── Foto de perfil com cache (mantido, mas otimizado) ─────────────────────
   let profilePicUrl: string | undefined;
-  if (!isGroup && !isLid && wbot) {
-    const picCacheKey = `pic:${companyId}:${msgContact.id}`;
+  if (!isGroup && wbot) {
+    // Para @lid, usa o LID original pois o Baileys usa o tctoken armazenado pelo LID
+    // Usar o número de telefone (@s.whatsapp.net) falha pois getLIDForPN não mapeia corretamente
+    const jidParaFoto = isLid
+      ? msgContact.id // usa o @lid diretamente (ex: 101756516184214@lid)
+      : msgContact.id;
+
+    const picCacheKey = `pic:${companyId}:${jidParaFoto}`;
     try {
       const cachedPic = await cacheLayer.get(picCacheKey);
 
@@ -229,8 +264,8 @@ export async function verifyContact(
         let fetched: string | null = null;
         try {
           fetched = await Promise.race([
-            wbot.profilePictureUrl(msgContact.id, "image"),
-            new Promise<null>(resolve => setTimeout(() => resolve(null), 3000))
+            wbot.profilePictureUrl(jidParaFoto, "image"),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
           ]);
         } catch (e) {
           const msg = e?.message || "";
@@ -241,7 +276,7 @@ export async function verifyContact(
             msg.includes("item-not-found") ? 3600 : 1800
           );
           logger.warn(
-            `[PIC-VERIFY] Erro ao buscar foto para ${msgContact.id}: ${msg}`
+            `[PIC-VERIFY] Erro ao buscar foto para ${jidParaFoto}: ${msg}`
           );
         }
 
@@ -304,9 +339,21 @@ export async function verifyContact(
     const memoryCached = getMemoryCache(contactCacheKey);
     if (memoryCached) {
       try {
-        // Contact.build com isNewRecord: false = instância sem SELECT no banco!
-        const contact = Contact.build(memoryCached, { isNewRecord: false });
-        return contact as Contact;
+        // Verifica se o contato ainda existe no banco antes de retornar do cache
+        const stillExists = await Contact.count({
+          where: { id: memoryCached.id, companyId }
+        });
+        if (stillExists > 0) {
+          const contact = Contact.build(memoryCached, { isNewRecord: false });
+          return contact as Contact;
+        } else {
+          // Contato foi deletado — invalida cache L1 e L2
+          memoryCache.delete(contactCacheKey);
+          await cacheLayer.del(contactCacheKey);
+          logger.warn(
+            `[VERIFY-CONTACT] Contato ${memoryCached.id} no cache L1 não existe mais no banco. Cache invalidado.`
+          );
+        }
       } catch (e) {
         // Cache corrompido, segue fluxo normal
       }
@@ -317,12 +364,24 @@ export async function verifyContact(
       const cached = await cacheLayer.get(contactCacheKey);
       if (cached) {
         const cachedData = JSON.parse(cached);
-        const contact = Contact.build(cachedData, { isNewRecord: false });
 
-        // Promove para L1
-        setMemoryCache(contactCacheKey, cachedData);
-
-        return contact as Contact;
+        // Verifica se o contato ainda existe no banco
+        const stillExists = await Contact.count({
+          where: { id: cachedData.id, companyId }
+        });
+        if (stillExists > 0) {
+          const contact = Contact.build(cachedData, { isNewRecord: false });
+          // Promove para L1
+          setMemoryCache(contactCacheKey, cachedData);
+          return contact as Contact;
+        } else {
+          // Contato foi deletado — invalida cache
+          memoryCache.delete(contactCacheKey);
+          await cacheLayer.del(contactCacheKey);
+          logger.warn(
+            `[VERIFY-CONTACT] Contato ${cachedData.id} no cache L2 não existe mais no banco. Cache invalidado.`
+          );
+        }
       }
     } catch (e) {
       // cache miss ou erro — segue fluxo normal
@@ -572,6 +631,39 @@ export async function verifyContact(
         `[VERIFY-CONTACT] 🚀 MODO TURBO ATIVADO: Criando contato imediatamente para ${number} (sem esperar onWhatsApp)`
       );
 
+      // ─── Busca foto antes de criar o contato ─────────────────────────────
+      if (!contactData.profilePicUrl && wbot) {
+        // Usa o LID quando disponível pois o Baileys armazena tctoken pelo LID
+        const jidFoto = originalLid ? originalLid : `${number}@s.whatsapp.net`;
+        const picCacheKey = `pic:${companyId}:${jidFoto}`;
+        try {
+          const cachedPic = await cacheLayer.get(picCacheKey);
+          if (cachedPic && cachedPic !== "none") {
+            contactData.profilePicUrl = cachedPic;
+          } else if (cachedPic !== "none") {
+            const fetched = await Promise.race([
+              wbot.profilePictureUrl(jidFoto, "image"),
+              new Promise<null>(resolve =>
+                setTimeout(() => resolve(null), 5000)
+              )
+            ]).catch(() => null);
+            if (fetched && !fetched.includes("nopicture")) {
+              contactData.profilePicUrl = fetched;
+              await cacheLayer.set(picCacheKey, fetched, "EX", 3600);
+              logger.info(
+                `[VERIFY-CONTACT] 📸 Foto obtida para novo contato ${number}`
+              );
+            } else {
+              await cacheLayer.set(picCacheKey, "none", "EX", 300);
+            }
+          }
+        } catch (picErr: any) {
+          logger.warn(
+            `[VERIFY-CONTACT] Erro ao buscar foto para ${number}: ${picErr?.message}`
+          );
+        }
+      }
+
       let newContact: Contact | null = null;
 
       try {
@@ -595,6 +687,88 @@ export async function verifyContact(
 
         // 🔥 PASSO 2: Popula o cache imediatamente para as próximas mensagens serem ultra-rápidas
         populateCache(newContact);
+
+        // 🔥 PASSO 2.5: Busca foto em background (pode demorar alguns segundos para estar disponível)
+        if (wbot && !newContact.profilePicUrl) {
+          // Usa LID diretamente pois o Baileys armazena tctoken pelo LID
+          // Chamar com @s.whatsapp.net falha para contas LID (getLIDForPN não mapeia)
+          const jidFoto = originalLid
+            ? originalLid
+            : `${number}@s.whatsapp.net`;
+          const jidLid = originalLid || null;
+          const contactId = newContact.id;
+          const companyIdBg = companyId;
+
+          // Fire-and-forget: não bloqueia o fluxo principal
+          (async () => {
+            // Aguarda 3s para o WhatsApp propagar a foto
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+              let fetched: string | null = null;
+
+              // Tenta primeiro com o JID normal
+              try {
+                fetched = await Promise.race([
+                  wbot.profilePictureUrl(jidFoto, "image"),
+                  new Promise<null>(r => setTimeout(() => r(null), 6000))
+                ]);
+                logger.info(
+                  `[VERIFY-CONTACT] 🔍 BG foto via JID: ${jidFoto} → ${fetched}`
+                );
+              } catch (e: any) {
+                logger.warn(
+                  `[VERIFY-CONTACT] BG foto via JID falhou: ${e?.message}`
+                );
+              }
+
+              // Se não funcionou e temos LID, tenta com o LID
+              if ((!fetched || fetched.includes("nopicture")) && jidLid) {
+                try {
+                  fetched = await Promise.race([
+                    wbot.profilePictureUrl(jidLid, "image"),
+                    new Promise<null>(r => setTimeout(() => r(null), 6000))
+                  ]);
+                  logger.info(
+                    `[VERIFY-CONTACT] 🔍 BG foto via LID: ${jidLid} → ${fetched}`
+                  );
+                } catch (e: any) {
+                  logger.warn(
+                    `[VERIFY-CONTACT] BG foto via LID falhou: ${e?.message}`
+                  );
+                }
+              }
+
+              if (fetched && !fetched.includes("nopicture")) {
+                logger.info(
+                  `[VERIFY-CONTACT] 📸 Foto obtida em background para ${number}: ${fetched}`
+                );
+                await cacheLayer.set(
+                  `pic:${companyIdBg}:${jidFoto}`,
+                  fetched,
+                  "EX",
+                  3600
+                );
+
+                // Atualiza o contato no banco com a foto
+                await CreateOrUpdateContactService({
+                  name: number,
+                  number,
+                  companyId: companyIdBg,
+                  profilePicUrl: fetched,
+                  isGroup: false
+                });
+              } else {
+                logger.warn(
+                  `[VERIFY-CONTACT] ⚠️ Foto não disponível para ${number} após background fetch`
+                );
+              }
+            } catch (bgErr: any) {
+              logger.warn(
+                `[VERIFY-CONTACT] Erro background foto ${number}: ${bgErr?.message}`
+              );
+            }
+          })().catch(() => {});
+        }
 
         // 🔥 PASSO 3: Adiciona na fila para buscar/atualizar o LID em background (não bloqueia a mensagem!)
         try {

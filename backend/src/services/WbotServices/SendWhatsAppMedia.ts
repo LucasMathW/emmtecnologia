@@ -1,7 +1,6 @@
 import { WAMessage, AnyMessageContent } from "baileys";
 import * as Sentry from "@sentry/node";
-import fs, { unlinkSync } from "fs";
-
+import fs from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegStatic from "ffmpeg-static";
@@ -15,12 +14,10 @@ import CreateMessageService from "../MessageServices/CreateMessageService";
 import formatBody from "../../helpers/Mustache";
 import logger from "../../utils/logger";
 import { ENABLE_LID_DEBUG } from "../../config/debug";
-import { normalizeJid } from "../../utils";
 import { getJidOf } from "./getJidOf";
 import Message from "../../models/Message";
 
-ffmpeg.setFfmpegPath(ffmpegStatic!);
-
+// Configuração do ffmpeg (mantida apenas a IIFE segura)
 (() => {
   try {
     const resolvedPath: string | undefined =
@@ -39,16 +36,31 @@ ffmpeg.setFfmpegPath(ffmpegStatic!);
   }
 })();
 
-const convertToOggOpus = async (inputFile: string): Promise<string> => {
+const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
+
+// ✅ Função unificada de conversão de áudio para OGG Opus (com verificação de extensão e bitrate melhorado)
+const convertAudioToOggOpus = async (
+  inputFile: string,
+  companyId: number
+): Promise<string> => {
+  // Se já for .ogg, retorna o próprio arquivo (evita reconversão e perda de qualidade)
+  if (inputFile.toLowerCase().endsWith(".ogg")) {
+    return inputFile;
+  }
+
   const parsed = path.parse(inputFile);
-  const outputFile = path.join(parsed.dir, `${parsed.name}-${Date.now()}.ogg`);
+  const outputFile = path.join(
+    publicFolder,
+    `company${companyId}`,
+    `${parsed.name}-${Date.now()}.ogg`
+  );
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg(inputFile)
       .audioChannels(1)
       .audioFrequency(16000)
       .audioCodec("libopus")
-      .audioBitrate("18k")
+      .audioBitrate("64k") // Bitrate melhorado para melhor qualidade de voz
       .addOption(["-vbr", "off"])
       .addOption(["-avoid_negative_ts", "make_zero"])
       .format("ogg")
@@ -60,39 +72,38 @@ const convertToOggOpus = async (inputFile: string): Promise<string> => {
   return outputFile;
 };
 
-// Convert image to WebP sticker (512x512, no metadata) for WhatsApp
-const convertToSticker = async (inputFile: string): Promise<string> => {
-  const parsed = path.parse(inputFile);
-  const outputFile = path.join(parsed.dir, `${parsed.name}-${Date.now()}.webp`);
+// ✅ Função para converter PNG/WebP para JPG usando ffmpeg
+const convertPngToJpg = async (
+  inputPath: string,
+  companyId: number
+): Promise<Buffer> => {
+  try {
+    const outputPath = path.join(
+      publicFolder,
+      `company${companyId}`,
+      `temp_${new Date().getTime()}.jpg`
+    );
 
-  await new Promise<void>((resolve, reject) => {
-    ffmpeg(inputFile)
-      .outputOptions([
-        "-vcodec libwebp",
-        "-vf scale=512:512:force_original_aspect_ratio=decrease",
-        "-lossless 0",
-        "-loop 0",
-        "-preset default",
-        "-an -vsync 0",
-        "-s 512:512"
-      ])
-      .save(outputFile)
-      .on("end", () => resolve())
-      .on("error", err => {
-        // fallback: just scale without strict options
-        ffmpeg(inputFile)
-          .outputOptions([
-            "-vcodec libwebp",
-            "-vf scale=512:512",
-            "-an -vsync 0"
-          ])
-          .save(outputFile)
-          .on("end", () => resolve())
-          .on("error", err2 => reject(err2));
-      });
-  });
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputFormat("mjpeg")
+        .outputOptions("-q:v", "2")
+        .on("end", () => resolve())
+        .on("error", err => reject(err))
+        .save(outputPath);
+    });
 
-  return outputFile;
+    const imageBuffer = fs.readFileSync(outputPath);
+
+    if (fs.existsSync(outputPath)) {
+      fs.unlinkSync(outputPath);
+    }
+
+    return imageBuffer;
+  } catch (error) {
+    logger.error(`❌ Erro na conversão para JPG: ${error.message}`);
+    throw error;
+  }
 };
 
 const getMediaTypeFromMimeType = (mimetype: string): string => {
@@ -122,7 +133,6 @@ const getMediaTypeFromMimeType = (mimetype: string): string => {
     "application/vnd.apple.pages",
     "application/x-msdownload",
     "application/x-executable",
-    "application/x-msdownload",
     "application/acad",
     "application/x-pkcs12",
     "application/x-ret"
@@ -137,17 +147,9 @@ const getMediaTypeFromMimeType = (mimetype: string): string => {
     "application/x-bzip2"
   ];
 
-  if (mimetype === "audio/webm") {
-    return "audio";
-  }
-
-  if (documentMimeTypes.includes(mimetype)) {
-    return "document";
-  }
-
-  if (archiveMimeTypes.includes(mimetype)) {
-    return "document";
-  }
+  if (mimetype === "audio/webm") return "audio";
+  if (documentMimeTypes.includes(mimetype)) return "document";
+  if (archiveMimeTypes.includes(mimetype)) return "document";
 
   return mimetype.split("/")[0];
 };
@@ -160,165 +162,57 @@ interface Request {
   body?: string;
   isPrivate?: boolean;
   isForwarded?: boolean;
+  mentionedJids?: string[];
 }
-
-const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
-
-// ✅ CORREÇÃO: Função de conversão de áudio otimizada
-
-export const convertAudioToOgg = async (
-  inputPath: string,
-  companyId: number
-): Promise<string> => {
-  return new Promise<string>((resolve, reject) => {
-    try {
-      const newMediaFileName = `${new Date().getTime()}.ogg`;
-      const outputFile = path.join(
-        publicFolder,
-        `company${companyId}`,
-        newMediaFileName
-      );
-
-      console.log("🔄 Convertendo áudio:", {
-        input: inputPath,
-        output: outputFile
-      });
-
-      const converter = ffmpeg(inputPath);
-
-      converter
-        .outputFormat("ogg")
-        .noVideo()
-        .audioCodec("libopus")
-        .audioChannels(1)
-        .audioFrequency(16000)
-        .audioBitrate("64k")
-        .addOutputOptions("-avoid_negative_ts make_zero")
-        .on("end", () => {
-          resolve(outputFile);
-        })
-        .on("error", (err: Error) => {
-          console.error("❌ Erro na conversão de áudio:", err);
-          reject(err);
-        })
-        .save(outputFile);
-    } catch (error) {
-      console.error("❌ Erro ao configurar conversão:", error);
-      reject(error);
-    }
-  });
-};
-
-// ✅ Função para converter PNG/WebP para JPG usando ffmpeg
-export const convertPngToJpg = async (
-  inputPath: string,
-  companyId: number
-): Promise<Buffer> => {
-  try {
-
-    const outputPath = path.join(
-      publicFolder,
-      `company${companyId}`,
-      `temp_${new Date().getTime()}.jpg`
-    );
-
-    // Usar ffmpeg para converter qualquer formato de imagem para JPG
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputPath)
-        .outputFormat("mjpeg")
-        .outputOptions("-q:v", "2") // Qualidade alta
-        .on("end", () => {
-          resolve();
-        })
-        .on("error", err => {
-          console.error("❌ Erro na conversão para JPG:", err);
-          reject(err);
-        })
-        .save(outputPath);
-    });
-
-    // Ler o arquivo JPG convertido
-    const imageBuffer = fs.readFileSync(outputPath);
-
-    // Limpar arquivo temporário
-    if (fs.existsSync(outputPath)) {
-      fs.unlinkSync(outputPath);
-    }
-
-    return imageBuffer;
-  } catch (error) {
-    console.error("❌ Erro na conversão para JPG:", error);
-    throw error;
-  }
-};
 
 export const getMessageOptions = async (
   fileName: string,
   pathMedia: string,
-  companyId: string,
+  companyId: number,
   body: string = " "
-): Promise<any> => {
+): Promise<AnyMessageContent | null> => {
   const mimeType = mime.lookup(pathMedia);
   const typeMessage = mimeType ? mimeType.split("/")[0] : "application";
 
-  console.log("🔍 Processando mídia:", {
-    fileName,
-    pathMedia,
-    mimeType,
-    typeMessage
-  });
-
   try {
-    if (!mimeType) {
-      throw new Error("Invalid mimetype");
-    }
+    if (!mimeType) throw new Error("Invalid mimetype");
 
     let options: AnyMessageContent;
 
     if (typeMessage === "video") {
       options = {
         video: fs.readFileSync(pathMedia),
-        caption: body ? body : null,
-        fileName: fileName
+        caption: body || null,
+        fileName
       };
     } else if (typeMessage === "audio") {
-      // ✅ CORREÇÃO: Verificar se o arquivo já está em formato adequado
-      const isAlreadyOgg = pathMedia.toLowerCase().endsWith(".ogg");
-      let audioPath = pathMedia;
-
-      if (!isAlreadyOgg) {
-        audioPath = await convertAudioToOgg(pathMedia, +companyId);
-      } else {
-      }
-
+      const audioPath = await convertAudioToOggOpus(pathMedia, companyId);
       options = {
         audio: fs.readFileSync(audioPath),
         mimetype: "audio/ogg; codecs=opus",
         ptt: true
       };
-
-      // Limpar arquivo temporário se foi convertido
       if (audioPath !== pathMedia && fs.existsSync(audioPath)) {
         fs.unlinkSync(audioPath);
       }
     } else if (typeMessage === "document" || typeMessage === "application") {
       options = {
         document: fs.readFileSync(pathMedia),
-        caption: body ? body : null,
-        fileName: fileName,
+        caption: body || null,
+        fileName,
         mimetype: mimeType
       };
     } else {
       options = {
         image: fs.readFileSync(pathMedia),
-        caption: body ? body : null
+        caption: body || null
       };
     }
 
     return options;
   } catch (e) {
     Sentry.captureException(e);
-    console.error("❌ Erro ao processar mídia:", e);
+    logger.error(`❌ Erro ao processar mídia: ${e.message}`);
     return null;
   }
 };
@@ -329,45 +223,39 @@ const SendWhatsAppMedia = async ({
   quotedMsg,
   body = "",
   isPrivate = false,
-  isForwarded = false
+  isForwarded = false,
+  mentionedJids
 }: Request): Promise<WAMessage> => {
   try {
     const wbot = await getWbot(ticket.whatsappId);
     const companyId = ticket.companyId.toString();
 
-    // Construir o caminho absoluto baseado no companyId
-    let pathMedia;
+    // ✅ CORREÇÃO: Resolução de caminho robusta usando path.isAbsolute e path.normalize
+    let pathMedia = path.isAbsolute(media.path)
+      ? media.path
+      : path.join(publicFolder, media.path);
+    pathMedia = path.normalize(pathMedia);
 
-    // Verificar se media.path já é um caminho absoluto ou relativo
-    if (media.path.startsWith("/") && !media.path.includes("public")) {
-      // Caminho relativo como /company1/fileList/4/arquivo.pdf
-      pathMedia = path.join(publicFolder, media.path);
-    } else if (media.path.includes("public")) {
-      // Caminho já absoluto, usar diretamente
-      pathMedia = media.path;
-    } else if (media.path.startsWith("company")) {
-      // Caminho que começa com company (ex: company1/fileList/4/arquivo.pdf)
-      pathMedia = path.join(publicFolder, media.path);
-    } else {
-      // Caminho relativo sem barra inicial
-      pathMedia = path.join(publicFolder, media.path);
+    // ✅ CORREÇÃO: contextInfo centralizado com suporte a menções e encaminhamento
+    const contextInfo: any = {
+      forwardingScore: isForwarded ? 2 : 0,
+      isForwarded
+    };
+
+    if (mentionedJids && mentionedJids.length > 0) {
+      contextInfo.mentions = mentionedJids;
     }
 
+    // Configuração de mensagem citada (quotedMsg)
     let sendOptions: any = {};
-
     if (quotedMsg) {
       const quotedId: any = (quotedMsg as any)?.id ?? quotedMsg;
 
-      if (
-        quotedId !== undefined &&
-        quotedId !== null &&
-        String(quotedId).trim() !== ""
-      ) {
+      if (quotedId && String(quotedId).trim() !== "") {
         const chatMessages = await Message.findOne({ where: { id: quotedId } });
 
         if (chatMessages) {
           const msgFound = JSON.parse(chatMessages.dataJson);
-
           sendOptions = {
             quoted: {
               key: msgFound.key,
@@ -389,128 +277,80 @@ const SendWhatsAppMedia = async ({
       }
     }
 
-    // Debug: verificar se o arquivo existe
-    console.log("🔍 Verificando arquivo de mídia:", {
-      originalPath: media.path,
-      publicFolder,
-      fullPath: pathMedia,
-      exists: fs.existsSync(pathMedia)
-    });
-
     if (!fs.existsSync(pathMedia)) {
       throw new Error(`Arquivo de mídia não encontrado: ${pathMedia}`);
     }
 
     const typeMessage = media.mimetype.split("/")[0];
     let options: AnyMessageContent;
-    let bodyTicket = "";
     const bodyMedia = ticket ? formatBody(body, ticket) : body;
 
-    console.log("📤 Enviando mídia:", {
-      originalname: media.originalname,
-      mimetype: media.mimetype,
-      typeMessage,
-      pathMedia
-    });
-
+    // ✅ CORREÇÃO: Aplicação do contextInfo centralizado em TODOS os tipos de mídia
     if (typeMessage === "video") {
       options = {
         video: fs.readFileSync(pathMedia),
         caption: bodyMedia,
         fileName: media.originalname.replace("/", "-"),
-        contextInfo: {
-          forwardingScore: isForwarded ? 2 : 0,
-          isForwarded: isForwarded
-        }
+        contextInfo
       };
-      bodyTicket = "🎥 Arquivo de vídeo";
     } else if (typeMessage === "audio" || media.mimetype.includes("audio")) {
-      // ✅ CORREÇÃO: Tratamento específico para arquivos de áudio
-      let audioPath = pathMedia;
-
-      audioPath = await convertToOggOpus(pathMedia);
+      // ✅ CORREÇÃO: Usa a função unificada que verifica se já é .ogg
+      const audioPath = await convertAudioToOggOpus(
+        pathMedia,
+        ticket.companyId
+      );
 
       options = {
         audio: fs.readFileSync(audioPath),
         mimetype: "audio/ogg; codecs=opus",
         ptt: true,
-        contextInfo: {
-          forwardingScore: isForwarded ? 2 : 0,
-          isForwarded: isForwarded
-        }
+        contextInfo
       };
 
-      // Limpar arquivo convertido se necessário
       if (audioPath !== pathMedia && fs.existsSync(audioPath)) {
         fs.unlinkSync(audioPath);
       }
-
-      bodyTicket = bodyMedia || "🎵 Mensagem de voz";
-    } else if (typeMessage === "document" || typeMessage === "text") {
+    } else if (
+      typeMessage === "document" ||
+      typeMessage === "text" ||
+      typeMessage === "application"
+    ) {
       options = {
         document: fs.readFileSync(pathMedia),
         caption: bodyMedia,
         fileName: media.originalname.replace("/", "-"),
         mimetype: media.mimetype,
-        contextInfo: {
-          forwardingScore: isForwarded ? 2 : 0,
-          isForwarded: isForwarded
-        }
+        contextInfo
       };
-      bodyTicket = "📂 Documento";
-    } else if (typeMessage === "application") {
-      options = {
-        document: fs.readFileSync(pathMedia),
-        caption: bodyMedia,
-        fileName: media.originalname.replace("/", "-"),
-        mimetype: media.mimetype,
-        contextInfo: {
-          forwardingScore: isForwarded ? 2 : 0,
-          isForwarded: isForwarded
-        }
-      };
-      bodyTicket = "📎 Outros anexos";
     } else {
       if (media.mimetype.includes("gif")) {
         options = {
           image: fs.readFileSync(pathMedia),
           caption: bodyMedia,
           mimetype: "image/gif",
-          contextInfo: {
-            forwardingScore: isForwarded ? 2 : 0,
-            isForwarded: isForwarded
-          },
-          gifPlayback: true
+          gifPlayback: true,
+          contextInfo
+        };
+      } else if (
+        media.mimetype.includes("png") ||
+        media.mimetype.includes("webp")
+      ) {
+        const imageBuffer = await convertPngToJpg(pathMedia, ticket.companyId);
+        options = {
+          image: imageBuffer,
+          caption: bodyMedia,
+          contextInfo
         };
       } else {
-        if (media.mimetype.includes("png") || media.mimetype.includes("webp")) {
-          // ✅ Converter PNG/WebP para JPG antes de enviar
-          const imageBuffer = await convertPngToJpg(
-            pathMedia,
-            ticket.companyId
-          );
-          options = {
-            image: imageBuffer,
-            caption: bodyMedia,
-            contextInfo: {
-              forwardingScore: isForwarded ? 2 : 0,
-              isForwarded: isForwarded
-            }
-          };
-        } else {
-          options = {
-            image: fs.readFileSync(pathMedia),
-            caption: bodyMedia,
-            contextInfo: {
-              forwardingScore: isForwarded ? 2 : 0,
-              isForwarded: isForwarded
-            }
-          };
-        }
+        options = {
+          image: fs.readFileSync(pathMedia),
+          caption: bodyMedia,
+          contextInfo
+        };
       }
-      bodyTicket = "🖼️ Imagem";
     }
 
+    // Tratamento de mensagem privada
     if (isPrivate === true) {
       const messageData = {
         wid: `PVT${companyId}${ticket.id}${body.substring(0, 6)}`,
@@ -534,74 +374,32 @@ const SendWhatsAppMedia = async ({
       return;
     }
 
-    const contactNumber = await Contact.findByPk(ticket.contactId);
-
-    let jid;
-    if (contactNumber.lid && contactNumber.lid !== "") {
-      jid = contactNumber.lid;
-    } else if (
-      contactNumber.remoteJid &&
-      contactNumber.remoteJid !== "" &&
-      contactNumber.remoteJid.includes("@")
-    ) {
-      jid = contactNumber.remoteJid;
-    } else {
-      jid = `${contactNumber.number}@${
-        ticket.isGroup ? "g.us" : "s.whatsapp.net"
-      }`;
-    }
-    jid = normalizeJid(jid);
-
+    // ✅ CORREÇÃO: Removido cálculo de JID inútil, usando apenas getJidOf(ticket)
+    const targetJid = getJidOf(ticket);
     let sentMessage: WAMessage;
 
+    // ✅ CORREÇÃO: Try/Catch com fallback REAL para grupos (tenta sem quotedMsg se falhar)
     if (ticket.isGroup) {
       if (ENABLE_LID_DEBUG) {
-        logger.info(`[LID-DEBUG] Media - Enviando mídia para grupo: ${jid}`);
+        logger.info(
+          `[LID-DEBUG] Media - Enviando mídia para grupo: ${targetJid}`
+        );
       }
 
       try {
-        // sentMessage = await wbot.sendMessage(jid, options);
-
-        sentMessage = await wbot.sendMessage(
-          getJidOf(ticket),
-          options,
-          sendOptions
-        );
+        sentMessage = await wbot.sendMessage(targetJid, options, sendOptions);
       } catch (err1) {
         if (err1.message && err1.message.includes("senderMessageKeys")) {
-          // const simpleOptions = { ...options } as any;
-          // if (simpleOptions.contextInfo) {
-          //   delete simpleOptions.contextInfo;
-          // }
-
-          // sentMessage = await wbot.sendMessage(jid, simpleOptions);
-
-          sentMessage = await wbot.sendMessage(
-            getJidOf(ticket),
-            options,
-            sendOptions
+          logger.warn(
+            `[RDS-LID] Falha ao enviar mídia com contexto para grupo ${targetJid}, tentando sem contexto...`
           );
+          sentMessage = await wbot.sendMessage(targetJid, options); // Fallback: envia sem sendOptions (quotedMsg)
         } else {
-          // const otherOptions = { ...options } as any;
-          // if (otherOptions.contextInfo) {
-          //   delete otherOptions.contextInfo;
-          // }
-          // sentMessage = await wbot.sendMessage(jid, otherOptions);
-
-          sentMessage = await wbot.sendMessage(
-            getJidOf(ticket),
-            options,
-            sendOptions
-          );
+          throw err1;
         }
       }
     } else {
-      // sentMessage = await wbot.sendMessage(jid, options);
-      sentMessage = await wbot.sendMessage(
-        getJidOf(ticket),
-        options,
-        sendOptions
-      );
+      sentMessage = await wbot.sendMessage(targetJid, options, sendOptions);
     }
 
     wbot.store(sentMessage);
@@ -613,9 +411,8 @@ const SendWhatsAppMedia = async ({
 
     return sentMessage;
   } catch (err) {
-    console.error(
-      `❌ ERRO AO ENVIAR MÍDIA ${ticket.id} media ${media.originalname}:`,
-      err
+    logger.error(
+      `❌ ERRO AO ENVIAR MÍDIA ${ticket.id} media ${media.originalname}: ${err.message}`
     );
     Sentry.captureException(err);
     throw new AppError("ERR_SENDING_WAPP_MSG");
