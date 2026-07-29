@@ -956,9 +956,9 @@ const MessagesList = ({
   const history = useHistory();
   const lastMessageRef = useRef();
   const pageNumberRef = useRef(1);
-  // const reactionAnchorRef = useRef(null);
   const messageRef = useRef(null);
   const messageRight = useRef(null);
+  const messagesCacheRef = useRef(new Map());
   const presenceTimeoutRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState({});
   const { setReplyingMessage } = useContext(ReplyMessageContext);
@@ -1119,60 +1119,78 @@ const MessagesList = ({
       return;
     }
 
-    const delayDebounceFn = setTimeout(async () => {
-      if (ticketId === "undefined") {
-        history.push("/tickets");
-        return;
-      }
-      if (isNil(ticketId)) return;
+    const cached = messagesCacheRef.current.get(ticketId);
+    if (cached && pageNumber === 1) {
+      dispatch({ type: "LOAD_MESSAGES", payload: cached.messages });
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      scrollToBottom();
+    }
 
-      try {
-        if (active) setLoading(true);
-
-        const { data } = await api.get("/messages/" + ticketId, {
-          params: {
-            pageNumber,
-            selectedQueues: JSON.stringify(selectedQueuesMessage),
-          },
-        });
-
-        if (!active) return;
-
-        // 🔥 GUARDA PÓS-FETCH: ticket pode ter mudado durante o await
-        if (loadingTicketRef.current !== ticketId) {
-          console.warn(
-            "⚠️ [LOAD DESCARTADO pós-fetch] ticket mudou durante request",
-          );
+    const delayDebounceFn = setTimeout(
+      async () => {
+        if (ticketId === "undefined") {
+          history.push("/tickets");
           return;
         }
+        if (isNil(ticketId)) return;
 
-        console.log(
-          "✅ [LOAD OK] pageNumber:",
-          pageNumber,
-          "msgs recebidas:",
-          data.messages.length,
-          {
-            hasMore: data.hasMore,
-            firstMsg: data.messages[0]?.createdAt,
-            lastMsg: data.messages[data.messages.length - 1]?.createdAt,
-          },
-        );
+        try {
+          // if (active) setLoading(true);
+          if (active && !cached) setLoading(true);
 
-        dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
-        setHasMore(data.hasMore);
-        setLoading(false);
-        setLoadingMore(false);
+          const { data } = await api.get("/messages/" + ticketId, {
+            params: {
+              pageNumber,
+              selectedQueues: JSON.stringify(selectedQueuesMessage),
+            },
+          });
 
-        if (pageNumber === 1 && data.messages.length > 1) {
-          scrollToBottom();
+          if (!active) return;
+
+          // 🔥 GUARDA PÓS-FETCH: ticket pode ter mudado durante o await
+          if (loadingTicketRef.current !== ticketId) {
+            console.warn(
+              "⚠️ [LOAD DESCARTADO pós-fetch] ticket mudou durante request",
+            );
+            return;
+          }
+
+          console.log(
+            "✅ [LOAD OK] pageNumber:",
+            pageNumber,
+            "msgs recebidas:",
+            data.messages.length,
+            {
+              hasMore: data.hasMore,
+              firstMsg: data.messages[0]?.createdAt,
+              lastMsg: data.messages[data.messages.length - 1]?.createdAt,
+            },
+          );
+
+          dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
+          if (pageNumber === 1) {
+            messagesCacheRef.current.set(ticketId, {
+              messages: data.messages,
+              hasMore: data.hasMore,
+            });
+          }
+          setHasMore(data.hasMore);
+          setLoading(false);
+          setLoadingMore(false);
+
+          if (pageNumber === 1 && data.messages.length > 1) {
+            scrollToBottom();
+          }
+        } catch (err) {
+          if (!active) return;
+          setLoading(false);
+          setLoadingMore(false);
+          toastError(err);
         }
-      } catch (err) {
-        if (!active) return;
-        setLoading(false);
-        setLoadingMore(false);
-        toastError(err);
-      }
-    }, 500);
+      },
+      pageNumber === 1 ? 0 : 300,
+    );
 
     return () => {
       active = false;
