@@ -21,7 +21,9 @@ import {
   WAMessage,
   WAMessageStubType,
   WAMessageUpdate,
-  WASocket
+  WASocket,
+  hmacSign,
+  aesDecryptGCM
 } from "baileys";
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
@@ -4378,12 +4380,16 @@ const handleMessage = async (
       return;
     }
 
-    if (msgType === "editedMessage" || protocolType === 14) {
+    if (msgType === "editedMessage" || msgType === "protocolMessage") {
       const msgKeyIdEdited =
         msgType === "editedMessage"
           ? msg.message.editedMessage.message.protocolMessage.key.id
           : msg.message?.protocolMessage.key.id;
       let bodyEdited = findCaption(msg.message);
+
+      logger.info(
+        `☢️☢️[EDIT-HANDLER] Mensagem editada processada | msgIdOriginal: ${msgKeyIdEdited} | novoBody: "${bodyEdited}" | ticketId: ${ticket.id}`
+      );
 
       const io = getIO();
       try {
@@ -5527,44 +5533,39 @@ const handleMessage = async (
             ticket.companyId
           );
 
-          // Verificar se existe integrationId antes de prosseguir
           try {
             if (!whatsapp.integrationId) {
               logger.info(
-                "[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: " +
-                  whatsapp.id
+                `[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: ${whatsapp.id}. Ignorando fluxo e seguindo processamento normal da mensagem.`
               );
-              return; // Encerrar execução se não houver integrationId
+              // REMOVIDO O 'return' PARA PERMITIR QUE A MENSAGEM SEJA SALVA E EXIBIDA
+            } else {
+              // Só executa a lógica de integração se ela existir
+              const queueIntegrations = await ShowQueueIntegrationService(
+                whatsapp.integrationId,
+                companyId
+              );
+
+              logger.info(
+                `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
+                  ticket.id
+                }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
+              );
+
+              await flowbuilderIntegration(
+                msg,
+                wbot,
+                companyId,
+                queueIntegrations,
+                ticket,
+                contactForCampaign
+              );
+              await ticket.reload();
+
+              logger.info(
+                `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
+              );
             }
-
-            const queueIntegrations = await ShowQueueIntegrationService(
-              whatsapp.integrationId,
-              companyId
-            );
-
-            // DEBUG - Verificar tipo de integração para diagnóstico
-            logger.info(
-              `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
-                ticket.id
-              }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
-            );
-
-            // ✅ VERIFICAÇÃO FINAL APENAS SE NECESSÁRIO
-            await flowbuilderIntegration(
-              msg,
-              wbot,
-              companyId,
-              queueIntegrations,
-              ticket,
-              contactForCampaign
-            );
-
-            await ticket.reload();
-
-            // DEBUG - Verificar se flowbuilder foi executado com sucesso
-            logger.info(
-              `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
-            );
           } catch (integrationError) {
             logger.error(
               "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
@@ -5804,6 +5805,13 @@ const filterMessages = (msg: WAMessage): boolean => {
   if (msg.message?.protocolMessage?.editedMessage) return true;
   if (msg.message?.protocolMessage) return false;
 
+  // if (msg.message?.secretEncryptedMessage) {
+  //   logger.info(
+  //     `[SECRET-ENC] Mensagem criptografada ignorada | msgId: ${msg.key.id} | type: ${msg.message.secretEncryptedMessage.secretEncType}`
+  //   );
+  //   return false;
+  // }
+
   if (
     [
       WAMessageStubType.REVOKE,
@@ -5846,7 +5854,21 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
+    // 🚨🚨🚨 AQUI É A FONTE ABSOLUTA (PRIMEIRO VESTÍGIO) 🚨🚨🚨
+    // Este log roda ANTES de qualquer filtro ou verificação no banco de dados
+    // for (const rawMsg of rawMessages) {
+    //   const msgType = getContentType(rawMsg.message);
+    //   logger.info(
+    //     `[🔍 RAW SOURCE] Mensagem bruta recebida | ID: ${rawMsg.key?.id} | fromMe: ${rawMsg.key?.fromMe} | remoteJid: ${rawMsg.key?.remoteJid} | Tipo: ${msgType}`
+    //   );
+
+    //   // ⚠️ DESCOMENTE A LINHA ABAIXO APENAS PARA TESTE (Gera logs gigantes)
+    //   // logger.info(`[🔍 RAW PAYLOAD] ${JSON.stringify(rawMsg.message, null, 2)}`);
+    // }
+    // // 🚨🚨🚨 FIM DA FONTE ABSOLUTA 🚨🚨🚨
+
     // 1. Reações têm handler próprio (Processamento rápido e isolado)
+
     for (const message of rawMessages) {
       if (message.message?.reactionMessage) {
         await handleBaileysReaction(message, wbot, companyId);
