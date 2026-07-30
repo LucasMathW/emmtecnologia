@@ -88,6 +88,7 @@ const Ticket = () => {
   const [ticket, setTicket] = useState({});
   const [dragDropFiles, setDragDropFiles] = useState([]);
   const latestContactPic = useRef("");
+  const ticketCacheRef = useRef(new Map()); // ticketId -> { contact, ticket }
   const { companyId } = user;
 
   // Restaurar fotos do localStorage
@@ -136,7 +137,19 @@ const Ticket = () => {
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
+
+    const cached = ticketCacheRef.current.get(ticketId);
+    if (cached) {
+      setContact(cached.contact);
+      setTicket(cached.ticket);
+      setLoading(false);
+      if (["pending", "open", "group"].includes(cached.ticket.status)) {
+        setTabOpen(cached.ticket.status);
+      }
+    } else {
+      setLoading(true);
+    }
+
     const delayDebounceFn = setTimeout(() => {
       const fetchTicket = async () => {
         try {
@@ -178,6 +191,10 @@ const Ticket = () => {
             // setWhatsapp(data.whatsapp);
             // setQueueId(data.queueId);
             setTicket(data);
+            ticketCacheRef.current.set(ticketId, {
+              contact: contactData,
+              ticket: data,
+            });
             if (["pending", "open", "group"].includes(data.status)) {
               setTabOpen(data.status);
             }
@@ -192,7 +209,7 @@ const Ticket = () => {
         }
       };
       fetchTicket();
-    }, 500);
+    }, 0);
 
     return () => clearTimeout(delayDebounceFn);
   }, [ticketId]);
