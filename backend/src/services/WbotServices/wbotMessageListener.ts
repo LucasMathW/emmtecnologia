@@ -5805,13 +5805,6 @@ const filterMessages = (msg: WAMessage): boolean => {
   if (msg.message?.protocolMessage?.editedMessage) return true;
   if (msg.message?.protocolMessage) return false;
 
-  // if (msg.message?.secretEncryptedMessage) {
-  //   logger.info(
-  //     `[SECRET-ENC] Mensagem criptografada ignorada | msgId: ${msg.key.id} | type: ${msg.message.secretEncryptedMessage.secretEncType}`
-  //   );
-  //   return false;
-  // }
-
   if (
     [
       WAMessageStubType.REVOKE,
@@ -5841,6 +5834,180 @@ const handleBaileysReaction = async (
   }
 };
 
+/**
+ * Decripta o payload de mensagens editadas por contatos com identidade @lid
+ * (secretEncryptedMessage / secretEncType MESSAGE_EDIT).
+ *
+ * Esquema validado empiricamente: HKDF via duplo HMAC-SHA256 sobre o
+ * messageSecret da mensagem original + AES-256-GCM com AAD vazio.
+ */
+const decryptSecretMessageEdit = ({
+  msgId,
+  editorJid,
+  encKey,
+  encPayload,
+  encIv
+}: {
+  msgId: string;
+  editorJid: string;
+  encKey: Buffer;
+  encPayload: Buffer;
+  encIv: Buffer;
+}): proto.IMessage => {
+  const bin = (txt: string) => Buffer.from(txt);
+
+  const sign = Buffer.concat([
+    bin(msgId),
+    bin(editorJid),
+    bin(editorJid),
+    bin("Message Edit"),
+    new Uint8Array([1])
+  ]);
+
+  const key0 = hmacSign(encKey, new Uint8Array(32), "sha256");
+  const decKey = hmacSign(sign, key0, "sha256");
+  const aad = Buffer.alloc(0);
+
+  const plaintext = aesDecryptGCM(encPayload, decKey, encIv, aad);
+
+  // ⚠️ é um Message completo, não um ProtocolMessage direto
+  return proto.Message.decode(plaintext);
+};
+
+/**
+ * Trata edições vindas de contatos @lid, que chegam como secretEncryptedMessage
+ * em vez do protocolMessage normal. Retorna true se conseguiu processar.
+ */
+const handleLidEncryptedEdit = async (
+  msg: WAMessageSafe,
+  wbot: WbotSession,
+  companyId: number
+): Promise<boolean> => {
+  const secret = (msg.message as any)?.secretEncryptedMessage;
+  if (
+    !secret ||
+    (secret.secretEncType !== "MESSAGE_EDIT" && secret.secretEncType !== 2)
+  )
+    return false;
+
+  const targetId = secret.targetMessageKey?.id;
+  if (!targetId) return false;
+
+  try {
+    const originalMessage = await Message.findOne({
+      where: { wid: targetId, companyId },
+      include: [
+        {
+          model: Ticket,
+          as: "ticket",
+          include: [{ model: Contact, as: "contact" }]
+        }
+      ]
+    });
+
+    if (!originalMessage) {
+      logger.warn(
+        `[LID-EDIT] Mensagem original ${targetId} não encontrada, ignorando edição criptografada`
+      );
+      return false;
+    }
+
+    const originalRaw = JSON.parse((originalMessage as any).dataJson || "{}");
+    const messageSecretB64 =
+      originalRaw?.message?.messageContextInfo?.messageSecret;
+
+    if (!messageSecretB64) {
+      logger.warn(
+        `[LID-EDIT] Mensagem original ${targetId} não possui messageSecret salvo, não é possível decriptar`
+      );
+      return false;
+    }
+
+    // quem edita é sempre o autor original da mensagem
+    const editorJid: string = originalRaw?.key?.remoteJid || msg.key.remoteJid;
+
+    const decoded = decryptSecretMessageEdit({
+      msgId: targetId,
+      editorJid,
+      encKey: Buffer.from(messageSecretB64, "base64"),
+      encPayload: Buffer.from(secret.encPayload, "base64"),
+      encIv: Buffer.from(secret.encIv, "base64")
+    });
+
+    const novoTexto =
+      decoded.protocolMessage?.editedMessage?.conversation ||
+      decoded.protocolMessage?.editedMessage?.extendedTextMessage?.text;
+
+    if (!novoTexto) {
+      logger.warn(
+        `[LID-EDIT] Decriptou mas não achou texto legível em ${targetId}: ${JSON.stringify(
+          decoded
+        )}`
+      );
+      return false;
+    }
+
+    if (originalMessage.isEdited && originalMessage.body === novoTexto) {
+      logger.info(
+        `[LID-EDIT] Edição já processada anteriormente para ${targetId}, ignorando reprocessamento`
+      );
+      return true;
+    }
+
+    const io = getIO();
+
+    await originalMessage.update({ isEdited: true, body: novoTexto });
+
+    const fullMessage: any = originalMessage;
+    await fullMessage.ticket.update({ lastMessage: novoTexto });
+
+    // WhatsApp reseta o status de "lida" da mensagem no cliente do contato
+    // quando ela é editada — precisamos reenviar o read receipt pra esse
+    // key.id específico pra restaurar o check azul.
+
+    try {
+      await (wbot as WASocket).readMessages([originalRaw.key]);
+      logger.info(
+        `[LID-EDIT] ✅ Read receipt reenviado (key original) | msgId: ${targetId}`
+      );
+    } catch (ackErr) {
+      logger.warn(
+        `[LID-EDIT] Falha ao reenviar read receipt: ${
+          (ackErr as Error).message
+        }`
+      );
+    }
+
+    io.of(String(companyId)).emit(`company-${companyId}-appMessage`, {
+      action: "update",
+      message: fullMessage,
+      ticket: fullMessage.ticket,
+      contact: fullMessage.ticket.contact
+    });
+
+    io.of(String(companyId)).emit(`company-${companyId}-ticket`, {
+      action: "update",
+      ticket: fullMessage.ticket
+    });
+
+    logger.info(
+      `☢️☢️[LID-EDIT] ✅ Edição de contato @lid decriptada | msgIdOriginal: ${targetId} | novoBody: "${novoTexto}"`
+    );
+
+    return true;
+  } catch (err) {
+    // GCM falha alto se a chave/AAD estiver errada — não deve acontecer,
+    // mas se acontecer, cai no comportamento atual (não altera o body)
+    logger.warn(
+      `[LID-EDIT] Falha ao decriptar edição de ${targetId}: ${
+        (err as Error).message
+      }`
+    );
+    Sentry.captureException(err);
+    return false;
+  }
+};
+
 const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.removeAllListeners("messages.upsert");
   wbot.ev.removeAllListeners("presence.update");
@@ -5854,30 +6021,35 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
     const rawMessages = messageUpsert.messages;
     if (!rawMessages || rawMessages.length === 0) return;
 
-    // 🚨🚨🚨 AQUI É A FONTE ABSOLUTA (PRIMEIRO VESTÍGIO) 🚨🚨🚨
-    // Este log roda ANTES de qualquer filtro ou verificação no banco de dados
-    // for (const rawMsg of rawMessages) {
-    //   const msgType = getContentType(rawMsg.message);
-    //   logger.info(
-    //     `[🔍 RAW SOURCE] Mensagem bruta recebida | ID: ${rawMsg.key?.id} | fromMe: ${rawMsg.key?.fromMe} | remoteJid: ${rawMsg.key?.remoteJid} | Tipo: ${msgType}`
-    //   );
-
-    //   // ⚠️ DESCOMENTE A LINHA ABAIXO APENAS PARA TESTE (Gera logs gigantes)
-    //   // logger.info(`[🔍 RAW PAYLOAD] ${JSON.stringify(rawMsg.message, null, 2)}`);
-    // }
-    // // 🚨🚨🚨 FIM DA FONTE ABSOLUTA 🚨🚨🚨
-
-    // 1. Reações têm handler próprio (Processamento rápido e isolado)
-
     for (const message of rawMessages) {
       if (message.message?.reactionMessage) {
         await handleBaileysReaction(message, wbot, companyId);
+      }
+
+      const secretMsg = (message.message as any)?.secretEncryptedMessage;
+      if (secretMsg) {
+        logger.info(
+          `[LID-EDIT-RAW] secretEncryptedMessage detectado | type: ${secretMsg.secretEncType} | targetId: ${secretMsg.targetMessageKey?.id} | msgId: ${message.key.id}`
+        );
+      }
+
+      if (
+        secretMsg?.secretEncType === "MESSAGE_EDIT" ||
+        secretMsg?.secretEncType === 2
+      ) {
+        const ok = await handleLidEncryptedEdit(message, wbot, companyId);
+        logger.info(
+          `[LID-EDIT-RAW] resultado do handleLidEncryptedEdit: ${ok}`
+        );
       }
     }
 
     // 2. Filtra mensagens normais
     const messages = rawMessages.filter(
-      msg => filterMessages(msg) && !msg.message?.reactionMessage
+      msg =>
+        filterMessages(msg) &&
+        !msg.message?.reactionMessage &&
+        !(msg.message as any)?.secretEncryptedMessage
     );
 
     if (!messages?.length) return;
@@ -5978,7 +6150,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   wbot.ev.on("messages.update", (messageUpdate: WAMessageUpdate[]) => {
     if (messageUpdate.length === 0) return;
     messageUpdate.forEach(async (message: WAMessageUpdate) => {
-      // (wbot as WASocket)!.readMessages([message.key]);
+      (wbot as WASocket)!.readMessages([message.key]);
 
       const msgUp = { ...messageUpdate };
 
