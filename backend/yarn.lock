@@ -2530,7 +2530,7 @@ babel-runtime@^6.11.6:
     core-js "^2.4.0"
     regenerator-runtime "^0.11.0"
 
-"baileys@npm:@whiskeysockets/baileys@7.0.0-rc13":
+"baileys@npm:@whiskeysockets/baileys@latest":
   version "7.0.0-rc13"
   resolved "https://registry.yarnpkg.com/@whiskeysockets/baileys/-/baileys-7.0.0-rc13.tgz#0d014b05a3aaf461071832066734158e3cec4be8"
   integrity sha512-8JPc8gaaCRykkjW2jxLGQ7/RZGrc7awO7WU+QJocf58eSUI9jAdcuYLynzhAbyU4UWvJJsHImZ+5E/JaZj5ypA==
