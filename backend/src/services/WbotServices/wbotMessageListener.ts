@@ -5824,6 +5824,15 @@ const handleBaileysReaction = async (
   companyId: number
 ): Promise<void> => {
   try {
+    // [TEMP-DEBUG][REACTION-GROUP] investigação: reações de grupo não aparecem
+    if (message.key.remoteJid?.includes("@g.us")) {
+      console.log("[REACTION-GROUP] Reação recebida:", {
+        remoteJid: message.key.remoteJid,
+        participant: message.key.participant,
+        reaction: message.message?.reactionMessage
+      });
+    }
+
     await CreateOrUpdateBaileysReactionService({
       message,
       wbot,
@@ -6214,12 +6223,19 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
-    console.log(`[PRESENCE FLOW][1] Loop1-raw`);
-
     const chatJid = data.id;
     const isGroupPresence = chatJid?.endsWith("@g.us");
 
     const presences = data.presences || {};
+
+    // [PRESENCE-DEBUG] log enriquecido (só dados, sem alterar comportamento) —
+    // permite ver exatamente qual remoteJid/formato chega do Baileys para
+    // cada evento, essencial para diagnosticar o caso individual (@lid).
+    console.log(
+      `[PRESENCE FLOW][1] Loop1-raw | chatJid: ${chatJid} | isGroupPresence: ${isGroupPresence} | presencesKeys: ${JSON.stringify(
+        Object.keys(presences)
+      )}`
+    );
 
     for (const remoteJid in presences) {
       const presence = presences[remoteJid];

@@ -377,11 +377,13 @@ const CreateOrUpdateContactService = async ({
                 logger.info(`[PIC-BG] 💾 Foto salva em disco: ${filePath}`);
 
                 // 4. Atualiza o contato no banco
-                await contact.update({
-                  profilePicUrl: fetched,
-                  urlPicture: filename,
-                  pictureUpdated: true
-                });
+                // setDataValue é necessário pois urlPicture é um getter Sequelize
+                // sem setter — contact.update({ urlPicture }) não persiste
+                // silenciosamente (mesmo padrão corrigido em ForceProfilePicRefresh.ts)
+                contact.setDataValue("profilePicUrl", fetched);
+                contact.setDataValue("urlPicture", filename);
+                contact.setDataValue("pictureUpdated", true);
+                await contact.save();
 
                 // 5. Emite socket para atualizar UI em tempo real
                 const io = getIO();
@@ -722,10 +724,12 @@ const CreateOrUpdateContactService = async ({
                 logger.info(`[PIC-ASYNC] ✅ Foto salva em disco: ${filePath}`);
 
                 // ✅ Atualizar o contato no banco após salvar a foto
-                await contact.update({
-                  urlPicture: filename,
-                  pictureUpdated: true
-                });
+                // setDataValue é necessário pois urlPicture é um getter Sequelize
+                // sem setter — contact.update({ urlPicture }) não persiste
+                // silenciosamente (mesmo padrão corrigido em ForceProfilePicRefresh.ts)
+                contact.setDataValue("urlPicture", filename);
+                contact.setDataValue("pictureUpdated", true);
+                await contact.save();
 
                 // ✅ Emitir evento via Socket para atualizar a UI em tempo real
                 const io = getIO();
@@ -761,11 +765,13 @@ const CreateOrUpdateContactService = async ({
         }
 
         if (updateImage || isNil(contact.urlPicture)) {
-          await contact.update({
-            urlPicture: filename,
-            profilePicUrl: filename,
-            pictureUpdated: true
-          });
+          // setDataValue é necessário pois urlPicture é um getter Sequelize
+          // sem setter — contact.update({ urlPicture }) não persiste
+          // silenciosamente (mesmo padrão corrigido em ForceProfilePicRefresh.ts)
+          contact.setDataValue("urlPicture", filename);
+          contact.setDataValue("profilePicUrl", filename);
+          contact.setDataValue("pictureUpdated", true);
+          await contact.save();
           await contact.reload();
           setCachedContact(companyId, cleanNumber, contact);
         }

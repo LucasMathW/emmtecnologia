@@ -47,6 +47,7 @@ import {
   WhatsApp,
   Info,
   AccountTree,
+  Group as GroupIcon,
 } from "@material-ui/icons";
 
 import {
@@ -96,6 +97,17 @@ const isMobileDevice = () => {
   return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent,
   );
+};
+
+// ─── Menção especial "Todos" (equivalente ao "Marcar todos" do WhatsApp) ────
+// Não é um participante real nem um JID — é só um marcador de UI. Ao ser
+// selecionado, popula mentionedJids com o JID de TODOS os participantes do
+// grupo (ver handleMentionSelect), em vez de um único jid.
+const MENTION_ALL_ID = "__mention_all__";
+const MENTION_ALL_OPTION = {
+  id: MENTION_ALL_ID,
+  name: "Todos",
+  isMentionAll: true,
 };
 
 const useStyles = makeStyles((theme) => ({
@@ -560,6 +572,18 @@ const MessageInput = ({
   };
 
   const handleSendSticker = async (stickerData) => {
+    console.log("🎯 handleSendSticker chamado:", {
+      ticketId,
+      loading,
+      file: stickerData?.file
+        ? {
+            name: stickerData.file.name,
+            size: stickerData.file.size,
+            type: stickerData.file.type,
+          }
+        : null,
+    });
+
     handleCloseStickerPicker();
 
     if (stickerData.type === "text") {
@@ -713,7 +737,14 @@ const MessageInput = ({
         const { data } = await api.get(`/contacts/${contactId}/participants`);
         if (!cancelled) setGroupParticipants(data || []);
       } catch (e) {
-        // silencioso
+        // Mantém o comportamento de UX (sem sugestões, sem alerta pro usuário),
+        // mas loga no console para facilitar debug futuro — antes esse erro
+        // era descartado silenciosamente, o que dificultou diagnosticar a
+        // causa raiz real (whatsappId desatualizado, ver RELATORIO-CORRECOES.md).
+        console.error(
+          "[MessageInput] Falha ao carregar participantes do grupo para menção:",
+          e,
+        );
       }
     };
     load();
@@ -1077,7 +1108,13 @@ const MessageInput = ({
               p.name?.toLowerCase().includes(query) ||
               p.number?.includes(query),
           );
-          setMentionSuggestions(filtered);
+          // "Todos" sempre no topo, igual ao WhatsApp nativo — some da lista
+          // só se o que foi digitado não bater nem com "todos" nem "all".
+          const showMentionAll =
+            "todos".startsWith(query) || "all".startsWith(query);
+          setMentionSuggestions(
+            showMentionAll ? [MENTION_ALL_OPTION, ...filtered] : filtered,
+          );
           setSelectedMentionIndex(0);
         } else {
           setMentionSuggestions([]);
@@ -1160,10 +1197,22 @@ const MessageInput = ({
       setMentionSuggestions([]);
       setMentionQuery("");
 
-      // Sempre usa o número de telefone para menções (@s.whatsapp.net)
-      // Isso garante que o WhatsApp exibe o nome correto, não o LID interno
-      const jid = `${participant.number}@s.whatsapp.net`;
-      setMentionedJids((prev) => (prev.includes(jid) ? prev : [...prev, jid]));
+      if (participant.isMentionAll) {
+        // "Todos": marca TODOS os participantes do grupo de uma vez — mesmo
+        // mecanismo que o WhatsApp nativo usa por baixo dos panos (não existe
+        // um JID especial de "everyone" no protocolo; o cliente oficial só
+        // popula a lista de mentions com o JID de cada membro do grupo). O
+        // Baileys aceita normalmente um array com todos eles em `mentions`.
+        const allJids = groupParticipants
+          .map((p) => (p.number ? `${p.number}@s.whatsapp.net` : null))
+          .filter(Boolean);
+        setMentionedJids((prev) => Array.from(new Set([...prev, ...allJids])));
+      } else {
+        // Sempre usa o número de telefone para menções (@s.whatsapp.net)
+        // Isso garante que o WhatsApp exibe o nome correto, não o LID interno
+        const jid = `${participant.number}@s.whatsapp.net`;
+        setMentionedJids((prev) => (prev.includes(jid) ? prev : [...prev, jid]));
+      }
 
       // Foca e posiciona cursor após a menção
       setTimeout(() => {
@@ -1174,7 +1223,7 @@ const MessageInput = ({
         }
       }, 50);
     },
-    [inputMessage],
+    [inputMessage, groupParticipants],
   );
 
   const handlePrivateMessage = (e) => {
@@ -2322,7 +2371,7 @@ const MessageInput = ({
                   </div>
                 ) : null}
 
-                {/* <Tooltip title="Stickers">
+                <Tooltip title="Figurinhas">
                   <IconButton
                     aria-label="stickerPicker"
                     component="span"
@@ -2359,7 +2408,7 @@ const MessageInput = ({
                       />
                     </svg>
                   </IconButton>
-                </Tooltip> */}
+                </Tooltip>
 
                 <StickerPicker
                   anchorEl={stickerAnchorEl}
@@ -2924,7 +2973,23 @@ const MessageInput = ({
                                 transition: "background 0.15s",
                               }}
                             >
-                              {participant.profilePicUrl ? (
+                              {participant.isMentionAll ? (
+                                <Box
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: "50%",
+                                    backgroundColor: theme.palette.primary.main,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#fff",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <GroupIcon style={{ fontSize: 18 }} />
+                                </Box>
+                              ) : participant.profilePicUrl ? (
                                 <img
                                   src={participant.profilePicUrl}
                                   alt=""
@@ -2965,10 +3030,12 @@ const MessageInput = ({
                                     lineHeight: 1.2,
                                   }}
                                 >
-                                  {highlightMatch(
-                                    participant.name || participant.number,
-                                    mentionQuery,
-                                  )}
+                                  {participant.isMentionAll
+                                    ? participant.name
+                                    : highlightMatch(
+                                        participant.name || participant.number,
+                                        mentionQuery,
+                                      )}
                                 </Box>
                                 <Box
                                   style={{
@@ -2976,17 +3043,23 @@ const MessageInput = ({
                                     color: theme.palette.text.secondary,
                                   }}
                                 >
-                                  +{participant.number}
-                                  {participant.isAdmin && (
-                                    <span
-                                      style={{
-                                        marginLeft: 6,
-                                        color: theme.palette.primary.main,
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      Admin
-                                    </span>
+                                  {participant.isMentionAll ? (
+                                    `Mencionar todos (${groupParticipants.length} participantes)`
+                                  ) : (
+                                    <>
+                                      +{participant.number}
+                                      {participant.isAdmin && (
+                                        <span
+                                          style={{
+                                            marginLeft: 6,
+                                            color: theme.palette.primary.main,
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Admin
+                                        </span>
+                                      )}
+                                    </>
                                   )}
                                 </Box>
                               </Box>

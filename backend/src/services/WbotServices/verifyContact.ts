@@ -229,7 +229,19 @@ export async function verifyContact(
   const extractedPhone = extractedId.split(":")[0];
 
   let number = extractedPhone;
-  let originalLid = msgContact.lid || null;
+  // ─── CORREÇÃO: propaga o LID embutido no próprio ID quando msgContact.lid
+  // não vem preenchido ────────────────────────────────────────────────────
+  // Quando o evento chega com identidade LID (isLid=true), o Baileys nem
+  // sempre popula msgContact.lid separadamente — a informação já está no
+  // próprio msgContact.id (ex: "101756516184214@lid"). Sem este fallback,
+  // originalLid ficava null e CreateOrUpdateContactService pulava a busca
+  // por "lid" (só busca por "number", que aqui é só o dígito do LID) —
+  // criando um contato "fantasma" (number=<dígitos do LID>, lid=null) toda
+  // vez que essa identidade aparecia antes do número de telefone real ser
+  // conhecido. Quando o evento com o número real chegava minutos depois,
+  // outro contato era criado do zero (duplicidade), em vez de reaproveitar
+  // este via o campo "lid".
+  let originalLid = msgContact.lid || (isLid ? msgContact.id : null);
 
   if (isWhatsappNet && extractedId.includes(":")) {
     logger.info(

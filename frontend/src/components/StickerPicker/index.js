@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Popover,
   Tabs,
@@ -8,102 +8,44 @@ import {
   Typography,
   CircularProgress,
   makeStyles,
-} from '@material-ui/core';
+} from "@material-ui/core";
 import {
   CloudUpload as CloudUploadIcon,
   DeleteOutline as DeleteIcon,
-  EmojiEmotions as EmojiEmotionsIcon,
   Image as ImageIcon,
   AccessTime as AccessTimeIcon,
-} from '@material-ui/icons';
-import { useTheme } from '@material-ui/core/styles';
+  Bookmark as BookmarkIcon,
+} from "@material-ui/icons";
+import { useTheme } from "@material-ui/core/styles";
+import { toast } from "react-toastify";
+import api from "../../services/api";
 
-// WhatsApp-style default sticker packs (using emojis rendered as images)
-const defaultStickerPacks = [
-  {
-    name: 'Reações',
-    icon: '👋',
-    stickers: [
-      { id: 'react-1', emoji: '👍', label: 'Like' },
-      { id: 'react-2', emoji: '❤️', label: 'Love' },
-      { id: 'react-3', emoji: '😂', label: 'Laugh' },
-      { id: 'react-4', emoji: '😮', label: 'Wow' },
-      { id: 'react-5', emoji: '😢', label: 'Sad' },
-      { id: 'react-6', emoji: '🙏', label: 'Thanks' },
-      { id: 'react-7', emoji: '🎉', label: 'Celebration' },
-      { id: 'react-8', emoji: '🔥', label: 'Fire' },
-    ],
-  },
-  {
-    name: 'Expressões',
-    icon: '😀',
-    stickers: [
-      { id: 'expr-1', emoji: '😎', label: 'Cool' },
-      { id: 'expr-2', emoji: '🤣', label: 'ROFL' },
-      { id: 'expr-3', emoji: '😍', label: 'In Love' },
-      { id: 'expr-4', emoji: '🤔', label: 'Thinking' },
-      { id: 'expr-5', emoji: '😴', label: 'Sleepy' },
-      { id: 'expr-6', emoji: '🤪', label: 'Crazy' },
-      { id: 'expr-7', emoji: '😤', label: 'Angry' },
-      { id: 'expr-8', emoji: '🥳', label: 'Party' },
-    ],
-  },
-  {
-    name: 'Mãos',
-    icon: '✌️',
-    stickers: [
-      { id: 'hands-1', emoji: '👋', label: 'Wave' },
-      { id: 'hands-2', emoji: '👏', label: 'Clap' },
-      { id: 'hands-3', emoji: '🙌', label: 'Praise' },
-      { id: 'hands-4', emoji: '💪', label: 'Strong' },
-      { id: 'hands-5', emoji: '✌️', label: 'Peace' },
-      { id: 'hands-6', emoji: '🤝', label: 'Handshake' },
-      { id: 'hands-7', emoji: '👊', label: 'Fist' },
-      { id: 'hands-8', emoji: '🫡', label: 'Respect' },
-    ],
-  },
-  {
-    name: 'Objetos',
-    icon: '⭐',
-    stickers: [
-      { id: 'obj-1', emoji: '⭐', label: 'Star' },
-      { id: 'obj-2', emoji: '🏆', label: 'Trophy' },
-      { id: 'obj-3', emoji: '💎', label: 'Diamond' },
-      { id: 'obj-4', emoji: '🚀', label: 'Rocket' },
-      { id: 'obj-5', emoji: '💡', label: 'Idea' },
-      { id: 'obj-6', emoji: '📌', label: 'Pin' },
-      { id: 'obj-7', emoji: '🎯', label: 'Target' },
-      { id: 'obj-8', emoji: '💻', label: 'Computer' },
-    ],
-  },
-];
-
-const STORAGE_KEY = 'sticker-recent-images';
-const MAX_RECENTS = 24;
+const RECENTS_STORAGE_KEY = "emm-sticker-recents-v2";
+const MAX_RECENTS = 16;
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
 const useStyles = makeStyles((theme) => ({
   popover: {
-    width: 380,
-    maxHeight: 500,
+    width: 420,
+    height: 480,
     borderRadius: 14,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
   },
   tabsRoot: {
-    minHeight: 44,
-    backgroundColor: theme.mode === 'light' ? '#f0f2f5' : '#1d282f',
+    minHeight: 52,
+    backgroundColor: theme.mode === "light" ? "#f0f2f5" : "#1d282f",
   },
   tab: {
-    minHeight: 44,
+    minHeight: 52,
     minWidth: 0,
     flex: 1,
-    padding: '8px 0',
-    fontSize: '0.7rem',
+    padding: "8px 0",
+    fontSize: "0.75rem",
     fontWeight: 500,
-    '& svg': {
-      fontSize: '1.1rem',
-      marginRight: 4,
+    "& svg": {
+      fontSize: "1.4rem",
     },
   },
   tabIndicator: {
@@ -112,26 +54,26 @@ const useStyles = makeStyles((theme) => ({
   },
   content: {
     padding: theme.spacing(1.5),
-    overflowY: 'auto',
-    maxHeight: 430,
-    '&::-webkit-scrollbar': { width: 6 },
-    '&::-webkit-scrollbar-thumb': {
+    overflowY: "auto",
+    scrollBehavior: "smooth",
+    flex: 1,
+    "&::-webkit-scrollbar": { width: 6 },
+    "&::-webkit-scrollbar-thumb": {
       backgroundColor: theme.palette.action.disabled,
       borderRadius: 3,
     },
   },
-  // Upload tab
   uploadDropZone: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     border: `2px dashed ${theme.palette.divider}`,
     borderRadius: 12,
     padding: theme.spacing(4, 2),
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    '&:hover': {
+    cursor: "pointer",
+    transition: "all 0.2s",
+    "&:hover": {
       borderColor: theme.palette.primary.main,
       backgroundColor: `${theme.palette.primary.main}08`,
     },
@@ -142,207 +84,195 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(1),
   },
   uploadText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: theme.palette.text.secondary,
   },
   uploadHint: {
     marginTop: theme.spacing(0.5),
-    fontSize: '0.7rem',
+    fontSize: "0.7rem",
   },
-  // Recentes / grid
   stickerGridList: {
-    maxHeight: 360,
-    overflowY: 'auto',
+    overflowY: "visible",
   },
   stickerBtn: {
-    width: '100%',
-    padding: 0,
-    borderRadius: 8,
-    transition: 'transform 0.15s',
-    '&:hover': {
-      transform: 'scale(1.1)',
+    width: "100%",
+    height: 90,
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: theme.mode === "light" ? "#f0f2f5" : "rgba(255,255,255,0.06)",
+    transition: "transform 0.15s, background-color 0.15s",
+    "&:hover": {
+      transform: "scale(1.08)",
+      backgroundColor: theme.mode === "light" ? "#e4e6ea" : "rgba(255,255,255,0.12)",
     },
-  },
-  stickerCircle: {
-    width: 60,
-    height: 60,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emojiSticker: {
-    fontSize: '2.4rem',
-    lineHeight: 1,
-    userSelect: 'none',
   },
   imageSticker: {
-    width: 60,
-    height: 60,
-    objectFit: 'contain',
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing(1),
-    '& h6': {
-      fontSize: '0.85rem',
-      fontWeight: 600,
-    },
-  },
-  packSection: {
-    marginBottom: theme.spacing(2),
-  },
-  packHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.75),
-    marginBottom: theme.spacing(0.75),
-    paddingBottom: theme.spacing(0.5),
-    borderBottom: `1px solid ${theme.palette.divider}`,
-  },
-  packEmoji: {
-    fontSize: '1.2rem',
-  },
-  packName: {
-    fontSize: '0.82rem',
-    fontWeight: 500,
+    width: 90,
+    height: 90,
+    objectFit: "contain",
   },
   deleteRecentBtn: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
     width: 18,
     height: 18,
     opacity: 0,
-    transition: 'opacity 0.15s',
-    '& svg': { fontSize: 14 },
+    transition: "opacity 0.15s",
+    backgroundColor: theme.palette.background.paper,
+    "&:hover": {
+      backgroundColor: theme.palette.background.paper,
+    },
+    "& svg": { fontSize: 14 },
   },
   stickerWrapperRelative: {
-    position: 'relative',
-    '&:hover': {
-      '& $deleteRecentBtn': { opacity: 1 },
+    position: "relative",
+    "&:hover": {
+      "& $deleteRecentBtn": { opacity: 1 },
     },
+  },
+  emptyState: {
+    textAlign: "center",
+    padding: "40px 0",
   },
 }));
 
-// Helper: convert emoji sticker to canvas-based image blob for sending as sticker image
-const emojiStickerToBlob = (emoji) => {
-  // Return a small data-URI canvas with the emoji centered as a PNG
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  ctx.font = '340px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 256, 280);
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-    }, 'image/png');
-  });
-};
-
-// LocalStorage helpers
+// ── LocalStorage helpers (Recentes) ──
 const loadRecents = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(RECENTS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 };
 
-const saveRecent = (dataUrl) => {
+const addRecent = (url) => {
   try {
-    const recents = loadRecents();
-    // avoid duplicate
-    const filtered = recents.filter((img) => img !== dataUrl);
-    filtered.unshift(dataUrl);
-    const trimmed = filtered.slice(0, MAX_RECENTS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    const recents = loadRecents().filter((item) => item !== url);
+    recents.unshift(url);
+    const trimmed = recents.slice(0, MAX_RECENTS);
+    localStorage.setItem(RECENTS_STORAGE_KEY, JSON.stringify(trimmed));
+    return trimmed;
   } catch {
-    // quota exceeded — clear oldest
-    try {
-      const recents = loadRecents().slice(0, MAX_RECENTS - 1);
-      recents.unshift(dataUrl);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(recents));
-    } catch {}
+    return loadRecents();
   }
 };
 
-const removeRecent = (dataUrl) => {
+const removeRecent = (url) => {
   try {
-    const recents = loadRecents().filter((img) => img !== dataUrl);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(recents));
-  } catch {}
+    const recents = loadRecents().filter((item) => item !== url);
+    localStorage.setItem(RECENTS_STORAGE_KEY, JSON.stringify(recents));
+    return recents;
+  } catch {
+    return loadRecents();
+  }
+};
+
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+// Salva uma figurinha recebida na galeria pessoal do usuário (chamado a partir do MessagesList)
+export const saveStickerFromMessage = async (mediaUrl) => {
+  try {
+    await api.post("/user-stickers", { mediaUrl });
+    toast.success("Figurinha salva na sua galeria! 🎉");
+  } catch {
+    toast.error("Erro ao salvar figurinha");
+  }
 };
 
 const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
   const classes = useStyles();
   const theme = useTheme();
   const [tab, setTab] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [recents, setRecents] = useState(loadRecents());
+  const [savedStickers, setSavedStickers] = useState([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Reload recents from storage on open
+  const loadSavedStickers = useCallback(async () => {
+    setLoadingSaved(true);
+    try {
+      const { data } = await api.get("/user-stickers");
+      setSavedStickers(Array.isArray(data) ? data : []);
+    } catch {
+      setSavedStickers([]);
+    } finally {
+      setLoadingSaved(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       setRecents(loadRecents());
       setTab(0);
+      loadSavedStickers();
     }
-  }, [open]);
+  }, [open, loadSavedStickers]);
 
   const handleTabChange = (_, newVal) => {
     setTab(newVal);
   };
 
-  const sendEmojiAsSticker = useCallback(async (emoji) => {
-    setLoading(true);
-    try {
-      const blob = await emojiStickerToBlob(emoji);
-      const file = new File([blob], `${emoji}.png`, { type: 'image/png' });
-      await onSend({ type: 'sticker', file });
-    } finally {
-      setLoading(false);
-      onClose();
-    }
-  }, [onSend, onClose]);
+  const registerRecent = useCallback((url) => {
+    setRecents(addRecent(url));
+  }, []);
 
-  const sendImageFile = useCallback(async (file) => {
-    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type)) {
-      return;
-    }
+  const sendFile = useCallback(
+    async (file, recentUrl) => {
+      setSending(true);
+      try {
+        const url = recentUrl || (await fileToDataUrl(file));
+        registerRecent(url);
+        await onSend({ type: "sticker", file });
+      } catch {
+        toast.error("Erro ao enviar figurinha");
+      } finally {
+        setSending(false);
+        onClose();
+      }
+    },
+    [onSend, onClose, registerRecent]
+  );
 
-    setLoading(true);
-
-    // Read as dataURL for recent preview
-    const reader = new FileReader();
-    reader.onload = () => saveRecent(reader.result);
-    reader.readAsDataURL(file);
-
-    try {
-      await onSend({ type: 'sticker', file });
-    } finally {
-      setLoading(false);
-      setRecents(loadRecents());
-      onClose();
-    }
-  }, [onSend, onClose]);
+  const sendFromUrl = useCallback(
+    async (url) => {
+      setSending(true);
+      try {
+        const response = await fetch(url, { credentials: "include" });
+        const blob = await response.blob();
+        const file = new File([blob], "sticker.webp", { type: "image/webp" });
+        registerRecent(url);
+        await onSend({ type: "sticker", file });
+      } catch (err) {
+        toast.error("Erro ao enviar figurinha");
+      } finally {
+        setSending(false);
+        onClose();
+      }
+    },
+    [onSend, onClose, registerRecent]
+  );
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    sendImageFile(file);
+    e.target.value = "";
+    if (!file || !ALLOWED_TYPES.includes(file.type)) return;
+    sendFile(file);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    sendImageFile(file);
+    if (!file || !ALLOWED_TYPES.includes(file.type)) return;
+    sendFile(file);
   };
 
   const handleDragOver = (e) => {
@@ -353,10 +283,19 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
     fileInputRef.current?.click();
   };
 
-  const handleDeleteRecent = (e, dataUrl) => {
+  const handleDeleteRecent = (e, url) => {
     e.stopPropagation();
-    removeRecent(dataUrl);
-    setRecents(loadRecents());
+    setRecents(removeRecent(url));
+  };
+
+  const handleDeleteSaved = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/user-stickers/${id}`);
+      setSavedStickers((prev) => prev.filter((sticker) => sticker.id !== id));
+    } catch {
+      toast.error("Erro ao remover figurinha");
+    }
   };
 
   return (
@@ -365,12 +304,12 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
       anchorEl={anchorEl}
       onClose={onClose}
       anchorOrigin={{
-        vertical: 'top',
-        horizontal: 'left',
+        vertical: "top",
+        horizontal: "left",
       }}
       transformOrigin={{
-        vertical: 'bottom',
-        horizontal: 'left',
+        vertical: "bottom",
+        horizontal: "left",
       }}
       classes={{ paper: classes.popover }}
     >
@@ -391,23 +330,23 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
         />
         <Tab
           classes={{ root: classes.tab }}
-          icon={<EmojiEmotionsIcon />}
-          label="Packs"
+          icon={<BookmarkIcon />}
+          label="Salvas"
         />
         <Tab
           classes={{ root: classes.tab }}
-          icon={<ImageIcon />}
+          icon={<CloudUploadIcon />}
           label="Upload"
         />
       </Tabs>
 
       <div className={classes.content}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+        {sending ? (
+          <div className={classes.emptyState}>
             <CircularProgress size={28} />
             <Typography
               variant="caption"
-              style={{ display: 'block', marginTop: 8 }}
+              style={{ display: "block", marginTop: 8 }}
             >
               Enviando figurinha...
             </Typography>
@@ -418,8 +357,10 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
             {tab === 0 && (
               <>
                 {recents.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                    <ImageIcon style={{ fontSize: 48, color: theme.palette.text.disabled }} />
+                  <div className={classes.emptyState}>
+                    <AccessTimeIcon
+                      style={{ fontSize: 48, color: theme.palette.text.disabled }}
+                    />
                     <Typography
                       variant="body2"
                       color="textSecondary"
@@ -430,44 +371,19 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     <Typography
                       variant="caption"
                       color="textSecondary"
-                      style={{ display: 'block', marginTop: 4 }}
+                      style={{ display: "block", marginTop: 4 }}
                     >
-                      Envie uma imagem na aba "Upload" para vê-la aqui
+                      Envie uma figurinha na aba "Upload" para vê-la aqui
                     </Typography>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      style={{ display: 'none' }}
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
-                      onChange={handleFileSelect}
-                    />
-                    <IconButton
-                      color="primary"
-                      size="large"
-                      onClick={triggerFileInput}
-                      style={{ marginTop: 12 }}
-                    >
-                      <CloudUploadIcon />
-                    </IconButton>
                   </div>
                 ) : (
                   <Grid container spacing={0.5} className={classes.stickerGridList}>
                     {recents.map((url, i) => (
-                      <Grid item key={i} xs={3}>
+                      <Grid item key={`${url}-${i}`} xs={3}>
                         <div className={classes.stickerWrapperRelative}>
                           <IconButton
                             className={classes.stickerBtn}
-                            onClick={() => {
-                              const fileUrl = url;
-                              fetch(fileUrl)
-                                .then((res) => res.blob())
-                                .then((blob) => {
-                                  const file = new File([blob], `recent-${i}.png`, {
-                                    type: blob.type || 'image/png',
-                                  });
-                                  sendImageFile(file);
-                                });
-                            }}
+                            onClick={() => sendFromUrl(url)}
                           >
                             <img
                               src={url}
@@ -490,34 +406,60 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
               </>
             )}
 
-            {/* TAB — Packs (emojis renderizados como stickers) */}
+            {/* TAB — Salvas */}
             {tab === 1 && (
               <>
-                {defaultStickerPacks.map((pack) => (
-                  <div key={pack.name} className={classes.packSection}>
-                    <div className={classes.packHeader}>
-                      <span className={classes.packEmoji}>{pack.icon}</span>
-                      <span className={classes.packName}>{pack.name}</span>
-                    </div>
-                    <Grid container spacing={0.5}>
-                      {pack.stickers.map((sticker) => (
-                        <Grid item key={sticker.id} xs={3}>
+                {loadingSaved ? (
+                  <div className={classes.emptyState}>
+                    <CircularProgress size={24} />
+                  </div>
+                ) : savedStickers.length === 0 ? (
+                  <div className={classes.emptyState}>
+                    <BookmarkIcon
+                      style={{ fontSize: 48, color: theme.palette.text.disabled }}
+                    />
+                    <Typography
+                      variant="body2"
+                      color="textSecondary"
+                      style={{ marginTop: 8 }}
+                    >
+                      Nenhuma figurinha salva
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="textSecondary"
+                      style={{ display: "block", marginTop: 4 }}
+                    >
+                      Salve figurinhas recebidas para vê-las aqui
+                    </Typography>
+                  </div>
+                ) : (
+                  <Grid container spacing={0.5} className={classes.stickerGridList}>
+                    {savedStickers.map((sticker) => (
+                      <Grid item key={sticker.id} xs={3}>
+                        <div className={classes.stickerWrapperRelative}>
                           <IconButton
                             className={classes.stickerBtn}
-                            title={sticker.label}
-                            onClick={() => sendEmojiAsSticker(sticker.emoji)}
+                            onClick={() => sendFromUrl(sticker.mediaUrl)}
                           >
-                            <div className={classes.stickerCircle}>
-                              <span className={classes.emojiSticker}>
-                                {sticker.emoji}
-                              </span>
-                            </div>
+                            <img
+                              src={sticker.mediaUrl}
+                              alt={sticker.name || "Saved sticker"}
+                              className={classes.imageSticker}
+                            />
                           </IconButton>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </div>
-                ))}
+                          <IconButton
+                            className={classes.deleteRecentBtn}
+                            size="small"
+                            onClick={(e) => handleDeleteSaved(e, sticker.id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </div>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
               </>
             )}
 
@@ -527,7 +469,7 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                 <input
                   type="file"
                   ref={fileInputRef}
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                   accept="image/png,image/jpeg,image/jpg,image/webp"
                   onChange={handleFileSelect}
                 />
@@ -547,7 +489,7 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     color="textSecondary"
                     className={classes.uploadHint}
                   >
-                    PNG, JPG ou WebP — será convertida para 512×512
+                    PNG, JPG ou WebP
                   </Typography>
                 </div>
 
@@ -561,19 +503,10 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     </Typography>
                     <Grid container spacing={0.5} className={classes.stickerGridList}>
                       {recents.slice(0, 8).map((url, i) => (
-                        <Grid item key={i} xs={3}>
+                        <Grid item key={`${url}-${i}`} xs={3}>
                           <IconButton
                             className={classes.stickerBtn}
-                            onClick={() => {
-                              fetch(url)
-                                .then((res) => res.blob())
-                                .then((blob) => {
-                                  const file = new File([blob], `recent-${i}.png`, {
-                                    type: blob.type || 'image/png',
-                                  });
-                                  sendImageFile(file);
-                                });
-                            }}
+                            onClick={() => sendFromUrl(url)}
                           >
                             <img
                               src={url}

@@ -226,8 +226,18 @@ const SendWhatsAppMedia = async ({
   isForwarded = false,
   mentionedJids
 }: Request): Promise<WAMessage> => {
+  // [PERF] instrumentação temporária para diagnosticar lentidão no envio de mídia
+  const __perfStart = Date.now();
+  const __mediaLabel = `${media.mimetype}/${media.size}b`;
+
   try {
+    const __t_getWbot = Date.now();
     const wbot = await getWbot(ticket.whatsappId);
+    console.log(
+      `[PERF][SendWhatsAppMedia] getWbot: ${
+        Date.now() - __t_getWbot
+      }ms (${__mediaLabel})`
+    );
     const companyId = ticket.companyId.toString();
 
     // ✅ CORREÇÃO: Resolução de caminho robusta usando path.isAbsolute e path.normalize
@@ -252,7 +262,13 @@ const SendWhatsAppMedia = async ({
       const quotedId: any = (quotedMsg as any)?.id ?? quotedMsg;
 
       if (quotedId && String(quotedId).trim() !== "") {
+        const __t_quoted = Date.now();
         const chatMessages = await Message.findOne({ where: { id: quotedId } });
+        console.log(
+          `[PERF][SendWhatsAppMedia] Message.findOne (quotedMsg): ${
+            Date.now() - __t_quoted
+          }ms (${__mediaLabel})`
+        );
 
         if (chatMessages) {
           const msgFound = JSON.parse(chatMessages.dataJson);
@@ -285,8 +301,14 @@ const SendWhatsAppMedia = async ({
     let options: AnyMessageContent;
     const bodyMedia = ticket ? formatBody(body, ticket) : body;
 
+    // [PERF] mede a preparação da mídia (conversão via ffmpeg quando aplicável +
+    // leitura síncrona do arquivo em disco) — antes do envio via Baileys.
+    const __t_prepareMedia = Date.now();
+    let __prepareBranch = "";
+
     // ✅ CORREÇÃO: Aplicação do contextInfo centralizado em TODOS os tipos de mídia
     if (typeMessage === "video") {
+      __prepareBranch = "video (fs.readFileSync)";
       options = {
         video: fs.readFileSync(pathMedia),
         caption: bodyMedia,
@@ -294,10 +316,17 @@ const SendWhatsAppMedia = async ({
         contextInfo
       };
     } else if (typeMessage === "audio" || media.mimetype.includes("audio")) {
+      __prepareBranch = "audio (convertAudioToOggOpus + fs.readFileSync)";
       // ✅ CORREÇÃO: Usa a função unificada que verifica se já é .ogg
+      const __t_audioConvert = Date.now();
       const audioPath = await convertAudioToOggOpus(
         pathMedia,
         ticket.companyId
+      );
+      console.log(
+        `[PERF][SendWhatsAppMedia] convertAudioToOggOpus (ffmpeg): ${
+          Date.now() - __t_audioConvert
+        }ms (${__mediaLabel})`
       );
 
       options = {
@@ -315,6 +344,7 @@ const SendWhatsAppMedia = async ({
       typeMessage === "text" ||
       typeMessage === "application"
     ) {
+      __prepareBranch = "document (fs.readFileSync)";
       options = {
         document: fs.readFileSync(pathMedia),
         caption: bodyMedia,
@@ -324,6 +354,7 @@ const SendWhatsAppMedia = async ({
       };
     } else {
       if (media.mimetype.includes("gif")) {
+        __prepareBranch = "image/gif (fs.readFileSync)";
         options = {
           image: fs.readFileSync(pathMedia),
           caption: bodyMedia,
@@ -335,13 +366,21 @@ const SendWhatsAppMedia = async ({
         media.mimetype.includes("png") ||
         media.mimetype.includes("webp")
       ) {
+        __prepareBranch = "image/png|webp (convertPngToJpg via ffmpeg)";
+        const __t_imgConvert = Date.now();
         const imageBuffer = await convertPngToJpg(pathMedia, ticket.companyId);
+        console.log(
+          `[PERF][SendWhatsAppMedia] convertPngToJpg (ffmpeg): ${
+            Date.now() - __t_imgConvert
+          }ms (${__mediaLabel})`
+        );
         options = {
           image: imageBuffer,
           caption: bodyMedia,
           contextInfo
         };
       } else {
+        __prepareBranch = "image (fs.readFileSync)";
         options = {
           image: fs.readFileSync(pathMedia),
           caption: bodyMedia,
@@ -349,6 +388,12 @@ const SendWhatsAppMedia = async ({
         };
       }
     }
+
+    console.log(
+      `[PERF][SendWhatsAppMedia] preparação da mídia total [${__prepareBranch}]: ${
+        Date.now() - __t_prepareMedia
+      }ms (${__mediaLabel})`
+    );
 
     // Tratamento de mensagem privada
     if (isPrivate === true) {
@@ -378,6 +423,9 @@ const SendWhatsAppMedia = async ({
     const targetJid = getJidOf(ticket);
     let sentMessage: WAMessage;
 
+    // [PERF] tempo da chamada de rede real ao Baileys/WhatsApp (envio da mídia)
+    const __t_sendMessage = Date.now();
+
     // ✅ CORREÇÃO: Try/Catch com fallback REAL para grupos (tenta sem quotedMsg se falhar)
     if (ticket.isGroup) {
       if (ENABLE_LID_DEBUG) {
@@ -401,13 +449,30 @@ const SendWhatsAppMedia = async ({
     } else {
       sentMessage = await wbot.sendMessage(targetJid, options, sendOptions);
     }
+    console.log(
+      `[PERF][SendWhatsAppMedia] wbot.sendMessage (rede/Baileys, isGroup=${
+        ticket.isGroup
+      }): ${Date.now() - __t_sendMessage}ms (${__mediaLabel})`
+    );
 
     wbot.store(sentMessage);
 
+    const __t_ticketUpdate = Date.now();
     await ticket.update({
       lastMessage: body !== media.filename ? body : bodyMedia,
       imported: null
     });
+    console.log(
+      `[PERF][SendWhatsAppMedia] ticket.update (lastMessage): ${
+        Date.now() - __t_ticketUpdate
+      }ms (${__mediaLabel})`
+    );
+
+    console.log(
+      `[PERF][SendWhatsAppMedia] TOTAL: ${
+        Date.now() - __perfStart
+      }ms (${__mediaLabel}, ticketId=${ticket.id})`
+    );
 
     return sentMessage;
   } catch (err) {

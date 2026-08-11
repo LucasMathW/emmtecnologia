@@ -5,6 +5,7 @@ import React, {
   useReducer,
   useRef,
 } from "react";
+import { saveStickerFromMessage } from "../StickerPicker";
 import { isSameDay, parseISO, format } from "date-fns";
 import clsx from "clsx";
 import { isNil, toPairs } from "lodash";
@@ -2455,6 +2456,15 @@ const MessagesList = ({
 
                   {isStickerOnly && (
                     <>
+                      {!message.fromMe && message.mediaUrl && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: 4, paddingBottom: 2 }}>
+                          <span
+                            onClick={() => saveStickerFromMessage(message.mediaUrl)}
+                            style={{ fontSize: 11, cursor: "pointer", color: "#00a884", backgroundColor: "rgba(0,168,132,0.1)", borderRadius: 12, padding: "2px 8px", fontWeight: 600, userSelect: "none" }}
+                            title="Salvar figurinha na sua galeria"
+                          >🔖 Salvar</span>
+                        </div>
+                      )}
                       <div
                         style={{
                           display: "flex",

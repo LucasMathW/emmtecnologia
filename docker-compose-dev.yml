@@ -1,0 +1,27 @@
+services:
+  redis-emmtecnologia:
+    image: redis:7-alpine
+    container_name: redis-emmtecnologia
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_emmtecnologia_data:/data
+
+  postgres-emmtecnologia:
+    image: postgres:16-alpine
+    container_name: postgres-emmtecnologia
+    restart: always
+    environment:
+      POSTGRES_USER: emmtecnologia
+      POSTGRES_PASSWORD: emmtecnologia
+      POSTGRES_DB: emmtecnologia
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_emmtecnologia_data:/var/lib/postgresql/data
+
+volumes:
+  redis_emmtecnologia_data:
+  postgres_emmtecnologia_data:

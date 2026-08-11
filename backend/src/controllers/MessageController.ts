@@ -97,15 +97,23 @@ type MessageTemplateData = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /messages/:ticketId
+  const __perfStart = Date.now();
   const ticketId = getRequestParam(req.params.ticketId, "ticketId");
   const { pageNumber, selectedQueues: queueIdsStringified } =
     req.query as IndexQuery;
   const { companyId, profile } = req.user;
   let queues: number[] = [];
 
+  const __t_user = Date.now();
   const user = await User.findByPk(req.user.id, {
     include: [{ model: Queue, as: "queues" }]
   });
+  console.log(
+    `[PERF][MessageController.index] User.findByPk(queues): ${
+      Date.now() - __t_user
+    }ms (ticketId=${ticketId})`
+  );
 
   if (queueIdsStringified) {
     queues = JSON.parse(queueIdsStringified);
@@ -115,6 +123,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     });
   }
 
+  const __t_service = Date.now();
   const { count, messages, ticket, hasMore } = await ListMessagesService({
     pageNumber,
     ticketId,
@@ -122,13 +131,30 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     queues,
     user
   });
+  console.log(
+    `[PERF][MessageController.index] ListMessagesService total: ${
+      Date.now() - __t_service
+    }ms (ticketId=${ticketId})`
+  );
 
+  const __t_setread = Date.now();
   if (
     ["whatsapp", "whatsapp_oficial"].includes(ticket.channel) &&
     ticket.whatsappId
   ) {
     SetTicketMessagesAsRead(ticket);
   }
+  console.log(
+    `[PERF][MessageController.index] SetTicketMessagesAsRead (fire-and-forget, sync portion only): ${
+      Date.now() - __t_setread
+    }ms (ticketId=${ticketId})`
+  );
+
+  console.log(
+    `[PERF][MessageController.index] TOTAL rota /messages/:ticketId: ${
+      Date.now() - __perfStart
+    }ms (ticketId=${ticketId})`
+  );
 
   return res.json({ count, messages, ticket, hasMore });
 };
@@ -196,6 +222,9 @@ const isAudioFile = (media: Express.Multer.File): boolean => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar lentidão no envio de mídia
+  const __perfStoreStart = Date.now();
+
   if (process.env.NODE_ENV === "test") {
     console.log(`audio chgou aqui!!! rota ok`);
   }
@@ -211,7 +240,13 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   const medias = req.files as Express.Multer.File[];
   const { companyId } = req.user;
 
+  const __t_showTicket = Date.now();
   const ticket = await ShowTicketService(ticketId, companyId);
+  console.log(
+    `[PERF][MessageController.store] ShowTicketService: ${
+      Date.now() - __t_showTicket
+    }ms (ticketId=${ticketId})`
+  );
 
   if (!ticket.whatsappId) {
     throw new AppError(
@@ -232,6 +267,9 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
           size: media.size
         });
 
+        // [PERF] tempo total de processamento desta mídia específica (conversão + envio via Baileys)
+        const __t_media = Date.now();
+
         if (isSticker === "true") {
           // Send as sticker
           if (ticket.channel === "whatsapp") {
@@ -244,6 +282,11 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
               ticket.isGroup
             );
           }
+          console.log(
+            `[PERF][MessageController.store] mídia ${index + 1} (sticker, ${
+              media.size
+            }b): ${Date.now() - __t_media}ms`
+          );
           continue;
         }
 
@@ -286,7 +329,20 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
             }
           } catch (error) {}
         }
+
+        console.log(
+          `[PERF][MessageController.store] mídia ${index + 1} (${
+            media.mimetype
+          }, ${media.size}b, canal=${ticket.channel}): ${
+            Date.now() - __t_media
+          }ms`
+        );
       }
+      console.log(
+        `[PERF][MessageController.store] TOTAL ${
+          medias.length
+        } mídia(s) processada(s): ${Date.now() - __perfStoreStart}ms`
+      );
     } else {
       // Tratamento para mensagens sem mídia (código existente)
       if (ticket.channel === "whatsapp" && isPrivate === "false") {

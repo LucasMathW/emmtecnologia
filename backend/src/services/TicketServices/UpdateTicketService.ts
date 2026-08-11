@@ -28,6 +28,7 @@ import { getJidOf } from "../WbotServices/getJidOf";
 import logger from "../../utils/logger";
 import ListUserQueueImmediateService from "../UserQueueServices/ListUserQueueImmediateService";
 import SendWhatsAppOficialMessage from "../WhatsAppOficial/SendWhatsAppOficialMessage";
+import GetDefaultWhatsAppByUser from "../../helpers/GetDefaultWhatsAppByUser";
 
 interface TicketData {
   status?: string;
@@ -454,6 +455,12 @@ const UpdateTicketService = async ({
       );
     }
 
+    // [FIX-TRANSFER-WHATSAPP] Preenchido só quando a transferência manual
+    // (isTransfered=true) troca o userId e o novo usuário tem conexão
+    // padrão cadastrada — usado no ticket.update(...) final para migrar o
+    // ticket para a conexão do atendente destino. Ver bloco abaixo.
+    let transferWhatsappId: number | undefined;
+
     if (isTransfered) {
       if (settings.closeTicketOnTransfer) {
         let newTicketTransfer = ticket;
@@ -474,9 +481,26 @@ const UpdateTicketService = async ({
               ticketId: ticket.id
             });
 
+          // [FIX-TRANSFER-WHATSAPP] Mesma lógica da correção do branch
+          // "ticket permanece" (seção 10 do RELATORIO-CORRECOES.md), agora
+          // para o branch closeTicketOnTransfer=true: aqui o ticket antigo
+          // é fechado e um ticket NOVO é criado via FindOrCreateTicketService,
+          // que antes sempre herdava `ticket.whatsapp` (a conexão antiga).
+          // Se for transferência manual para um usuário diferente com
+          // conexão padrão cadastrada, o ticket novo passa a nascer já na
+          // conexão do usuário destino. Fallback silencioso: sem conexão
+          // padrão, mantém `ticket.whatsapp` (comportamento anterior).
+          let closeTransferWhatsapp = ticket.whatsapp;
+          if (isTransfered && oldUserId !== userId && !isNil(userId)) {
+            const defaultWhatsapp = await GetDefaultWhatsAppByUser(userId);
+            if (defaultWhatsapp) {
+              closeTransferWhatsapp = defaultWhatsapp;
+            }
+          }
+
           newTicketTransfer = await FindOrCreateTicketService(
             ticket.contact,
-            ticket.whatsapp,
+            closeTransferWhatsapp,
             1,
             ticket.companyId,
             queueId,
@@ -492,7 +516,7 @@ const UpdateTicketService = async ({
           await FindOrCreateATicketTrakingService({
             ticketId: newTicketTransfer.id,
             companyId,
-            whatsappId: ticket.whatsapp.id,
+            whatsappId: closeTransferWhatsapp.id,
             userId
           });
         }
@@ -840,6 +864,21 @@ const UpdateTicketService = async ({
           });
         }
 
+        // [FIX-TRANSFER-WHATSAPP] Transferência manual (isTransfered=true,
+        // já garantido neste branch) para um usuário diferente: busca a
+        // conexão padrão (Users.whatsappId) do novo usuário para o ticket
+        // migrar de conexão junto com o atendente destino. Se o usuário
+        // não tiver conexão padrão cadastrada, transferWhatsappId
+        // permanece undefined e o whatsappId do ticket é mantido como
+        // estava (fallback silencioso, ver payload do ticket.update mais
+        // abaixo).
+        if (isTransfered && oldUserId !== userId && !isNil(userId)) {
+          const defaultWhatsapp = await GetDefaultWhatsAppByUser(userId);
+          if (defaultWhatsapp) {
+            transferWhatsappId = defaultWhatsapp.id;
+          }
+        }
+
         if (
           oldUserId !== userId &&
           oldQueueId === queueId &&
@@ -954,7 +993,13 @@ const UpdateTicketService = async ({
       valorVenda,
       motivoNaoVenda,
       motivoFinalizacao,
-      finalizadoComVenda
+      finalizadoComVenda,
+      // [FIX-TRANSFER-WHATSAPP] só inclui a chave "whatsappId" no update
+      // quando uma transferência manual resolveu uma conexão padrão nova
+      // (ver bloco acima) — nos demais casos (troca só de fila, updates
+      // automáticos de bot/roteador) o spread fica vazio e o whatsappId do
+      // ticket não é tocado, preservando o comportamento atual.
+      ...(transferWhatsappId ? { whatsappId: transferWhatsappId } : {})
     });
 
     ticketTraking.queuedAt = moment().toDate();

@@ -50,6 +50,7 @@ import flowCampaignRoutes from "./flowCampaignRoutes";
 import callRoutes from "./callRoutes";
 import companyKanbanRoutes from "./companyKanbanRoutes";
 import whatsAppOficialRoutes from "./whatsAppOficialRoutes";
+import userStickerRoutes from "./userStickerRoutes";
 
 import ChatController from "../controllers/ChatController";
 
@@ -106,6 +107,7 @@ routes.use(flowBuilder);
 routes.use(flowCampaignRoutes);
 routes.use("/call", callRoutes);
 routes.use(companyKanbanRoutes);
+routes.use(userStickerRoutes);
 
 routes.post("/chats/backfill", ChatController.backfillChats);
 
