@@ -13,6 +13,7 @@ import { IMe } from "./wbotMessageListener";
 import { Session } from "../../libs/wbot";
 import cacheLayer from "../../libs/cache";
 import { getIO } from "../../libs/socket";
+import { stripWaSigning } from "../../utils/picUrl";
 
 // ─── Mutex por contato (aumentado para 60s) ──────────────────────────────────
 const mutexMap = new Map<string, Mutex>();
@@ -60,11 +61,23 @@ const smartUpdateContact = async (
 ): Promise<Contact> => {
   // Filtra apenas campos que realmente mudaram
   const changedFields: Record<string, any> = {};
+  // for (const [key, value] of Object.entries(updates)) {
+  //   if (value === undefined || value === null) continue;
+
+  //   const currentValue = (contact as any)[key];
+  //   if (currentValue !== value) {
+  //     changedFields[key] = value;
+  //   }
+  // }
+
   for (const [key, value] of Object.entries(updates)) {
     if (value === undefined || value === null) continue;
-
     const currentValue = (contact as any)[key];
-    if (currentValue !== value) {
+    const changed =
+      key === "profilePicUrl"
+        ? stripWaSigning(currentValue) !== stripWaSigning(value)
+        : currentValue !== value;
+    if (changed) {
       changedFields[key] = value;
     }
   }
