@@ -15,6 +15,7 @@ import { normalizeJid } from "../../utils";
 const axios = require("axios");
 import { getContactMutex } from "../../libs/ContactMutex";
 import { setCachedContact } from "../../libs/ContactCache";
+import { stripWaSigning } from "../../utils/picUrl";
 
 interface ExtraInfo extends ContactCustomField {
   name: string;
@@ -177,9 +178,17 @@ const CreateOrUpdateContactService = async ({
         });
       }
 
+      // let updateImage =
+      //   ((!contact ||
+      //     (contact?.profilePicUrl !== profilePicUrl && profilePicUrl !== "")) &&
+      //     (wbot || ["instagram", "facebook"].includes(channel))) ||
+      //   false;
+
       let updateImage =
         ((!contact ||
-          (contact?.profilePicUrl !== profilePicUrl && profilePicUrl !== "")) &&
+          (stripWaSigning(contact?.profilePicUrl) !==
+            stripWaSigning(profilePicUrl) &&
+            profilePicUrl !== "")) &&
           (wbot || ["instagram", "facebook"].includes(channel))) ||
         false;
 
