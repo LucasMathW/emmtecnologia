@@ -36,6 +36,7 @@ interface Request {
   whatsappId?: number;
   wbot?: any;
   fromMe?: boolean;
+  forceUpdatePic?: boolean;
 }
 
 interface ContactData {
@@ -78,7 +79,7 @@ export const updateContact = async (
       fs.chmodSync(folder, 0o777);
     }
 
-    const filename = `${contact.id}.jpeg`;
+    const filename = `${contact.id}_${Date.now()}.jpeg`;
     const filePath = path.join(folder, filename);
 
     // Remove arquivo antigo se diferente
@@ -133,7 +134,8 @@ const CreateOrUpdateContactService = async ({
   lid = "",
   whatsappId,
   wbot,
-  fromMe = false
+  fromMe = false,
+  forceUpdatePic = false
 }: Request): Promise<Contact> => {
   const rawNumber = number.includes("@")
     ? number.substring(0, number.indexOf("@"))
@@ -176,11 +178,14 @@ const CreateOrUpdateContactService = async ({
       }
 
       let updateImage =
-        ((!contact ||
+        ((forceUpdatePic ||
+          !contact ||
           (stripWaSigning(contact?.profilePicUrl) !==
             stripWaSigning(profilePicUrl) &&
             profilePicUrl !== "")) &&
-          (wbot || ["instagram", "facebook"].includes(channel))) ||
+          !!(wbot || ["instagram", "facebook"].includes(channel)) &&
+          !!profilePicUrl &&
+          !profilePicUrl.includes("nopicture")) ||
         false;
 
       if (contact) {
@@ -330,7 +335,7 @@ const CreateOrUpdateContactService = async ({
                 });
 
                 // 3. Salva em disco (assíncrono)
-                const filename = `${contact.id}.jpeg`;
+                const filename = `${contact.id}_${Date.now()}.jpeg`;
                 const filePath = path.join(folder, filename);
                 await fsp.writeFile(filePath, response.data);
                 logger.info(`[PIC-BG] 💾 Foto salva em disco: ${filePath}`);
@@ -641,15 +646,10 @@ const CreateOrUpdateContactService = async ({
         if (isNil(profilePicUrl) || profilePicUrl.includes("nopicture")) {
           filename = "";
         } else {
-          filename = `${contact.id}.jpeg`;
+          filename = `${contact.id}_${Date.now()}.jpeg`;
           const filePath = join(folder, filename);
 
-          if (
-            fs.existsSync(filePath) &&
-            contact.getDataValue("urlPicture") === filename
-          ) {
-            updateImage = false;
-          } else {
+          {
             const oldPic = contact.getDataValue("urlPicture") as string | null;
             const oldBaseName = oldPic?.replace(/\\/g, "/").split("/").pop();
             if (
