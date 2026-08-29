@@ -669,14 +669,18 @@ const TicketsListCustom = (props) => {
 
   const onCompanyContactTicketsList = useCallback(
     (data) => {
-      // if (data.action === "update" && data.contact) {
-      //   dispatch({
-      //     type: "UPDATE_TICKET_CONTACT",
-      //     payload: data.contact,
-      //     status,
-      //     sortDir: sortTickets,
-      //   });
-      // }
+      if (data.action === "update" && data.contact) {
+        // Store pic in preservedPicsRef so it survives RESET/LOAD cycles
+        if (data.contact.urlPicture && data.contact.number) {
+          preservedPicsRef.current[data.contact.number] = data.contact.urlPicture;
+        }
+        dispatch({
+          type: "UPDATE_TICKET_CONTACT",
+          payload: data.contact,
+          status,
+          sortDir: sortTickets,
+        });
+      }
       if (data.action === "update") {
         if (data.ticket) {
           // Só remove quando o ticket foi transferido para uma fila que não

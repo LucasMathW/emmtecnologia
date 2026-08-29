@@ -6507,7 +6507,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           remoteJid: jidParaBuscarFoto,
           profilePicUrl,
           whatsappId: wbot.id,
-          wbot
+          wbot,
+          forceUpdatePic: true
         });
 
         // Atualiza cache de foto com nova URL

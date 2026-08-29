@@ -30,6 +30,7 @@ authRoutes.get(
       const results: Record<string, any> = {
         wsState: wsStateMap[wsState] ?? wsState,
         user: (wbot as any).user,
+        serverProps: (wbot as any).serverProps ?? "N/A",
       };
 
       const tryFetch = async (jid: string, type: "image" | "preview") => {
