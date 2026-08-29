@@ -2126,11 +2126,11 @@ async function handleDispatchCampaign(job) {
             const options = await getMessageOptions(
               campaign.mediaName,
               filePath,
-              String(campaign.companyId),
+              campaign.companyId,
               `\u200c ${campaignShipping.message}`
             );
             if (Object.keys(options).length) {
-              if (options.mimetype === "audio/mp4") {
+              if ("mimetype" in options && options.mimetype === "audio/mp4") {
                 const audioMessage = await wbot.sendMessage(getJidOf(chatId), {
                   text: `\u200c ${campaignShipping.message}`
                 });
@@ -2212,11 +2212,11 @@ async function handleDispatchCampaign(job) {
           const options = await getMessageOptions(
             campaign.mediaName,
             filePath,
-            String(campaign.companyId),
+            campaign.companyId,
             campaignShipping.message
           );
           if (Object.keys(options).length) {
-            if (options.mimetype === "audio/mp4") {
+            if ("mimetype" in options && options.mimetype === "audio/mp4") {
               await wbot.sendMessage(getJidOf(chatId), {
                 text: campaignShipping.message
               });
@@ -3038,7 +3038,10 @@ async function handleInvoiceCreate() {
                 continue;
               }
 
-              const valuePlan = plan.amount.replace(",", ".");
+              const amountSafe =
+                plan.amount != null ? String(plan.amount) : "0";
+
+              const valuePlan = amountSafe.replace(",", ".");
 
               // Verificar faturas em aberto
               const sql = `SELECT * FROM "Invoices" WHERE "companyId" = ${c.id} AND "status" = 'open';`;

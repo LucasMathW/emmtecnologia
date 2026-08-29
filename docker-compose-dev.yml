@@ -14,9 +14,9 @@ services:
     container_name: postgres-emmtecnologia
     restart: always
     environment:
-      POSTGRES_USER: emmtecnologia
-      POSTGRES_PASSWORD: emmtecnologia
-      POSTGRES_DB: emmtecnologia
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: app_data_dev
     ports:
       - "5432:5432"
     volumes:

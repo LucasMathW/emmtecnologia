@@ -81,6 +81,10 @@ class CacheSingleton {
   public getRedisInstance(): Redis {
     return this.redis;
   }
+
+  public async incr(key: string): Promise<number> {
+    return this.redis.incr(key);
+  }
 }
 
 const redisInstance = new Redis(REDIS_URI_CONNECTION);

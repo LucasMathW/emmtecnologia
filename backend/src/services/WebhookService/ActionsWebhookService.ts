@@ -1,6 +1,9 @@
 import AppError from "../../errors/AppError";
 import { WebhookModel } from "../../models/Webhook";
-import { obterNomeEExtensaoDoArquivo, sendMessageFlow } from "../../controllers/MessageController";
+import {
+  obterNomeEExtensaoDoArquivo,
+  sendMessageFlow
+} from "../../controllers/MessageController";
 import { IConnections, INodes } from "./DispatchWebHookService";
 import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
@@ -17,7 +20,9 @@ import fs from "fs";
 import GetWhatsappWbot from "../../helpers/GetWhatsappWbot";
 import path from "path";
 import SendWhatsAppMedia from "../WbotServices/SendWhatsAppMedia";
-import SendWhatsAppMediaFlow, { typeSimulation } from "../WbotServices/SendWhatsAppMediaFlow";
+import SendWhatsAppMediaFlow, {
+  typeSimulation
+} from "../WbotServices/SendWhatsAppMediaFlow";
 import { randomizarCaminho } from "../../utils/randomizador";
 // import { SendMessageFlow } from "../../helpers/SendMessageFlow";
 import formatBody from "../../helpers/Mustache";
@@ -54,7 +59,6 @@ import { handleOpenAiFlow } from "../IntegrationsServices/OpenAiService";
 import { IOpenAi } from "../../@types/openai";
 import { FlowBuilderModel } from "../../models/FlowBuilder";
 
-
 declare global {
   namespace NodeJS {
     interface Global {
@@ -80,9 +84,12 @@ interface DataNoWebhook {
   email: string;
 }
 
-const processVariableValue = (text: string, dataWebhook: any, ticketId?: number): string => {
+const processVariableValue = (
+  text: string,
+  dataWebhook: any,
+  ticketId?: number
+): string => {
   if (!text) return "";
-
 
   if (text.includes("${")) {
     const regex = /\${([^}]+)}/g;
@@ -92,7 +99,6 @@ const processVariableValue = (text: string, dataWebhook: any, ticketId?: number)
     while ((match = regex.exec(text)) !== null) {
       const variableName = match[1];
 
-
       let variableValue = null;
 
       if (ticketId) {
@@ -100,11 +106,9 @@ const processVariableValue = (text: string, dataWebhook: any, ticketId?: number)
         variableValue = global.flowVariables[ticketSpecificVar];
       }
 
-
       if (variableValue === null || variableValue === undefined) {
         variableValue = global.flowVariables[variableName];
       }
-
 
       if (variableValue !== null && variableValue !== undefined) {
         processedText = processedText.replace(
@@ -120,7 +124,11 @@ const processVariableValue = (text: string, dataWebhook: any, ticketId?: number)
   return text;
 };
 
-const compareValues = (value1: string, value2: string, operator: string): boolean => {
+const compareValues = (
+  value1: string,
+  value2: string,
+  operator: string
+): boolean => {
   if (!value1 && operator !== "isEmpty" && operator !== "isNotEmpty") {
     value1 = "";
   }
@@ -129,14 +137,11 @@ const compareValues = (value1: string, value2: string, operator: string): boolea
     value2 = "";
   }
 
-
   const strValue1 = String(value1 || "").toLowerCase();
   const strValue2 = String(value2 || "").toLowerCase();
 
-
   const numValue1 = parseFloat(value1);
   const numValue2 = parseFloat(value2);
-
 
   switch (operator) {
     case "contains":
@@ -176,7 +181,6 @@ const finalizeTriggeredFlow = async (
   try {
     // Verificar se o ticket está com status "open" (fluxo disparado manualmente)
     if (ticket.status === "open") {
-
       // Determinar status final baseado no nó ou usar "pending" como padrão
       let targetStatus = finalStatus;
 
@@ -184,7 +188,6 @@ const finalizeTriggeredFlow = async (
       if (nodeSelected?.data?.finalStatus) {
         targetStatus = nodeSelected.data.finalStatus;
       }
-
 
       // Atualizar ticket para o status final
       await UpdateTicketService({
@@ -203,7 +206,6 @@ const finalizeTriggeredFlow = async (
         companyId
       });
 
-
       // Criar log da finalização
       await CreateLogTicketService({
         userId: ticket.userId,
@@ -211,11 +213,30 @@ const finalizeTriggeredFlow = async (
         type: "open",
         queueId: ticket.queueId
       });
-
     }
-
   } catch (error) {
-    logger.error(`[TICKET UPDATE ERROR] Erro ao finalizar fluxo disparado manualmente para ticket ${ticket.id}:`, error);
+    logger.error(
+      `[TICKET UPDATE ERROR] Erro ao finalizar fluxo disparado manualmente para ticket ${ticket.id}:`,
+      error
+    );
+  } finally {
+    // Limpa variáveis de fluxo deste ticket para não vazar memória.
+    // Fica no finally porque a limpeza deve acontecer mesmo se o update falhar,
+    // e mesmo quando o ticket não está "open" (o if acima não executa).
+    try {
+      if (global.flowVariables) {
+        const prefix = `${ticket.id}_`;
+        for (const key of Object.keys(global.flowVariables)) {
+          if (key.startsWith(prefix)) {
+            delete global.flowVariables[key];
+          }
+        }
+      }
+    } catch (cleanupError) {
+      logger.warn(
+        `[FLOW VARS] Erro ao limpar variáveis do ticket ${ticket.id}: ${cleanupError?.message}`
+      );
+    }
   }
 };
 
@@ -235,10 +256,8 @@ export const ActionsWebhookService = async (
   inputResponded: boolean = false,
   msg?: proto.IWebMessageInfo
 ): Promise<string> => {
-
-
   try {
-    const io = getIO()
+    const io = getIO();
     let next = nextStage;
 
     let createFieldJsonName = "";
@@ -254,28 +273,24 @@ export const ActionsWebhookService = async (
         } else {
           sumRes = constructJsonLine(lineToData, dataWebhook);
         }
-        createFieldJsonName = createFieldJsonName + sumRes
+        createFieldJsonName = createFieldJsonName + sumRes;
       });
     } else {
       createFieldJsonName = numberPhrase.name;
     }
 
-
     if (idTicket) {
       const currentTicket = await Ticket.findByPk(idTicket);
+      // Retomadas legítimas: resposta a input, tecla de menu, ou fluxo ainda não iniciado
+      const isResumption = inputResponded || !!pressKey;
+      const isFlowActive =
+        currentTicket?.flowWebhook && currentTicket?.lastFlowId;
 
-
-      const isInitialStage = nextStage === "start" || nextStage === "1"; // normalmente o nó inicial é "start" ou "1"
-
-
-      if (!currentTicket?.flowWebhook || !currentTicket?.lastFlowId || isInitialStage || inputResponded || pressKey) {
-      }
-      else {
+      if (isFlowActive && !isResumption) {
+        logger.warn(
+          `[FLOW GUARD] Ticket ${idTicket} já em fluxo ativo (lastFlowId: ${currentTicket.lastFlowId}) — ignorando disparo duplicado`
+        );
         return "already_running";
-      }
-
-      if (pressKey) {
-      } else if (isInitialStage) {
       }
     }
 
@@ -287,8 +302,6 @@ export const ActionsWebhookService = async (
         hashFlowId: hashWebhookId
       });
     }
-
-
 
     let numberClient = "";
 
@@ -331,7 +344,6 @@ export const ActionsWebhookService = async (
     if (numberPhrase === "") {
       const emailInput = details.inputs.find(item => item.keyValue === "email");
       emailInput.data.split(",").map(dataN => {
-
         const lineToDataEmail = details.keysFull.find(item =>
           item.endsWith("email")
         );
@@ -361,12 +373,9 @@ export const ActionsWebhookService = async (
 
     let execFn = "";
 
-
-
     let noAlterNext = false;
 
     for (var i = 0; i < lengthLoop; i++) {
-
       let nodeSelected: any;
       let ticketInit: Ticket;
       if (idTicket) {
@@ -379,22 +388,18 @@ export const ActionsWebhookService = async (
             break;
           }
         }
-
       }
 
       if (pressKey) {
-
         if (pressKey === "parar") {
           if (idTicket) {
             ticketInit = await Ticket.findOne({
               where: { id: idTicket, whatsappId }
             });
 
-
             await ticket.update({
               status: "closed"
             });
-
           }
           break;
         }
@@ -407,7 +412,9 @@ export const ActionsWebhookService = async (
 
           if (nodeSelected) {
           } else {
-            logger.error(`[FLOW] ❌ Nó ${next} NÃO ENCONTRADO! Criando nó temporário`);
+            logger.error(
+              `[FLOW] ❌ Nó ${next} NÃO ENCONTRADO! Criando nó temporário`
+            );
             nodeSelected = { type: "menu" };
           }
         } else {
@@ -418,7 +425,7 @@ export const ActionsWebhookService = async (
           }
         }
       } else {
-        const otherNode = nodes.filter((node) => node.id === next)[0]
+        const otherNode = nodes.filter(node => node.id === next)[0];
         if (otherNode) {
           nodeSelected = otherNode;
         } else {
@@ -428,11 +435,14 @@ export const ActionsWebhookService = async (
 
       // ✅ CORRIGIDO: Verificar se nodeSelected foi encontrado antes de continuar
       if (!nodeSelected) {
-        logger.error(`[FLOW ERROR] Nó não encontrado - Next: ${next}, ExecFn: ${execFn}`);
-        logger.error(`[FLOW ERROR] Nós disponíveis: ${nodes.map(n => n.id).join(', ')}`);
+        logger.error(
+          `[FLOW ERROR] Nó não encontrado - Next: ${next}, ExecFn: ${execFn}`
+        );
+        logger.error(
+          `[FLOW ERROR] Nós disponíveis: ${nodes.map(n => n.id).join(", ")}`
+        );
         break;
       }
-
 
       let msg;
 
@@ -444,28 +454,34 @@ export const ActionsWebhookService = async (
           });
 
           if (!ticket) {
-            console.error(`Não foi possível encontrar o ticket ${idTicket} para o nó ${nodeSelected.type}`);
+            console.error(
+              `Não foi possível encontrar o ticket ${idTicket} para o nó ${nodeSelected.type}`
+            );
             return false;
           }
         }
         return true;
       };
 
-
       if (nodeSelected.type === "tag") {
         const tagFind = await Tag.findByPk(nodeSelected.data.tag.id);
 
-        const teste = { contactId: ticket.contactId, tags: [tagFind], companyId: companyId }
+        const teste = {
+          contactId: ticket.contactId,
+          tags: [tagFind],
+          companyId: companyId
+        };
 
         const tags = await SyncTags(teste);
-
       }
 
       if (nodeSelected.type === "removeTag") {
         await ensureTicket();
 
         if (!ticket) {
-          logger.error(`[REMOVE TAG NODE] Ticket não encontrado para processar remoção de tag`);
+          logger.error(
+            `[REMOVE TAG NODE] Ticket não encontrado para processar remoção de tag`
+          );
           return;
         }
 
@@ -473,12 +489,16 @@ export const ActionsWebhookService = async (
           const tagFind = await Tag.findByPk(nodeSelected.data.tag.id);
 
           if (!tagFind) {
-            logger.error(`[REMOVE TAG NODE] Tag com ID ${nodeSelected.data.tag.id} não encontrada`);
+            logger.error(
+              `[REMOVE TAG NODE] Tag com ID ${nodeSelected.data.tag.id} não encontrada`
+            );
             return;
           }
 
           // Importar o serviço de remoção de tags
-          const { RemoveTagsService } = await import("../TagServices/RemoveTagsService");
+          const { RemoveTagsService } = await import(
+            "../TagServices/RemoveTagsService"
+          );
 
           // Remover a tag do contato
           await RemoveTagsService({
@@ -486,10 +506,11 @@ export const ActionsWebhookService = async (
             tags: [tagFind],
             companyId: companyId
           });
-
-
         } catch (error) {
-          logger.error(`[REMOVE TAG NODE] Erro ao remover tag do contato:`, error);
+          logger.error(
+            `[REMOVE TAG NODE] Erro ao remover tag do contato:`,
+            error
+          );
         }
       }
 
@@ -519,7 +540,6 @@ export const ActionsWebhookService = async (
           };
         }
 
-
         if (whatsapp.channel === "whatsapp") {
           await SendWhatsAppMessage({
             body: msg.body,
@@ -533,7 +553,7 @@ export const ActionsWebhookService = async (
             body: msg.body,
             ticket: ticket,
             quotedMsg: null,
-            type: 'text',
+            type: "text",
             media: null,
             vCard: null
           });
@@ -564,14 +584,21 @@ export const ActionsWebhookService = async (
             provider = nodeSelected.type,
             flowMode = "permanent",
             maxInteractions = 0,
-            continueKeywords = ["continuar", "próximo", "avançar", "prosseguir"],
+            continueKeywords = [
+              "continuar",
+              "próximo",
+              "avançar",
+              "prosseguir"
+            ],
             completionTimeout = 0,
             objective = "",
             autoCompleteOnObjective = false
           } = nodeSelected.data.typebotIntegration as IOpenAi;
 
           if (!apiKey || !model) {
-            logger.error(`[${provider.toUpperCase()} NODE] Configurações obrigatórias não encontradas`);
+            logger.error(
+              `[${provider.toUpperCase()} NODE] Configurações obrigatórias não encontradas`
+            );
             continue;
           }
 
@@ -598,7 +625,6 @@ export const ActionsWebhookService = async (
             autoCompleteOnObjective
           };
 
-
           if (flowMode === "permanent") {
             // MODO PERMANENTE: Para o fluxo e fica em IA
             await ticket.update({
@@ -616,12 +642,12 @@ export const ActionsWebhookService = async (
                 awaitingUserResponse: true // ✅ AGUARDA PRIMEIRA RESPOSTA DO USUÁRIO
               }
             });
-
-
           } else {
             // MODO TEMPORÁRIO: Mantém informações do fluxo
             const nextConnection = connects.filter(
-              connect => connect.source === nodeSelected.id && connect.sourceHandle === "a"
+              connect =>
+                connect.source === nodeSelected.id &&
+                connect.sourceHandle === "a"
             )[0];
 
             await ticket.update({
@@ -644,7 +670,6 @@ export const ActionsWebhookService = async (
                 }
               }
             });
-
           }
 
           // ✅ ENVIAR MENSAGEM DE BOAS-VINDAS IMEDIATAMENTE
@@ -652,12 +677,15 @@ export const ActionsWebhookService = async (
             const welcomeMessage = objective
               ? `Olá! Sou ${name}. ${objective}`
               : flowMode === "temporary" && continueKeywords?.length > 0
-                ? `Olá! Sou ${name}. Como posso ajudá-lo? (Digite "${continueKeywords[0]}" quando quiser prosseguir)`
-                : `Olá! Sou ${name}. Como posso ajudá-lo?`;
-
+              ? `Olá! Sou ${name}. Como posso ajudá-lo? (Digite "${continueKeywords[0]}" quando quiser prosseguir)`
+              : `Olá! Sou ${name}. Como posso ajudá-lo?`;
 
             if (whatsapp.channel === "whatsapp") {
-              await SendWhatsAppMessage({ body: welcomeMessage, ticket, quotedMsg: null });
+              await SendWhatsAppMessage({
+                body: welcomeMessage,
+                ticket,
+                quotedMsg: null
+              });
             }
 
             if (whatsapp.channel === "whatsapp_oficial") {
@@ -665,7 +693,7 @@ export const ActionsWebhookService = async (
                 body: welcomeMessage,
                 ticket: ticket,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -674,9 +702,11 @@ export const ActionsWebhookService = async (
 
           // ✅ PARAR FLUXO E AGUARDAR RESPOSTA DO USUÁRIO
           break;
-
         } catch (error) {
-          logger.error(`[AI NODE] Erro ao processar nó ${nodeSelected.type}:`, error);
+          logger.error(
+            `[AI NODE] Erro ao processar nó ${nodeSelected.type}:`,
+            error
+          );
           continue;
         }
       }
@@ -721,11 +751,9 @@ export const ActionsWebhookService = async (
           const inputIdentifier = `${ticket.id}_${variableName}`;
           const thisInputResponded = global.flowVariables[inputIdentifier];
 
-
           // Se inputResponded é true, significa que estamos retomando o fluxo após uma resposta
           // Neste caso, devemos continuar para o próximo nó sem processar este input novamente
           if (inputResponded) {
-
             // Recuperar o valor do próximo nó salvo anteriormente
             const savedNext = global.flowVariables[`${inputIdentifier}_next`];
 
@@ -734,7 +762,9 @@ export const ActionsWebhookService = async (
               // Limpar a variável após uso
               delete global.flowVariables[`${inputIdentifier}_next`];
             } else {
-              logger.warn(`[INPUT NODE] Nenhum próximo nó encontrado para ${inputIdentifier}`);
+              logger.warn(
+                `[INPUT NODE] Nenhum próximo nó encontrado para ${inputIdentifier}`
+              );
             }
 
             await ticket.update({
@@ -750,20 +780,18 @@ export const ActionsWebhookService = async (
             // Se não estamos retomando o fluxo mas o input já foi respondido, pular
             continue;
           } else {
-
             // Enviar a pergunta e aguardar resposta
             await intervalWhats("1");
             if (whatsapp.channel === "whatsapp") {
               typeSimulation(ticket, "composing");
             }
 
-
             if (whatsapp.channel === "whatsapp_oficial") {
               await SendWhatsAppOficialMessage({
                 body: question,
                 ticket: ticket,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -782,15 +810,17 @@ export const ActionsWebhookService = async (
               });
             }
 
-
             if (ticket) {
               // Salvar a conexão de saída para ser usada quando o fluxo for retomado
               const outputConnection = connects.filter(
-                connect => connect.source === nodeSelected.id && connect.sourceHandle === "a"
+                connect =>
+                  connect.source === nodeSelected.id &&
+                  connect.sourceHandle === "a"
               )[0];
 
-              const nextNodeId = outputConnection ? outputConnection.target : next;
-
+              const nextNodeId = outputConnection
+                ? outputConnection.target
+                : next;
 
               await ticket.update({
                 status: "pending",
@@ -808,15 +838,13 @@ export const ActionsWebhookService = async (
                 }
               });
 
-
               global.flowVariables = global.flowVariables || {};
               global.flowVariables[`${inputIdentifier}_next`] = nextNodeId;
 
               break; // Parar o fluxo para aguardar a resposta
             }
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
 
       if (nodeSelected.type === "conditionCompare") {
@@ -827,14 +855,15 @@ export const ActionsWebhookService = async (
             idTicket
           );
 
-          const rightValue = nodeSelected.data.operator !== "isEmpty" &&
-          nodeSelected.data.operator !== "isNotEmpty"
-            ? processVariableValue(
-              nodeSelected.data.rightValue || "",
-              dataWebhook,
-              idTicket
-            )
-            : "";
+          const rightValue =
+            nodeSelected.data.operator !== "isEmpty" &&
+            nodeSelected.data.operator !== "isNotEmpty"
+              ? processVariableValue(
+                  nodeSelected.data.rightValue || "",
+                  dataWebhook,
+                  idTicket
+                )
+              : "";
 
           const comparisonResult = compareValues(
             leftValue,
@@ -845,7 +874,8 @@ export const ActionsWebhookService = async (
           const condition = comparisonResult ? "true" : "false";
 
           const connectionSelect = connectStatic.filter(
-            item => item.source === nodeSelected.id && item.sourceHandle === condition
+            item =>
+              item.source === nodeSelected.id && item.sourceHandle === condition
           );
 
           if (connectionSelect && connectionSelect.length > 0) {
@@ -853,7 +883,9 @@ export const ActionsWebhookService = async (
             noAlterNext = true;
             continue;
           } else {
-            logger.warn(`[FlowBuilder] No connection found for condition ${condition} on node ${nodeSelected.id}`);
+            logger.warn(
+              `[FlowBuilder] No connection found for condition ${condition} on node ${nodeSelected.id}`
+            );
 
             const allConnections = connectStatic.filter(
               item => item.source === nodeSelected.id
@@ -863,7 +895,9 @@ export const ActionsWebhookService = async (
             if (allConnections && allConnections.length > 0) {
               next = allConnections[0].target;
               noAlterNext = true;
-              logger.warn(`[FLOW DEBUG] Usando primeira conexão disponível: ${next}`);
+              logger.warn(
+                `[FLOW DEBUG] Usando primeira conexão disponível: ${next}`
+              );
               continue;
             }
           }
@@ -871,7 +905,8 @@ export const ActionsWebhookService = async (
           logger.error(`[FLOW ERROR] Erro ao processar condição: ${error}`);
 
           const connectionFalse = connectStatic.filter(
-            item => item.source === nodeSelected.id && item.sourceHandle === "false"
+            item =>
+              item.source === nodeSelected.id && item.sourceHandle === "false"
           );
 
           if (connectionFalse && connectionFalse.length > 0) {
@@ -889,7 +924,10 @@ export const ActionsWebhookService = async (
 
           if (variableName) {
             // Processar o valor da variável usando replaceMessages se contiver variáveis
-            if (typeof variableValue === "string" && variableValue.includes("${")) {
+            if (
+              typeof variableValue === "string" &&
+              variableValue.includes("${")
+            ) {
               const dataLocal = {
                 nome: createFieldJsonName,
                 numero: numberClient,
@@ -916,8 +954,7 @@ export const ActionsWebhookService = async (
               global.flowVariables[ticketSpecificVar] = variableValue;
             }
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
 
       if (nodeSelected.type === "httpRequest") {
@@ -1062,12 +1099,13 @@ export const ActionsWebhookService = async (
       if (nodeSelected.type === "ticket") {
         if (!(await ensureTicket())) continue;
 
-
-        const queue = await ShowQueueService(nodeSelected?.data?.queue?.id, companyId)
-
+        const queue = await ShowQueueService(
+          nodeSelected?.data?.queue?.id,
+          companyId
+        );
 
         await ticket.update({
-          status: 'pending',
+          status: "pending",
           queueId: queue.id,
           userId: ticket.userId,
           companyId: companyId,
@@ -1077,21 +1115,19 @@ export const ActionsWebhookService = async (
           flowStopped: idFlowDb.toString()
         });
 
-        if(queue.integrationId)
-        {
+        if (queue.integrationId) {
           await ticket.update({
             integrationId: queue.integrationId,
             useIntegration: true
           });
         }
 
-
         await FindOrCreateATicketTrakingService({
           ticketId: ticket.id,
           companyId,
           whatsappId: ticket.whatsappId,
           userId: ticket.userId
-        })
+        });
 
         await UpdateTicketService({
           ticketData: {
@@ -1102,8 +1138,7 @@ export const ActionsWebhookService = async (
           companyId
         });
 
-        if(queue.integrationId)
-        {
+        if (queue.integrationId) {
           await UpdateTicketService({
             ticketData: {
               integrationId: queue.integrationId,
@@ -1114,26 +1149,28 @@ export const ActionsWebhookService = async (
           });
         }
 
-
         await CreateLogTicketService({
           ticketId: ticket.id,
           type: "queue",
           queueId: queue.id
         });
 
-
         // Enviar saudação da fila e preparar integração, se houver
         try {
           const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
-          const greeting = queue.greetingMessage && queue.greetingMessage.trim().length > 0
-            ? formatBody(`${queue.greetingMessage}`, ticket)
-            : formatBody(`${whatsapp.greetingMessage || ""}`, ticket);
+          const greeting =
+            queue.greetingMessage && queue.greetingMessage.trim().length > 0
+              ? formatBody(`${queue.greetingMessage}`, ticket)
+              : formatBody(`${whatsapp.greetingMessage || ""}`, ticket);
 
           if (greeting && greeting.trim().length > 0) {
             const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
             await ticketDetails.update({
-              lastMessage: formatBody(queue.greetingMessage || whatsapp.greetingMessage || "", ticket.contact)
+              lastMessage: formatBody(
+                queue.greetingMessage || whatsapp.greetingMessage || "",
+                ticket.contact
+              )
             });
 
             if (whatsapp.channel === "whatsapp") {
@@ -1147,7 +1184,7 @@ export const ActionsWebhookService = async (
                 body: greeting,
                 ticket: ticketDetails,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -1156,16 +1193,24 @@ export const ActionsWebhookService = async (
             SetTicketMessagesAsRead(ticketDetails);
           }
         } catch (err) {
-          logger.error(`[FLOW TICKET] Erro ao enviar saudação da fila: ${String(err?.message || err)}`);
+          logger.error(
+            `[FLOW TICKET] Erro ao enviar saudação da fila: ${String(
+              err?.message || err
+            )}`
+          );
         }
-
       }
 
       if (nodeSelected.type === "singleBlock") {
         if (!(await ensureTicket())) continue;
 
-        const publicFolder = path.resolve(__dirname, "..", "..", "..", "public");
-
+        const publicFolder = path.resolve(
+          __dirname,
+          "..",
+          "..",
+          "..",
+          "public"
+        );
 
         for (var iLoc = 0; iLoc < nodeSelected.data.seq.length; iLoc++) {
           const elementNowSelected = nodeSelected.data.seq[iLoc];
@@ -1174,7 +1219,6 @@ export const ActionsWebhookService = async (
             const bodyFor = nodeSelected.data.elements.filter(
               item => item.number === elementNowSelected
             )[0].value;
-
 
             const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
@@ -1186,7 +1230,13 @@ export const ActionsWebhookService = async (
                 numero: numberClient,
                 email: createFieldJsonEmail
               };
-              msg = replaceMessages(bodyFor, details, dataWebhook, dataLocal, idTicket);
+              msg = replaceMessages(
+                bodyFor,
+                details,
+                dataWebhook,
+                dataLocal,
+                idTicket
+              );
             }
 
             if (whatsapp.channel === "whatsapp") {
@@ -1197,13 +1247,12 @@ export const ActionsWebhookService = async (
               });
             }
 
-
             if (whatsapp.channel === "whatsapp_oficial") {
               await SendWhatsAppOficialMessage({
                 body: msg,
                 ticket: ticketDetails,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -1211,11 +1260,9 @@ export const ActionsWebhookService = async (
 
             SetTicketMessagesAsRead(ticketDetails);
 
-
             await ticketDetails.update({
               lastMessage: formatBody(bodyFor, ticket.contact)
             });
-
 
             await intervalWhats("1");
           }
@@ -1229,64 +1276,13 @@ export const ActionsWebhookService = async (
           }
 
           if (elementNowSelected.includes("img")) {
-
-            const filePath = path.join(publicFolder, `company${companyId}/flow`, nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].value);
-
-            const ticketInt = await Ticket.findOne({ where: { id: ticket.id } });
-
-            if (whatsapp.channel === "whatsapp") {
-              await SendWhatsAppMediaFlow({
-                media: filePath,
-                ticket: ticketInt,
-                whatsappId: whatsapp.id,
-                isRecord: nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].record
-              });
-            }
-
-            if (whatsapp.channel === "whatsapp_oficial") {
-
-              const fileName = obterNomeEExtensaoDoArquivo(filePath);
-              // Determinar mimetype pela extensão
-              const lower = (fileName || "").toLowerCase();
-              let mime = "image/jpeg";
-              if (lower.endsWith(".png")) mime = "image/png";
-              else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) mime = "image/jpeg";
-              else if (lower.endsWith(".gif")) mime = "image/gif";
-              else if (lower.endsWith(".webp")) mime = "image/webp";
-
-              // Verificar se arquivo existe antes de enviar
-              try {
-                const fs = await import("fs");
-                if (!fs.existsSync(filePath)) {
-                  logger.error(`[FLOW MEDIA] Arquivo de imagem não encontrado: ${filePath}`);
-                } else {
-                  const mediaSrc = {
-                    fieldname: 'medias',
-                    originalname: fileName,
-                    encoding: '7bit',
-                    mimetype: mime,
-                    filename: fileName,
-                    path: filePath
-                  } as Express.Multer.File
-
-
-                  await SendWhatsAppOficialMessage({
-                    body: "",
-                    ticket: ticketInt,
-                    type: 'image',
-                    media: mediaSrc
-                  });
-                }
-              } catch (e) {
-                logger.error(`[FLOW MEDIA] Erro ao validar/enviar imagem ${filePath}: ${e?.message || e}`);
-              }
-            }
-
-            await intervalWhats("1");
-          }
-
-          if (elementNowSelected.includes("audio")) {
-            const filePath = path.join(publicFolder, `company${companyId}/flow`, nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].value);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}/flow`,
+              nodeSelected.data.elements.filter(
+                item => item.number === elementNowSelected
+              )[0].value
+            );
 
             const ticketInt = await Ticket.findOne({
               where: { id: ticket.id }
@@ -1297,29 +1293,100 @@ export const ActionsWebhookService = async (
                 media: filePath,
                 ticket: ticketInt,
                 whatsappId: whatsapp.id,
-                isRecord: nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].record
+                isRecord: nodeSelected.data.elements.filter(
+                  item => item.number === elementNowSelected
+                )[0].record
               });
             }
 
             if (whatsapp.channel === "whatsapp_oficial") {
+              const fileName = obterNomeEExtensaoDoArquivo(filePath);
+              // Determinar mimetype pela extensão
+              const lower = (fileName || "").toLowerCase();
+              let mime = "image/jpeg";
+              if (lower.endsWith(".png")) mime = "image/png";
+              else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg"))
+                mime = "image/jpeg";
+              else if (lower.endsWith(".gif")) mime = "image/gif";
+              else if (lower.endsWith(".webp")) mime = "image/webp";
 
+              // Verificar se arquivo existe antes de enviar
+              try {
+                const fs = await import("fs");
+                if (!fs.existsSync(filePath)) {
+                  logger.error(
+                    `[FLOW MEDIA] Arquivo de imagem não encontrado: ${filePath}`
+                  );
+                } else {
+                  const mediaSrc = {
+                    fieldname: "medias",
+                    originalname: fileName,
+                    encoding: "7bit",
+                    mimetype: mime,
+                    filename: fileName,
+                    path: filePath
+                  } as Express.Multer.File;
+
+                  await SendWhatsAppOficialMessage({
+                    body: "",
+                    ticket: ticketInt,
+                    type: "image",
+                    media: mediaSrc
+                  });
+                }
+              } catch (e) {
+                logger.error(
+                  `[FLOW MEDIA] Erro ao validar/enviar imagem ${filePath}: ${
+                    e?.message || e
+                  }`
+                );
+              }
+            }
+
+            await intervalWhats("1");
+          }
+
+          if (elementNowSelected.includes("audio")) {
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}/flow`,
+              nodeSelected.data.elements.filter(
+                item => item.number === elementNowSelected
+              )[0].value
+            );
+
+            const ticketInt = await Ticket.findOne({
+              where: { id: ticket.id }
+            });
+
+            if (whatsapp.channel === "whatsapp") {
+              await SendWhatsAppMediaFlow({
+                media: filePath,
+                ticket: ticketInt,
+                whatsappId: whatsapp.id,
+                isRecord: nodeSelected.data.elements.filter(
+                  item => item.number === elementNowSelected
+                )[0].record
+              });
+            }
+
+            if (whatsapp.channel === "whatsapp_oficial") {
               // const mediaUrl = message.mediaUrl.replace(`:${process.env.PORT}`, '');
               const fileName = obterNomeEExtensaoDoArquivo(filePath);
 
               const mediaSrc = {
-                fieldname: 'medias',
+                fieldname: "medias",
                 originalname: fileName,
-                encoding: '7bit',
-                mimetype: 'audio/mpeg',
+                encoding: "7bit",
+                mimetype: "audio/mpeg",
                 filename: fileName,
                 path: filePath
-              } as Express.Multer.File
-
+              } as Express.Multer.File;
 
               await SendWhatsAppOficialMessage({
                 body: "",
                 ticket: ticket,
-                type: 'audio',
+                type: "audio",
                 media: mediaSrc
               });
             }
@@ -1328,7 +1395,13 @@ export const ActionsWebhookService = async (
           }
 
           if (elementNowSelected.includes("video")) {
-            const filePath = path.join(publicFolder, `company${companyId}/flow`, nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].value);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}/flow`,
+              nodeSelected.data.elements.filter(
+                item => item.number === elementNowSelected
+              )[0].value
+            );
 
             const ticketInt = await Ticket.findOne({
               where: { id: ticket.id }
@@ -1338,27 +1411,26 @@ export const ActionsWebhookService = async (
               await SendWhatsAppMediaFlow({
                 media: filePath,
                 ticket: ticketInt,
-                whatsappId: whatsapp.id,
+                whatsappId: whatsapp.id
               });
             }
 
             if (whatsapp.channel === "whatsapp_oficial") {
-
               const fileName = obterNomeEExtensaoDoArquivo(filePath);
 
               const mediaSrc = {
-                fieldname: 'medias',
+                fieldname: "medias",
                 originalname: fileName,
-                encoding: '7bit',
-                mimetype: 'video/mp4',
+                encoding: "7bit",
+                mimetype: "video/mp4",
                 filename: fileName,
                 path: filePath
-              } as Express.Multer.File
+              } as Express.Multer.File;
 
               await SendWhatsAppOficialMessage({
                 body: "",
                 ticket: ticketInt,
-                type: 'video',
+                type: "video",
                 media: mediaSrc
               });
             }
@@ -1368,7 +1440,13 @@ export const ActionsWebhookService = async (
           }
 
           if (elementNowSelected.includes("document")) {
-            const filePath = path.join(publicFolder, `company${companyId}/flow`, nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].value);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}/flow`,
+              nodeSelected.data.elements.filter(
+                item => item.number === elementNowSelected
+              )[0].value
+            );
 
             const ticketInt = await Ticket.findOne({
               where: { id: ticket.id }
@@ -1378,28 +1456,27 @@ export const ActionsWebhookService = async (
               await SendWhatsAppMediaFlow({
                 media: filePath,
                 ticket: ticketInt,
-                whatsappId: whatsapp.id,
+                whatsappId: whatsapp.id
               });
             }
 
             if (whatsapp.channel === "whatsapp_oficial") {
-
               // const mediaUrl = message.mediaUrl.replace(`:${process.env.PORT}`, '');
               const fileName = obterNomeEExtensaoDoArquivo(filePath);
 
               const mediaSrc = {
-                fieldname: 'medias',
+                fieldname: "medias",
                 originalname: fileName,
-                encoding: '7bit',
-                mimetype: 'application/pdf',
+                encoding: "7bit",
+                mimetype: "application/pdf",
                 filename: fileName,
                 path: filePath
-              } as Express.Multer.File
+              } as Express.Multer.File;
 
               await SendWhatsAppOficialMessage({
                 body: "",
                 ticket: ticketInt,
-                type: 'document',
+                type: "document",
                 media: mediaSrc
               });
             }
@@ -1408,7 +1485,13 @@ export const ActionsWebhookService = async (
           }
 
           if (elementNowSelected.includes("application")) {
-            const filePath = path.join(publicFolder, `company${companyId}/flow`, nodeSelected.data.elements.filter(item => item.number === elementNowSelected)[0].value);
+            const filePath = path.join(
+              publicFolder,
+              `company${companyId}/flow`,
+              nodeSelected.data.elements.filter(
+                item => item.number === elementNowSelected
+              )[0].value
+            );
 
             const ticketInt = await Ticket.findOne({
               where: { id: ticket.id }
@@ -1418,28 +1501,27 @@ export const ActionsWebhookService = async (
               await SendWhatsAppMediaFlow({
                 media: filePath,
                 ticket: ticketInt,
-                whatsappId: whatsapp.id,
+                whatsappId: whatsapp.id
               });
             }
 
             if (whatsapp.channel === "whatsapp_oficial") {
-
               // const mediaUrl = message.mediaUrl.replace(`:${process.env.PORT}`, '');
               const fileName = obterNomeEExtensaoDoArquivo(filePath);
 
               const mediaSrc = {
-                fieldname: 'medias',
+                fieldname: "medias",
                 originalname: fileName,
-                encoding: '7bit',
-                mimetype: 'application/pdf',
+                encoding: "7bit",
+                mimetype: "application/pdf",
                 filename: fileName,
                 path: filePath
-              } as Express.Multer.File
+              } as Express.Multer.File;
 
               await SendWhatsAppOficialMessage({
                 body: "",
                 ticket: ticketInt,
-                type: 'document',
+                type: "document",
                 media: mediaSrc
               });
             }
@@ -1451,7 +1533,9 @@ export const ActionsWebhookService = async (
 
       let isRandomizer: boolean;
       if (nodeSelected.type === "randomizer") {
-        const selectedRandom = randomizarCaminho(nodeSelected.data.percent / 100);
+        const selectedRandom = randomizarCaminho(
+          nodeSelected.data.percent / 100
+        );
 
         const resultConnect = connects.filter(
           connect => connect.source === nodeSelected.id
@@ -1470,14 +1554,12 @@ export const ActionsWebhookService = async (
 
       let isMenu: boolean;
       if (nodeSelected.type === "menu") {
-
         if (pressKey) {
-
           if (pressKey.toLowerCase() === "sair") {
-
             const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
-            const exitMessage = "Atendimento pelo chatbot finalizado. Em breve um atendente entrará em contato.";
+            const exitMessage =
+              "Atendimento pelo chatbot finalizado. Em breve um atendente entrará em contato.";
 
             if (whatsapp.channel === "whatsapp") {
               await SendWhatsAppMessage({
@@ -1490,7 +1572,7 @@ export const ActionsWebhookService = async (
                 body: exitMessage,
                 ticket: ticketDetails,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -1518,22 +1600,33 @@ export const ActionsWebhookService = async (
             return "flow_exited";
           }
 
+          const filterOne = connectStatic.filter(
+            confil => confil.source === next
+          );
 
-          const filterOne = connectStatic.filter(confil => confil.source === next)
-
-          const filterTwo = filterOne.filter(filt2 => filt2.sourceHandle === "a" + pressKey)
+          const filterTwo = filterOne.filter(
+            filt2 => filt2.sourceHandle === "a" + pressKey
+          );
 
           if (filterTwo.length > 0) {
-            execFn = filterTwo[0].target
+            execFn = filterTwo[0].target;
           } else {
-            execFn = undefined
-            logger.warn(`[MENU NODE] ❌ NENHUMA CONEXÃO encontrada para handle a${pressKey}`);
+            execFn = undefined;
+            logger.warn(
+              `[MENU NODE] ❌ NENHUMA CONEXÃO encontrada para handle a${pressKey}`
+            );
           }
 
           if (execFn === undefined) {
             logger.error(`[MENU NODE] ========== OPÇÃO INVÁLIDA ==========`);
-            logger.error(`[MENU NODE] PressKey: "${pressKey}" não tem conexão correspondente`);
-            logger.error(`[MENU NODE] Handles disponíveis: ${filterOne.map(f => f.sourceHandle).join(', ')}`);
+            logger.error(
+              `[MENU NODE] PressKey: "${pressKey}" não tem conexão correspondente`
+            );
+            logger.error(
+              `[MENU NODE] Handles disponíveis: ${filterOne
+                .map(f => f.sourceHandle)
+                .join(", ")}`
+            );
 
             let optionsText = "";
             nodeSelected.data.arrayOption.forEach(item => {
@@ -1555,7 +1648,7 @@ export const ActionsWebhookService = async (
                 body: fallbackMessage,
                 ticket: ticketDetails,
                 quotedMsg: null,
-                type: 'text',
+                type: "text",
                 media: null,
                 vCard: null
               });
@@ -1582,11 +1675,11 @@ export const ActionsWebhookService = async (
             isMenu = isNodeExist[0].type === "menu" ? true : false;
           } else {
             isMenu = false;
-            logger.warn(`[MENU NODE] ⚠️ Nó ${execFn} NÃO ENCONTRADO na lista de nós!`);
+            logger.warn(
+              `[MENU NODE] ⚠️ Nó ${execFn} NÃO ENCONTRADO na lista de nós!`
+            );
           }
-
         } else {
-
           let optionsMenu = "";
           nodeSelected.data.arrayOption.map(item => {
             optionsMenu += `[${item.number}] ${item.value}\n`;
@@ -1608,12 +1701,17 @@ export const ActionsWebhookService = async (
               email: createFieldJsonEmail
             };
             msg = {
-              body: replaceMessages(menuCreate, details, dataWebhook, dataLocal, idTicket),
+              body: replaceMessages(
+                menuCreate,
+                details,
+                dataWebhook,
+                dataLocal,
+                idTicket
+              ),
               number: numberClient,
               companyId: companyId
             };
           }
-
 
           const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
@@ -1624,7 +1722,6 @@ export const ActionsWebhookService = async (
             fromMe: true,
             read: true
           };
-
 
           if (whatsapp.channel === "whatsapp") {
             await SendWhatsAppMessage({
@@ -1639,35 +1736,39 @@ export const ActionsWebhookService = async (
               body: msg.body,
               ticket: ticketDetails,
               quotedMsg: null,
-              type: 'text',
+              type: "text",
               media: null,
               vCard: null
             });
           }
 
-
           SetTicketMessagesAsRead(ticketDetails);
-
 
           await ticketDetails.update({
             lastMessage: formatBody(msg.body, ticket.contact)
           });
 
-
           await intervalWhats("1");
 
           if (ticket) {
             ticket = await Ticket.findOne({
-              where: { id: ticket.id, whatsappId: whatsappId, companyId: companyId }
+              where: {
+                id: ticket.id,
+                whatsappId: whatsappId,
+                companyId: companyId
+              }
             });
           } else {
             ticket = await Ticket.findOne({
-              where: { id: idTicket, whatsappId: whatsappId, companyId: companyId }
+              where: {
+                id: idTicket,
+                whatsappId: whatsappId,
+                companyId: companyId
+              }
             });
           }
 
           if (ticket) {
-
             const updateData = {
               status: "pending",
               queueId: ticket.queueId ? ticket.queueId : null,
@@ -1680,16 +1781,15 @@ export const ActionsWebhookService = async (
               flowStopped: idFlowDb.toString()
             };
 
-
             try {
               const updateResult = await ticket.update(updateData);
 
-
               // Recarregar do banco para confirmar que foi salvo
               await ticket.reload();
-
             } catch (updateError) {
-              logger.error(`[MENU NODE] ❌ ERRO AO FAZER UPDATE: ${updateError.message}`);
+              logger.error(
+                `[MENU NODE] ❌ ERRO AO FAZER UPDATE: ${updateError.message}`
+              );
               logger.error(`[MENU NODE] Stack: ${updateError.stack}`);
             }
           }
@@ -1700,9 +1800,7 @@ export const ActionsWebhookService = async (
 
       let isSwitchFlow: boolean;
       if (nodeSelected.type === "switchFlow") {
-
         const data = nodeSelected.data?.flowSelected;
-
 
         if (!data) {
           logger.error(`[SWITCH FLOW] ❌ Nenhum fluxo foi selecionado no nó!`);
@@ -1734,7 +1832,6 @@ export const ActionsWebhookService = async (
           break;
         }
 
-
         // ✅ IMPORTANTE: Resetar o fluxo atual antes de iniciar o novo
         await ticket.update({
           flowWebhook: false,
@@ -1744,21 +1841,21 @@ export const ActionsWebhookService = async (
           dataWebhook: null
         });
 
-
         isSwitchFlow = true;
 
         try {
           await switchFlow(data, companyId, ticket);
         } catch (error) {
-          logger.error(`[SWITCH FLOW] ❌ Erro ao iniciar novo fluxo: ${error.message}`);
+          logger.error(
+            `[SWITCH FLOW] ❌ Erro ao iniciar novo fluxo: ${error.message}`
+          );
           logger.error(`[SWITCH FLOW] Stack: ${error.stack}`);
         }
 
         break;
-      };
+      }
 
       if (nodeSelected.type === "attendant") {
-
         const data = nodeSelected.data?.user?.id;
 
         if (ticket) {
@@ -1781,7 +1878,6 @@ export const ActionsWebhookService = async (
           });
         }
 
-
         // ✅ CORRIGIDO: Desabilitar integração quando ticket é atribuído a atendente
         await ticket.update({
           userId: data,
@@ -1790,21 +1886,19 @@ export const ActionsWebhookService = async (
           dataWebhook: null
         });
 
-
         break;
-      };
+      }
 
       let isContinue = false;
 
-
       if (pressKey === "999" && execCount > 0) {
-
         pressKey = undefined;
         let result = connects.filter(connect => connect.source === execFn)[0];
 
-
         if (typeof result === "undefined") {
-          logger.error(`[FLOW] ❌ Nenhuma conexão encontrada para execFn: ${execFn}`);
+          logger.error(
+            `[FLOW] ❌ Nenhuma conexão encontrada para execFn: ${execFn}`
+          );
           next = "";
         } else {
           if (!noAlterNext) {
@@ -1820,7 +1914,6 @@ export const ActionsWebhookService = async (
           isContinue = true;
           pressKey = undefined;
         } else if (isSwitchFlow) {
-
           // ✅ CORRIGIDO: O switchFlow já foi executado acima, não precisa executar novamente
           // Este código legado será mantido comentado para referência
           /*
@@ -1842,12 +1935,16 @@ export const ActionsWebhookService = async (
           if (noAlterNext) {
             result = { target: next };
           } else {
-            result = connects.filter(connect => connect.source === nodeSelected.id)[0];
+            result = connects.filter(
+              connect => connect.source === nodeSelected.id
+            )[0];
           }
         }
 
         if (typeof result === "undefined" || !result) {
-          logger.warn(`[FLOW DEBUG] Nenhuma conexão encontrada para nó: ${nodeSelected?.id}`);
+          logger.warn(
+            `[FLOW DEBUG] Nenhuma conexão encontrada para nó: ${nodeSelected?.id}`
+          );
           next = "";
         } else {
           if (!noAlterNext) {
@@ -1863,8 +1960,9 @@ export const ActionsWebhookService = async (
 
       // ✅ CORRIGIDO: Verificar se é realmente o fim do fluxo antes de finalizar
       if (!pressKey && !isContinue) {
-        const nextNode = connects.filter(connect => connect.source === nodeSelected.id).length;
-
+        const nextNode = connects.filter(
+          connect => connect.source === nodeSelected.id
+        ).length;
 
         // ✅ Só finalizar se não há conexões E não há próximo nó definido
         if (nextNode === 0 && (!next || next === "")) {
@@ -1873,7 +1971,6 @@ export const ActionsWebhookService = async (
               where: { id: ticket.id, whatsappId, companyId: companyId }
             });
 
-
             await ticket.update({
               lastFlowId: null,
               dataWebhook: null,
@@ -1881,8 +1978,6 @@ export const ActionsWebhookService = async (
               flowWebhook: false,
               flowStopped: idFlowDb.toString()
             });
-
-
           } else {
             ticket = await Ticket.findOne({
               where: { id: idTicket, whatsappId, companyId: companyId }
@@ -1895,12 +1990,13 @@ export const ActionsWebhookService = async (
               flowWebhook: false,
               flowStopped: idFlowDb.toString()
             });
-
           }
           break;
         } else if (nextNode > 0 && (!next || next === "")) {
           // ✅ Se há conexões mas next não foi definido, buscar a conexão
-          const nextConnection = connects.filter(connect => connect.source === nodeSelected.id)[0];
+          const nextConnection = connects.filter(
+            connect => connect.source === nodeSelected.id
+          )[0];
           if (nextConnection) {
             next = nextConnection.target;
           }
@@ -1911,9 +2007,10 @@ export const ActionsWebhookService = async (
 
       // ✅ CORRIGIDO: Verificar se realmente não há próximo nó antes de finalizar
       if (next === "" || !next) {
-
         // Tentar buscar conexão a partir do nó atual
-        const possibleConnection = connects.filter(connect => connect.source === nodeSelected.id)[0];
+        const possibleConnection = connects.filter(
+          connect => connect.source === nodeSelected.id
+        )[0];
 
         if (possibleConnection) {
           next = possibleConnection.target;
@@ -1931,7 +2028,12 @@ export const ActionsWebhookService = async (
           }
 
           if (ticket) {
-            await finalizeTriggeredFlow(ticket, nodeSelected, companyId, finalStatus);
+            await finalizeTriggeredFlow(
+              ticket,
+              nodeSelected,
+              companyId,
+              finalStatus
+            );
           }
 
           break;
@@ -1944,8 +2046,6 @@ export const ActionsWebhookService = async (
         });
       }
 
-
-
       await ticket.update({
         whatsappId: whatsappId,
         queueId: ticket?.queueId,
@@ -1957,7 +2057,6 @@ export const ActionsWebhookService = async (
         hashFlowId: hashWebhookId,
         flowStopped: idFlowDb.toString()
       });
-
 
       noAlterNext = false;
       execCount++;
@@ -1972,7 +2071,9 @@ export const ActionsWebhookService = async (
     const errorName = error?.name || "UnknownError";
 
     // Log detalhado para diagnóstico futuro
-    logger.error(`[RDS-ERROR-DEBUG] Erro no ActionsWebhookService - Nome: ${errorName}`);
+    logger.error(
+      `[RDS-ERROR-DEBUG] Erro no ActionsWebhookService - Nome: ${errorName}`
+    );
     logger.error(`[RDS-ERROR-DEBUG] Mensagem: ${errorMessage}`);
 
     // Registrar stack trace apenas em situações não previstas
@@ -1981,7 +2082,11 @@ export const ActionsWebhookService = async (
     }
 
     // Registrar contexto da execução para ajudar na depuração
-    logger.error(`[RDS-ERROR-DEBUG] Contexto: Ticket=${idTicket}, nextStage=${nextStage}, nodeType=${nodes.find(n => n.id === nextStage)?.type || "unknown"}`);
+    logger.error(
+      `[RDS-ERROR-DEBUG] Contexto: Ticket=${idTicket}, nextStage=${nextStage}, nodeType=${
+        nodes.find(n => n.id === nextStage)?.type || "unknown"
+      }`
+    );
 
     // Manter o log original para compatibilidade
     logger.error("[ActionsWebhookService] Erro geral no serviço:", error);
@@ -1996,16 +2101,19 @@ export const ActionsWebhookService = async (
           flowStopped: null
         });
 
-        logger.warn(`[RDS-ERROR-DEBUG] Estado do ticket ${idTicket} resetado após erro`);
+        logger.warn(
+          `[RDS-ERROR-DEBUG] Estado do ticket ${idTicket} resetado após erro`
+        );
       }
     }
-
   }
 };
 
 const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
   logger.info(`[SWITCH FLOW] Função iniciada`);
-  logger.info(`[SWITCH FLOW] Ticket ID: ${ticket?.id} | WhatsApp ID: ${ticket?.whatsappId} | Company ID: ${companyId}`);
+  logger.info(
+    `[SWITCH FLOW] Ticket ID: ${ticket?.id} | WhatsApp ID: ${ticket?.whatsappId} | Company ID: ${companyId}`
+  );
   logger.info(`[SWITCH FLOW] Fluxo destino: ${data?.name} (ID: ${data?.id})`);
 
   try {
@@ -2013,7 +2121,7 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
     let flowData = data;
 
     // Se 'data' for um número ou string, buscar o fluxo
-    if (typeof data === 'number' || typeof data === 'string') {
+    if (typeof data === "number" || typeof data === "string") {
       const flow = await FlowBuilderModel.findOne({
         where: {
           id: data,
@@ -2046,10 +2154,11 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
     });
 
     if (!contact) {
-      logger.error(`[SWITCH FLOW FUNC] ❌ Contato não encontrado! ContactId: ${ticket?.contactId}`);
+      logger.error(
+        `[SWITCH FLOW FUNC] ❌ Contato não encontrado! ContactId: ${ticket?.contactId}`
+      );
       return;
     }
-
 
     const nodes: INodes[] = flowData.flow["nodes"];
     const connections: IConnections[] = flowData.flow["connections"];
@@ -2064,7 +2173,6 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
       name: contact.name,
       email: contact.email
     };
-
 
     // ✅ CORRIGIDO: Chamar diretamente ActionsWebhookService para iniciar um NOVO fluxo
     // (flowBuilderQueue é apenas para CONTINUAR fluxos interrompidos)
@@ -2083,26 +2191,27 @@ const switchFlow = async (data: any, companyId: number, ticket: Ticket) => {
       mountDataContact,
       false // inputResponded = false
     );
-
   } catch (error) {
-    logger.error(`[SWITCH FLOW FUNC] ❌ Erro na função switchFlow: ${error.message}`);
+    logger.error(
+      `[SWITCH FLOW FUNC] ❌ Erro na função switchFlow: ${error.message}`
+    );
     logger.error(`[SWITCH FLOW FUNC] Stack: ${error.stack}`);
     throw error;
   }
 };
 
 const constructJsonLine = (line: string, json: any) => {
-  let valor = json
-  const chaves = line.split(".")
+  let valor = json;
+  const chaves = line.split(".");
 
   if (chaves.length === 1) {
-    return valor[chaves[0]]
+    return valor[chaves[0]];
   }
 
   for (const chave of chaves) {
-    valor = valor[chave]
+    valor = valor[chave];
   }
-  return valor
+  return valor;
 };
 
 function removerNaoLetrasNumeros(texto: string) {
@@ -2130,7 +2239,9 @@ const makeHttpRequest = async (
   try {
     // Validação inicial de URL
     if (!url || typeof url !== "string" || url.trim().length === 0) {
-      logger.error(`[httpRequestNode] URL vazia ou indefinida. method=${method}`);
+      logger.error(
+        `[httpRequestNode] URL vazia ou indefinida. method=${method}`
+      );
       return { error: true, message: "Empty URL", status: 400 };
     }
 
@@ -2250,7 +2361,7 @@ const makeHttpRequest = async (
           ) {
             try {
               processedBody = JSON.parse(processedBody);
-            } catch (e) { }
+            } catch (e) {}
           }
         } else if (
           typeof body === "object" &&
@@ -2303,7 +2414,9 @@ const makeHttpRequest = async (
       // Aceitar apenas http/https
       const u = new URL(processedUrl);
       if (!/^https?:$/.test(u.protocol)) {
-        logger.error(`[httpRequestNode] Protocolo não suportado em URL: ${processedUrl}`);
+        logger.error(
+          `[httpRequestNode] Protocolo não suportado em URL: ${processedUrl}`
+        );
         return { error: true, message: "Unsupported protocol", status: 400 };
       }
     } catch (e) {
