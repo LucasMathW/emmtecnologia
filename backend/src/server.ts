@@ -44,13 +44,39 @@ process.on("uncaughtException", err => {
 });
 
 process.on("unhandledRejection", (reason: any, p: any) => {
+  // Verifica se o motivo é um objeto Error para extrair a stack completa
+  const errorMessage =
+    reason instanceof Error ? reason.message : String(reason);
+  const errorStack = reason instanceof Error ? reason.stack : String(reason);
+
   logger.error({
     msg: "unhandledRejection",
-    reason: String(reason),
+    reason: errorMessage,
+    stack: errorStack, // <-- ADIÇÃO CRUCIAL: Mostra o caminho do arquivo e a linha
     promise: String(p)
   });
+
+  // Opcional: Força a saída no console padrão também, caso o logger de arquivo demore a gravar
+  console.error(
+    "❌ [UNHANDLED REJECTION] O backend será encerrado. Stack:",
+    errorStack
+  );
+
+  // Encerra o processo.
+  // DICA: Isso é uma BOA prática SE você usar PM2, Docker ou systemd,
+  // pois evita que a aplicação fique rodando em um estado corrompido.
   process.exit(1);
 });
+
+// process.on("unhandledRejection", (reason: any, p: any) => {
+//   logger.error({
+//     msg: "unhandledRejection",
+//     reason: String(reason),
+//     promise: String(p)
+//   });
+
+//   process.exit(1);
+// });
 
 initIO(server);
 gracefulShutdown(server);

@@ -9,7 +9,6 @@ import path, { join } from "path";
 import logger from "../../utils/logger";
 import { isNil } from "lodash";
 import Whatsapp from "../../models/Whatsapp";
-import * as Sentry from "@sentry/node";
 import { ENABLE_LID_DEBUG } from "../../config/debug";
 import { normalizeJid } from "../../utils";
 const axios = require("axios");
@@ -83,14 +82,12 @@ export const updateContact = async (
     const filePath = path.join(folder, filename);
 
     // Remove arquivo antigo se diferente
-    const oldUrl = contact.urlPicture;
-    if (oldUrl && oldUrl !== filename && !oldUrl.includes("nopicture")) {
-      const oldBase = oldUrl.replace(/\\/g, "/").split("/").pop();
-      if (oldBase) {
-        const oldFile = path.join(folder, oldBase);
-        if (fs.existsSync(oldFile)) {
-          fs.unlinkSync(oldFile);
-        }
+    const oldUrl = contact.getDataValue("urlPicture") as string | null;
+    const oldBase = oldUrl?.replace(/\\/g, "/").split("/").pop();
+    if (oldBase && oldBase !== filename && !oldBase.includes("nopicture")) {
+      const oldFile = path.join(folder, oldBase);
+      if (fs.existsSync(oldFile)) {
+        fs.unlinkSync(oldFile);
       }
     }
 
@@ -177,12 +174,6 @@ const CreateOrUpdateContactService = async ({
           where: { number: cleanNumber, companyId }
         });
       }
-
-      // let updateImage =
-      //   ((!contact ||
-      //     (contact?.profilePicUrl !== profilePicUrl && profilePicUrl !== "")) &&
-      //     (wbot || ["instagram", "facebook"].includes(channel))) ||
-      //   false;
 
       let updateImage =
         ((!contact ||
@@ -296,56 +287,15 @@ const CreateOrUpdateContactService = async ({
           contact.remoteJid || fallbackRemoteJid
         )?.includes("@g.us");
 
-        // if (wbot && currentPicIsInvalid) {
-        //   try {
-        //     const targetJid = contact.remoteJid || fallbackRemoteJid;
-        //     logger.info(
-        //       `[PIC-DEBUG2] Tentando buscar foto para JID: ${targetJid}`
-        //     );
-        //     logger.info(
-        //       `[PIC-DEBUG2] contact.urlPicture=${contact.urlPicture}`
-        //     );
-        //     logger.info(
-        //       `[PIC-DEBUG2] fileExistsAndValid=${fileExistsAndValid}`
-        //     );
-        //     logger.info(
-        //       `[PIC-DEBUG2] currentPicIsInvalid=${currentPicIsInvalid}`
-        //     );
-        //     logger.info(`[PIC-DEBUG2] fileName=${fileName}`);
-
-        //     const fetched = await wbot.profilePictureUrl(targetJid, "image");
-
-        //     logger.info(`[PIC-DEBUG2] fetched=${fetched}`);
-
-        //     if (fetched && !fetched.includes("nopicture")) {
-        //       profilePicUrl = fetched;
-        //       contact.profilePicUrl = profilePicUrl;
-        //       updateImage = true;
-        //       logger.info(
-        //         `[PIC] Foto obtida via wbot para contato ${contact.number}: ${profilePicUrl}`
-        //       );
-        //     } else {
-        //       logger.info(
-        //         `[PIC] wbot não retornou foto válida para ${contact.number}, mantendo estado atual`
-        //       );
-        //       // Não altera updateImage nem profilePicUrl — mantém o que tinha
-        //     }
-        //   } catch (e) {
-        //     logger.info(
-        //       `[PIC] Sem foto de perfil disponível para ${contact.number}: ${e.message}`
-        //     );
-        //     // Não altera updateImage — não força nopicture
-        //   }
-        // } else if (!wbot && currentPicIsInvalid) {
-        //   // Sem wbot e sem foto válida: mantém o estado, não força nopicture
-        //   logger.info(
-        //     `[PIC] Sem wbot para buscar foto de ${contact.number}, mantendo estado atual`
-        //   );
-        // }
-        // Se fileExistsAndValid === true: arquivo já existe em disco, não precisa rebaixar
-
         // 🔥 REFACTORED: Busca de foto em BACKGROUND (fire-and-forget)
-        if (wbot && currentPicIsInvalid) {
+        // Só busca a URL se ela NÃO veio no payload — caso contrário o bloco
+        // updateImage/PIC-ASYNC abaixo já faz o download do mesmo arquivo.
+        // Sem isso, as duas IIFEs escrevem em ${contact.id}.jpeg e chamam
+        // contact.save() na mesma instância Sequelize em paralelo.
+        const willDownloadViaUpdateImage =
+          updateImage && profilePicUrl && !profilePicUrl.includes("nopicture");
+
+        if (wbot && currentPicIsInvalid && !willDownloadViaUpdateImage) {
           const targetJid = contact.remoteJid || fallbackRemoteJid;
           logger.info(
             `[PIC-BG] 🚀 Disparando busca de foto em background para JID: ${targetJid}`
@@ -694,25 +644,22 @@ const CreateOrUpdateContactService = async ({
           filename = `${contact.id}.jpeg`;
           const filePath = join(folder, filename);
 
-          if (fs.existsSync(filePath) && contact.urlPicture === filename) {
-            // Arquivo já existe e é o mesmo, não precisa baixar novamente
+          if (
+            fs.existsSync(filePath) &&
+            contact.getDataValue("urlPicture") === filename
+          ) {
             updateImage = false;
           } else {
-            // Remove arquivo antigo se existir e for diferente
+            const oldPic = contact.getDataValue("urlPicture") as string | null;
+            const oldBaseName = oldPic?.replace(/\\/g, "/").split("/").pop();
             if (
-              !isNil(contact.urlPicture) &&
-              contact.urlPicture !== filename &&
-              !contact.urlPicture.includes("nopicture")
+              oldBaseName &&
+              oldBaseName !== filename &&
+              !oldBaseName.includes("nopicture")
             ) {
-              const oldBaseName = contact.urlPicture
-                .replace(/\\/g, "/")
-                .split("/")
-                .pop();
-              if (oldBaseName) {
-                const oldFileName = path.join(folder, oldBaseName);
-                if (fs.existsSync(oldFileName)) {
-                  fs.unlinkSync(oldFileName);
-                }
+              const oldFileName = path.join(folder, oldBaseName);
+              if (fs.existsSync(oldFileName)) {
+                fs.unlinkSync(oldFileName);
               }
             }
 
@@ -774,11 +721,7 @@ const CreateOrUpdateContactService = async ({
         }
 
         if (updateImage || isNil(contact.urlPicture)) {
-          // setDataValue é necessário pois urlPicture é um getter Sequelize
-          // sem setter — contact.update({ urlPicture }) não persiste
-          // silenciosamente (mesmo padrão corrigido em ForceProfilePicRefresh.ts)
           contact.setDataValue("urlPicture", filename);
-          contact.setDataValue("profilePicUrl", filename);
           contact.setDataValue("pictureUpdated", true);
           await contact.save();
           await contact.reload();

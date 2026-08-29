@@ -69,7 +69,9 @@ const useStyles = makeStyles((theme) => ({
   emojiPickerFullOverride: {
     "& .emoji-mart": {
       width: "100% !important",
-      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
+      backgroundColor: `${
+        theme.mode === "dark" ? "#202c33" : theme.palette.background.paper
+      } !important`,
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
       color: `${theme.palette.text.primary} !important`,
 
@@ -80,15 +82,21 @@ const useStyles = makeStyles((theme) => ({
     },
     "& .emoji-mart-bar": {
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
-      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
+      backgroundColor: `${
+        theme.mode === "dark" ? "#202c33" : theme.palette.background.paper
+      } !important`,
     },
     "& .emoji-mart-search input": {
-      backgroundColor: `${theme.mode === "dark" ? "#2d3b43" : "#f2f2f2"} !important`,
+      backgroundColor: `${
+        theme.mode === "dark" ? "#2d3b43" : "#f2f2f2"
+      } !important`,
       color: `${theme.palette.text.primary} !important`,
       borderColor: `${theme.mode === "dark" ? "#444" : "#d9d9d9"} !important`,
     },
     "& .emoji-mart-category-label span": {
-      backgroundColor: `${theme.mode === "dark" ? "#202c33" : theme.palette.background.paper} !important`,
+      backgroundColor: `${
+        theme.mode === "dark" ? "#202c33" : theme.palette.background.paper
+      } !important`,
       color: `${theme.mode === "dark" ? "#aaa" : "#888"} !important`,
     },
     "& .emoji-mart-emoji span": {
@@ -800,27 +808,20 @@ const useStyles = makeStyles((theme) => ({
 const reducer = (state, action) => {
   if (action.type === "LOAD_MESSAGES") {
     const messages = action.payload;
+    const stateById = new Map(state.map((m, i) => [m.id, i]));
+    const nextState = state.slice();
     const newMessages = [];
 
-    console.log("📦 [LOAD_MESSAGES]", {
-      incoming: messages.length,
-      currentState: state.length,
-      firstMsg: messages[0]?.id,
-      lastMsg: messages[messages.length - 1]?.id,
-      firstCreatedAt: messages[0]?.createdAt,
-      lastCreatedAt: messages[messages.length - 1]?.createdAt,
-    });
-
     messages.forEach((message) => {
-      const messageIndex = state.findIndex((m) => m.id === message.id);
-      if (messageIndex !== -1) {
-        state[messageIndex] = message;
+      const idx = stateById.get(message.id);
+      if (idx !== undefined) {
+        nextState[idx] = message;
       } else {
         newMessages.push(message);
       }
     });
 
-    return [...newMessages, ...state];
+    return [...newMessages, ...nextState];
   }
 
   if (action.type === "ADD_MESSAGE") {
@@ -851,7 +852,7 @@ const reducer = (state, action) => {
         m.fromMe &&
         !m.mediaUrl &&
         !m._isMediaOptimistic &&
-        m.body === newMessage.body,
+        m.body === newMessage.body
     );
     if (tempTextIndex !== -1) {
       const updated = [...state];
@@ -866,7 +867,7 @@ const reducer = (state, action) => {
           String(m.id).startsWith("temp-") &&
           m.fromMe &&
           m._isMediaOptimistic === true &&
-          m.mediaType === newMessage.mediaType,
+          m.mediaType === newMessage.mediaType
       );
       if (tempMediaIndex !== -1) {
         const updated = [...state];
@@ -918,7 +919,7 @@ const reducer = (state, action) => {
         : [];
 
       const filtered = reactions.filter(
-        (r) => String(r.userId) !== String(reaction.userId),
+        (r) => String(r.userId) !== String(reaction.userId)
       );
 
       if (!reaction.emoji) {
@@ -930,10 +931,31 @@ const reducer = (state, action) => {
   }
 
   if (action.type === "RESET") {
-    console.log("🔴 [RESET] state tinha:", state.length, "mensagens");
     return [];
   }
 };
+
+// Comparação de props do balão memoizado. Reação/edição/exclusão criam um novo
+// objeto `message` (o reducer preserva a referência das mensagens inalteradas),
+// então basta comparar por referência + os escalares que afetam o render.
+const messageBubblePropsAreEqual = (prev, next) =>
+  prev.message === next.message &&
+  prev.imgWidth === next.imgWidth &&
+  prev.imgRatio === next.imgRatio &&
+  prev.isGroup === next.isGroup &&
+  prev.ticketStatus === next.ticketStatus &&
+  prev.channel === next.channel &&
+  prev.showSelectMessageCheckbox === next.showSelectMessageCheckbox &&
+  prev.lgpdDeleteMessage === next.lgpdDeleteMessage &&
+  prev.themeMode === next.themeMode &&
+  prev.user === next.user;
+
+// Envolve o JSX de cada mensagem num limite de memo. `render` é recriado a cada
+// render do pai mas é ignorado na comparação — só re-renderiza quando os dados
+// da mensagem (ou os escalares comparados) mudam de fato.
+const MessageBubble = React.memo(function MessageBubble({ render }) {
+  return render();
+}, messageBubblePropsAreEqual);
 
 const MessagesList = ({
   isGroup,
@@ -995,7 +1017,7 @@ const MessagesList = ({
   const companyId = user.companyId;
   const lastReadRef = useRef(null);
   const [isTabActive, setIsTabActive] = useState(
-    document.visibilityState === "visible",
+    document.visibilityState === "visible"
   );
 
   const isSticker = (msg) =>
@@ -1069,7 +1091,6 @@ const MessagesList = ({
   }, []);
 
   useEffect(() => {
-    console.log("🔄 [RESET EFFECT] ticketId mudou para:", ticketId);
     pageNumberRef.current = 1; // síncrono, imediato
     setPageNumber(1); // para forçar re-render
     dispatch({ type: "RESET" });
@@ -1091,7 +1112,6 @@ const MessagesList = ({
   const loadingTicketRef = useRef(null);
 
   useEffect(() => {
-    console.log("🔄 [RESET EFFECT] ticketId mudou para:", ticketId);
     dispatch({ type: "RESET" });
     setPageNumber(1);
     setHasMore(false);
@@ -1108,7 +1128,7 @@ const MessagesList = ({
         "⚠️ [LOAD BLOQUEADO] ticketId stale:",
         ticketId,
         "esperado:",
-        loadingTicketRef.current,
+        loadingTicketRef.current
       );
       return;
     }
@@ -1152,22 +1172,10 @@ const MessagesList = ({
           // 🔥 GUARDA PÓS-FETCH: ticket pode ter mudado durante o await
           if (loadingTicketRef.current !== ticketId) {
             console.warn(
-              "⚠️ [LOAD DESCARTADO pós-fetch] ticket mudou durante request",
+              "⚠️ [LOAD DESCARTADO pós-fetch] ticket mudou durante request"
             );
             return;
           }
-
-          console.log(
-            "✅ [LOAD OK] pageNumber:",
-            pageNumber,
-            "msgs recebidas:",
-            data.messages.length,
-            {
-              hasMore: data.hasMore,
-              firstMsg: data.messages[0]?.createdAt,
-              lastMsg: data.messages[data.messages.length - 1]?.createdAt,
-            },
-          );
 
           dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
           if (pageNumber === 1) {
@@ -1190,7 +1198,7 @@ const MessagesList = ({
           toastError(err);
         }
       },
-      pageNumber === 1 ? 0 : 300,
+      pageNumber === 1 ? 0 : 300
     );
 
     return () => {
@@ -1223,7 +1231,7 @@ const MessagesList = ({
           clearTimeout(presenceTimeoutRef.current);
           presenceTimeoutRef.current = setTimeout(
             () => setContactPresence({ status: null, memberName: null }),
-            10_000,
+            10_000
           );
           scrollToBottom();
         } else {
@@ -1300,8 +1308,6 @@ const MessagesList = ({
 
     socket.on("connect", connectEventMessagesList);
     socket.on(eventAppMessage, onAppMessageMessagesList);
-
-    console.log("teste");
 
     if (socket.connected) {
       connectEventMessagesList();
@@ -1420,7 +1426,6 @@ const MessagesList = ({
     setLoadingMore(true);
     setPageNumber((prevPageNumber) => prevPageNumber + 1);
   };
-  console.log("teste");
 
   const isAtBottom = () => {
     const el = document.getElementById("messagesList");
@@ -1430,19 +1435,12 @@ const MessagesList = ({
   };
 
   const scrollToBottom = () => {
-    console.log(
-      "⬇️ [scrollToBottom] chamado, lastMessageRef existe?",
-      !!lastMessageRef.current,
-    );
     setTimeout(() => {
       if (lastMessageRef.current) {
-        console.log("⬇️ [scrollToBottom] executando scrollIntoView");
         lastMessageRef.current.scrollIntoView({});
       }
     }, 100);
   };
-
-  // console.log("teste");
 
   const handleScroll = (e) => {
     if (!hasMore) return;
@@ -1474,7 +1472,7 @@ const MessagesList = ({
   const handleOpenMessageOptionsMenu = (e, message) => {
     // Busca o balão como âncora estável, igual ao reactionBar
     const balloonEl = document.querySelector(
-      `[data-message-id="${message.id}"]`,
+      `[data-message-id="${message.id}"]`
     );
 
     setAnchorEl(balloonEl || e.currentTarget);
@@ -1490,11 +1488,10 @@ const MessagesList = ({
         toastError("Aceite o ticket para enviar reações.");
         return;
       }
-      console.log(`clickeEmoji:${clickedEmoji}`);
 
       const myReaction = Array.isArray(message?.reactions)
         ? message.reactions.find(
-            (r) => r.userId === user.id || r.user?.id === user.id,
+            (r) => r.userId === user.id || r.user?.id === user.id
           )
         : null;
 
@@ -1534,21 +1531,13 @@ const MessagesList = ({
     if (message.mediaUrl) {
       const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm"];
       return audioExtensions.some((ext) =>
-        message.mediaUrl.toLowerCase().includes(ext),
+        message.mediaUrl.toLowerCase().includes(ext)
       );
     }
     return false;
   };
 
   const checkMessageMedia = (message) => {
-    if (process.env.NODE_ENV === "development") {
-      // console.log(
-      //   "checkMessageMedia:",
-      //   message.id,
-      //   "mediaType:",
-      //   message.mediaType,
-      // );
-    }
     // 🔥 Mensagem otimista de mídia: exibe placeholder animado enquanto aguarda
     if (message._isMediaOptimistic) {
       return (
@@ -1569,10 +1558,6 @@ const MessagesList = ({
 
     const isAudioMessage = (message) => {
       if (message.mediaType === "audio") {
-        console.log(
-          "🎵 Detectado como áudio pelo mediaType:",
-          message.mediaType,
-        );
         return true;
       }
       if (message.mediaUrl) {
@@ -1586,10 +1571,9 @@ const MessagesList = ({
         ];
         const url = message.mediaUrl.toLowerCase();
         const hasAudioExtension = audioExtensions.some((ext) =>
-          url.includes(ext),
+          url.includes(ext)
         );
         if (hasAudioExtension) {
-          console.log("🎵 Detectado como áudio pela URL:", url);
           return true;
         }
       }
@@ -1602,7 +1586,6 @@ const MessagesList = ({
           body.includes("arquivo de áudio") ||
           body.includes("mensagem de voz");
         if (isAudioBody) {
-          console.log("🎵 Detectado como áudio pelo body:", body);
           return true;
         }
       }
@@ -1653,7 +1636,6 @@ const MessagesList = ({
         />
       );
     } else if (message.mediaType === "adMetaPreview") {
-      console.log("Entrou no MetaPreview");
       let [image, sourceUrl, title, body, messageUser] =
         message.body.split("|");
       if (!messageUser || messageUser.trim() === "") {
@@ -1670,7 +1652,6 @@ const MessagesList = ({
         />
       );
     } else if (isPdfUrl(message.mediaUrl, message.body, message.mediaType)) {
-      console.log("📄 Renderizando como documento/PDF:", message.id);
       const pdfInfo = extractPdfInfoFromMessage(message);
       return (
         <PdfPreview
@@ -1679,13 +1660,11 @@ const MessagesList = ({
           size={pdfInfo.size}
           mediaType={pdfInfo.mediaType}
           onDownload={(url, name) => {
-            console.log("📥 Download PDF solicitado:", { url, name });
             downloadPdf(url, name);
           }}
         />
       );
     } else if (isAudioMessage(message)) {
-      console.log("🎵 Renderizando como áudio:", message.id);
       return (
         <div
           style={{
@@ -1727,8 +1706,6 @@ const MessagesList = ({
         </div>
       );
     } else if (message.mediaType === "image") {
-      if (process.env.NODE_ENV === "development")
-        console.log("🖼️ Renderizando como imagem");
       // Verifica se tem legenda
       const hasCaption =
         message.body &&
@@ -1757,11 +1734,8 @@ const MessagesList = ({
         />
       );
     } else if (message.mediaType === "video") {
-      if (process.env.NODE_ENV === "development")
-        console.log("🎥 Renderizando como vídeo");
       return <ModalVideoCors videoUrl={message.mediaUrl} message={message} />;
     } else if (message.mediaUrl) {
-      console.log("📎 Renderizando como download genérico");
       return (
         <>
           <div className={classes.downloadMedia}>
@@ -1841,17 +1815,6 @@ const MessagesList = ({
         );
       }
     } else if (index === messagesList.length - 1) {
-      console.log(
-        "📌 [lastMessageRef] atribuído à msg index:",
-        index,
-        "id:",
-        message.id,
-        "createdAt:",
-        message.createdAt,
-        "total msgs:",
-        messagesList.length,
-      );
-
       return (
         <div
           key={`ref-${message.id}`}
@@ -2073,10 +2036,10 @@ const MessagesList = ({
 
     // Agrupa por emoji mantendo ordem: minhas reações primeiro
     const myReactions = message.reactions.filter(
-      (r) => String(r.userId) === String(user.id),
+      (r) => String(r.userId) === String(user.id)
     );
     const contactReactions = message.reactions.filter(
-      (r) => String(r.userId) !== String(user.id),
+      (r) => String(r.userId) !== String(user.id)
     );
     const orderedReactions = [...myReactions, ...contactReactions];
     const total = orderedReactions.length;
@@ -2100,7 +2063,9 @@ const MessagesList = ({
           height: "24px",
           padding: "0 4px",
           cursor: "pointer",
-          border: `1px solid ${theme.mode === "dark" ? "rgb(22, 23, 23)" : "rgb(245, 241, 235)"}`,
+          border: `1px solid ${
+            theme.mode === "dark" ? "rgb(22, 23, 23)" : "rgb(245, 241, 235)"
+          }`,
           boxShadow:
             "rgba(0, 0, 0, 0.07) 0px 1px 0px 0px, rgba(0, 0, 0, 0.04) 0px 0px 3px 0px",
           userSelect: "none",
@@ -2203,8 +2168,8 @@ const MessagesList = ({
                     ? "105px"
                     : "62px" // Right: mais espaço
                   : message.isEdited
-                    ? "80px"
-                    : "40px",
+                  ? "80px"
+                  : "40px",
               }}
             >
               {xmlRegex.test(message.body) ? (
@@ -2232,8 +2197,8 @@ const MessagesList = ({
                     ? "rgba(255,255,255,0.6)" // Branco translúcido no dark mode
                     : "rgba(0,0,0,0.6)" // Preto translúcido no light mode
                   : theme.mode === "dark"
-                    ? "rgba(255,255,255,0.5)" // Branco mais sutil para recebidas no dark
-                    : "#999", // Cinza para recebidas no light
+                  ? "rgba(255,255,255,0.5)" // Branco mais sutil para recebidas no dark
+                  : "#999", // Cinza para recebidas no light
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
                 zIndex: 10,
@@ -2262,6 +2227,18 @@ const MessagesList = ({
               {renderDailyTimestamps(message, index)}
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
+              <MessageBubble
+                message={message}
+                imgWidth={imageDimensions[message.id]}
+                imgRatio={imageDimensions[`${message.id}_ratio`]}
+                isGroup={isGroup}
+                ticketStatus={ticketStatus}
+                channel={channel}
+                showSelectMessageCheckbox={showSelectMessageCheckbox}
+                lgpdDeleteMessage={lgpdDeleteMessage}
+                themeMode={theme.mode}
+                user={user}
+                render={() => (
               <div className={classes.messageCenter}>
                 <IconButton
                   variant="contained"
@@ -2296,6 +2273,8 @@ const MessagesList = ({
                   </span>
                 </div>
               </div>
+                )}
+              />
             </React.Fragment>
           );
         }
@@ -2317,6 +2296,18 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
 
+              <MessageBubble
+                message={message}
+                imgWidth={imageDimensions[message.id]}
+                imgRatio={imageDimensions[`${message.id}_ratio`]}
+                isGroup={isGroup}
+                ticketStatus={ticketStatus}
+                channel={channel}
+                showSelectMessageCheckbox={showSelectMessageCheckbox}
+                lgpdDeleteMessage={lgpdDeleteMessage}
+                themeMode={theme.mode}
+                user={user}
+                render={() => (
               <div
                 className={classes.messageWrapper}
                 style={{ justifyContent: "flex-start" }}
@@ -2336,8 +2327,8 @@ const MessagesList = ({
                       message.body?.length <= 3
                         ? "40px"
                         : message.body?.length <= 10
-                          ? "60px"
-                          : "100px",
+                        ? "60px"
+                        : "100px",
                     ...(isStickerOnly
                       ? {
                           backgroundColor: "transparent",
@@ -2457,12 +2448,32 @@ const MessagesList = ({
                   {isStickerOnly && (
                     <>
                       {!message.fromMe && message.mediaUrl && (
-                        <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: 4, paddingBottom: 2 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            paddingRight: 4,
+                            paddingBottom: 2,
+                          }}
+                        >
                           <span
-                            onClick={() => saveStickerFromMessage(message.mediaUrl)}
-                            style={{ fontSize: 11, cursor: "pointer", color: "#00a884", backgroundColor: "rgba(0,168,132,0.1)", borderRadius: 12, padding: "2px 8px", fontWeight: 600, userSelect: "none" }}
+                            onClick={() =>
+                              saveStickerFromMessage(message.mediaUrl)
+                            }
+                            style={{
+                              fontSize: 11,
+                              cursor: "pointer",
+                              color: "#00a884",
+                              backgroundColor: "rgba(0,168,132,0.1)",
+                              borderRadius: 12,
+                              padding: "2px 8px",
+                              fontWeight: 600,
+                              userSelect: "none",
+                            }}
                             title="Salvar figurinha na sua galeria"
-                          >🔖 Salvar</span>
+                          >
+                            🔖 Salvar
+                          </span>
                         </div>
                       )}
                       <div
@@ -2598,6 +2609,8 @@ const MessagesList = ({
                     </div>
                   )}
               </div>
+                )}
+              />
             </React.Fragment>
           );
         } else {
@@ -2617,6 +2630,18 @@ const MessagesList = ({
               {renderTicketsSeparator(message, index)}
               {renderMessageDivider(message, index)}
 
+              <MessageBubble
+                message={message}
+                imgWidth={imageDimensions[message.id]}
+                imgRatio={imageDimensions[`${message.id}_ratio`]}
+                isGroup={isGroup}
+                ticketStatus={ticketStatus}
+                channel={channel}
+                showSelectMessageCheckbox={showSelectMessageCheckbox}
+                lgpdDeleteMessage={lgpdDeleteMessage}
+                themeMode={theme.mode}
+                user={user}
+                render={() => (
               <div
                 className={classes.messageWrapper}
                 style={{ justifyContent: "flex-end" }}
@@ -2699,7 +2724,7 @@ const MessagesList = ({
                     {
                       [classes.messageWithReaction]:
                         message.reactions && message.reactions.length > 0,
-                    },
+                    }
                   )}
                   title={message.queueId && message.queue?.name}
                   onDoubleClick={(e) => hanldeReplyMessage(e, message)}
@@ -2887,6 +2912,8 @@ const MessagesList = ({
                     </div>
                   )}
               </div>
+                )}
+              />
             </React.Fragment>
           );
         }
@@ -2959,7 +2986,7 @@ const MessagesList = ({
 
           const myReaction =
             reactionMessage?.reactions?.find(
-              (r) => r.userId === user.id || r.user?.id === user.id,
+              (r) => r.userId === user.id || r.user?.id === user.id
             ) || null;
 
           const myEmoji = myReaction?.emoji || null;
@@ -2979,7 +3006,9 @@ const MessagesList = ({
                 return (
                   <span
                     key={emoji}
-                    className={`${classes.reactionEmoji} ${isActive ? classes.reactionEmojiActive : ""}`}
+                    className={`${classes.reactionEmoji} ${
+                      isActive ? classes.reactionEmojiActive : ""
+                    }`}
                     style={{
                       fontFamily:
                         '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
@@ -2999,7 +3028,7 @@ const MessagesList = ({
                   if (!reactionBar) return;
 
                   const reactionMessage = messagesList.find(
-                    (m) => m.id === reactionBar.messageId,
+                    (m) => m.id === reactionBar.messageId
                   );
 
                   setReactionPicker({

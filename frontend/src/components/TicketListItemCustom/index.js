@@ -315,7 +315,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
         //verificar se tem uma tag
         try {
           const contactTags = await api.get(
-            `/contactTags/${ticket.contact.id}`,
+            `/contactTags/${ticket.contact.id}`
           );
           if (!contactTags.data.tags) {
             toast.warning(i18n.t("messagesList.header.buttons.requiredTag"));
@@ -476,7 +476,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     }
     if (!setting.greetingAcceptedMessage) {
       toast.warning(
-        i18n.t("messagesList.header.buttons.greetingAcceptedMessage"),
+        i18n.t("messagesList.header.buttons.greetingAcceptedMessage")
       );
       return;
     }
@@ -508,7 +508,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
   const handleUpdateTicketStatusWithData = async (
     ticketData,
     sendFarewellMessage,
-    finalizacaoMessage,
+    finalizacaoMessage
   ) => {
     try {
       await api.put(`/tickets/${ticket.id}`, {
@@ -540,7 +540,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       "ticket.mediaType:",
       ticket.mediaType,
       "lastMessage:",
-      ticket.lastMessage,
+      ticket.lastMessage
     );
 
     if (ticket.presence === "typing") {
@@ -581,17 +581,17 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       const videoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
 
       const isImagePreview = imageExtensions.some((ext) =>
-        messagePreview?.toLowerCase().endsWith(ext),
+        messagePreview?.toLowerCase().endsWith(ext)
       );
 
       const isAudioPreview =
         audioExtensions.some((ext) =>
-          messagePreview?.toLowerCase().endsWith(ext),
+          messagePreview?.toLowerCase().endsWith(ext)
         ) || ["ptt", "audio", "áudio"].includes(messagePreview?.toLowerCase());
 
       const isVideoPreview =
         videoExtensions.some((ext) =>
-          messagePreview?.toLowerCase().endsWith(ext),
+          messagePreview?.toLowerCase().endsWith(ext)
         ) || ["video", "vídeo"].includes(messagePreview?.toLowerCase());
 
       const StickerIcon = () => (
@@ -747,12 +747,12 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     const isImageMessage =
       ticket.mediaType === "image" ||
       imageExtensions.some((ext) =>
-        ticket.lastMessage?.toLowerCase().endsWith(ext),
+        ticket.lastMessage?.toLowerCase().endsWith(ext)
       );
 
     if (isImageMessage) {
       const isFilename = imageExtensions.some((ext) =>
-        ticket.lastMessage?.toLowerCase().endsWith(ext),
+        ticket.lastMessage?.toLowerCase().endsWith(ext)
       );
 
       return (
@@ -780,7 +780,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
     const isVideoMessage =
       ticket.mediaType === "video" ||
       videoExtensions.some((ext) =>
-        ticket.lastMessage?.toLowerCase().endsWith(ext),
+        ticket.lastMessage?.toLowerCase().endsWith(ext)
       );
 
     if (isVideoMessage) {
@@ -816,7 +816,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
       ticket.lastMessage === "Áudio" ||
       ticket.lastMessage === "ptt" ||
       audioExtensionsList.some((ext) =>
-        ticket.lastMessage?.toLowerCase().endsWith(ext),
+        ticket.lastMessage?.toLowerCase().endsWith(ext)
       );
 
     if (isAudioMessage) {
@@ -960,8 +960,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                           ticket.channel === "whatsapp"
                             ? ticket.whatsapp?.color || "#25D366"
                             : ticket.channel === "facebook"
-                              ? "#4267B2"
-                              : "#E1306C",
+                            ? "#4267B2"
+                            : "#E1306C",
                       }}
                     >
                       {ticket.whatsapp?.name.toUpperCase()}
@@ -979,8 +979,8 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                       {ticket.queueId
                         ? ticket.queue?.name.toUpperCase()
                         : ticket.status === "lgpd"
-                          ? "LGPD"
-                          : `${i18n.t("momentsUser.noqueue")}`}
+                        ? "LGPD"
+                        : `${i18n.t("momentsUser.noqueue")}`}
                     </Badge>
                   }
                   {ticket?.user && (
@@ -1306,7 +1306,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   false,
-                  null,
+                  null
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}
@@ -1319,7 +1319,7 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
                 await handleUpdateTicketStatusWithData(
                   ticketDataToFinalize,
                   true,
-                  null,
+                  null
                 );
               }}
               style={{ background: theme.palette.primary.main, color: "white" }}
@@ -1342,7 +1342,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
           {ticket?.contact?.urlPicture &&
           !ticket.contact.urlPicture.includes("nopicture") ? (
             <img
-              src={`${ticket.contact.urlPicture}?t=${ticket.contact._picCachedBust || Date.now()}`}
+              src={`${ticket.contact.urlPicture}?t=${
+                ticket.contact._picCachedBust || Date.now()
+              }`}
               alt={ticket?.contact?.name || "Foto do contato"}
               className={classes.expandedImage}
               onError={(e) => {

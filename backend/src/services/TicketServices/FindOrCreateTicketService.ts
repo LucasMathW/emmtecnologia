@@ -11,7 +11,6 @@ import CreateLogTicketService from "./CreateLogTicketService";
 import AppError from "../../errors/AppError";
 import ContactWallet from "../../models/ContactWallet";
 import ShowContactService from "../ContactServices/ShowContactService";
-import logger from "../../utils/logger";
 
 const FindOrCreateTicketService = async (
   contact: Contact,
@@ -28,15 +27,8 @@ const FindOrCreateTicketService = async (
   isTransfered?: boolean,
   isCampaign: boolean = false
 ): Promise<Ticket> => {
-  // try {
-  // let isCreated = false;
-
-  // await new Promise(resolve => setTimeout(resolve, 3000));
-
   let openAsLGPD = false;
   if (settings.enableLGPD) {
-    //adicionar lgpdMessage
-
     openAsLGPD =
       !isCampaign &&
       !isTransfered &&
@@ -46,8 +38,6 @@ const FindOrCreateTicketService = async (
         (settings.lgpdConsent === "disabled" &&
           isNil(contact?.lgpdAcceptedAt)));
   }
-
-  const io = getIO();
 
   const DirectTicketsToWallets = settings.DirectTicketsToWallets;
 
@@ -90,28 +80,14 @@ const FindOrCreateTicketService = async (
         queueId: queueId !== ticket.queueId ? ticket.queueId : queueId
       });
     } else {
-      console.log(
-        "SOMA que será aplicada:",
-        ticket.unreadMessages + unreadMessages
-      );
-      // const newUnreadCount = ticket.unreadMessages + unreadMessages;
+      console.log("Unread count (INCR do Redis):", unreadMessages);
+
       const newUnreadCount = unreadMessages;
 
       const updateData: any = {
         unreadMessages: newUnreadCount,
-        isBot: false
+        isBot: ticket.isBot
       };
-
-      // ✅ CORRIGIDO: Preservar modo IA permanente
-      const dataWebhook = ticket.dataWebhook as any;
-      const isAIPermanentMode =
-        dataWebhook?.type === "openai" || dataWebhook?.type === "gemini";
-      if (isAIPermanentMode && dataWebhook?.mode === "permanent") {
-        updateData.isBot = true; // Manter isBot = true para IA permanente
-        logger.info(
-          `[AI PERMANENT] Preservando modo IA permanente para ticket ${ticket.id}`
-        );
-      }
 
       if (
         !["open", "pending", "chatbot", "nps", "group"].includes(ticket.status)

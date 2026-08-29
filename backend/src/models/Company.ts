@@ -175,7 +175,6 @@ class Company extends Model<Company> {
     hooks: true
   })
   birthdaySettings: BirthdaySettings[];
-
 }
 
 export default Company;
