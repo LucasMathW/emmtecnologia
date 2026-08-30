@@ -96,8 +96,8 @@ const useStyles = makeStyles((theme) => ({
   },
   stickerBtn: {
     width: "100%",
-    height: 90,
-    padding: 6,
+    aspectRatio: "1 / 1",
+    padding: 4,
     borderRadius: 12,
     backgroundColor: theme.mode === "light" ? "#f0f2f5" : "rgba(255,255,255,0.06)",
     transition: "transform 0.15s, background-color 0.15s",
@@ -107,8 +107,8 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   imageSticker: {
-    width: 90,
-    height: 90,
+    width: "100%",
+    height: "100%",
     objectFit: "contain",
   },
   deleteRecentBtn: {
@@ -248,7 +248,9 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
       try {
         const response = await fetch(url, { credentials: "include" });
         const blob = await response.blob();
-        const file = new File([blob], "sticker.webp", { type: "image/webp" });
+        const mimeType = blob.type || "image/webp";
+        const ext = mimeType.split("/")[1] || "webp";
+        const file = new File([blob], `sticker.${ext}`, { type: mimeType });
         registerRecent(url);
         await onSend({ type: "sticker", file });
       } catch (err) {
@@ -377,7 +379,7 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     </Typography>
                   </div>
                 ) : (
-                  <Grid container spacing={0.5} className={classes.stickerGridList}>
+                  <Grid container spacing={1} className={classes.stickerGridList}>
                     {recents.map((url, i) => (
                       <Grid item key={`${url}-${i}`} xs={3}>
                         <div className={classes.stickerWrapperRelative}>
@@ -434,7 +436,7 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     </Typography>
                   </div>
                 ) : (
-                  <Grid container spacing={0.5} className={classes.stickerGridList}>
+                  <Grid container spacing={1} className={classes.stickerGridList}>
                     {savedStickers.map((sticker) => (
                       <Grid item key={sticker.id} xs={3}>
                         <div className={classes.stickerWrapperRelative}>
@@ -501,7 +503,7 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
                     >
                       Recentes
                     </Typography>
-                    <Grid container spacing={0.5} className={classes.stickerGridList}>
+                    <Grid container spacing={1} className={classes.stickerGridList}>
                       {recents.slice(0, 8).map((url, i) => (
                         <Grid item key={`${url}-${i}`} xs={3}>
                           <IconButton

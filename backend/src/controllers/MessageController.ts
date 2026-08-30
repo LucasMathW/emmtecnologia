@@ -481,7 +481,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
             media: null,
             template: templateData
           });
-          return res.send();
+          return res.status(204).send();
         }
 
         // Regras Meta: fora da janela 24h ou primeira interação -> exige template
@@ -550,7 +550,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
                 media: null,
                 template: templateData
               });
-              return res.send();
+              return res.status(204).send();
             }
           }
           await SendWhatsAppOficialMessage({
@@ -821,7 +821,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
         }
       }
     }
-    return res.send();
+    return res.status(204).send();
   } catch (error) {
     const errorMessage = error?.message || String(error) || "Erro desconhecido";
     console.error("❌ Erro no envio:", errorMessage);
@@ -980,7 +980,7 @@ export const forwardMessage = async (
     }
   }
 
-  return res.send();
+  return res.status(204).send();
 };
 
 export const remove = async (
@@ -1014,7 +1014,7 @@ export const remove = async (
       message
     });
 
-  return res.send();
+  return res.status(204).send();
 };
 
 export const allMe = async (req: Request, res: Response): Promise<Response> => {
@@ -1129,7 +1129,7 @@ export const edit = async (req: Request, res: Response): Promise<Response> => {
       action: "update",
       ticket
     });
-  return res.send();
+  return res.status(204).send();
 };
 
 export const storeTemplate = async (
@@ -1382,7 +1382,7 @@ export const sendPresence = async (
   const ticket = await ShowTicketService(ticketId, companyId);
 
   if (!ticket.whatsappId || ticket.channel !== "whatsapp") {
-    return res.send();
+    return res.status(204).send();
   }
 
   try {
@@ -1391,5 +1391,5 @@ export const sendPresence = async (
     logger.warn(`[PRESENCE-SEND] Erro: ${e.message}`);
   }
 
-  return res.send();
+  return res.status(204).send();
 };
