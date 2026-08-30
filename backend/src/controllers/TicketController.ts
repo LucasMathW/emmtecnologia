@@ -719,5 +719,5 @@ export const markAsRead = async (
     unreadMessages: 0
   });
 
-  return res.send();
+  return res.status(204).send();
 };

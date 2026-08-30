@@ -15,7 +15,7 @@ const convertToSticker = async (inputFile: string): Promise<string> => {
   const parsed = path.parse(inputFile);
   const outputFile = path.join(parsed.dir, `${parsed.name}-${Date.now()}.webp`);
 
-  await sharp(inputFile)
+  await sharp(inputFile, { animated: true })
     .resize(512, 512, {
       fit: 'inside',
       withoutEnlargement: true
