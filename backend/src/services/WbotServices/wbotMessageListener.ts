@@ -539,7 +539,7 @@ const getContactMessage = async (msg: WAMessageSafe, wbot: Session, companyId?: 
       }
     : {
         id: remoteJid,
-        name: msg.key.fromMe ? rawNumber : msg.pushName,
+        name: msg.key.fromMe ? "" : msg.pushName,
         lid: lid
       };
 };
