@@ -479,7 +479,7 @@ const normalizeContactIdentifier = (msg: WAMessageSafe): string => {
   return normalizeJid(msg.key.sender_lid || msg.key.remoteJid);
 };
 
-const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
+const getContactMessage = async (msg: WAMessageSafe, wbot: Session, companyId?: number) => {
   const key: IExtendedMessageKey = msg.key;
 
   const isGroup = msg.key.remoteJid.includes("g.us");
@@ -500,11 +500,33 @@ const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
       ? key.participant_pn
       : null;
   // console.log("[LUCAS MATHEUS] senderPn", senderPn);
-  const remoteJid = !key.remoteJid.includes("@lid")
-    ? key.remoteJid
-    : key.remoteJid.includes("@lid") && senderPn !== null
-    ? senderPn
-    : lid;
+  let remoteJid: string;
+  if (!key.remoteJid.includes("@lid")) {
+    remoteJid = key.remoteJid;
+  } else if (key.fromMe) {
+    // Para mensagens enviadas pelo bot (fromMe=true) com remoteJid em formato LID,
+    // o campo participant_pn pode conter um número incorreto (ex: ACK de figurinhas).
+    // Buscamos o contato pelo LID no banco para obter o número real.
+    let resolvedJid: string = lid;
+    if (companyId && lid) {
+      const existingContact = await Contact.findOne({
+        where: { lid, companyId }
+      });
+      if (existingContact?.number) {
+        resolvedJid = `${existingContact.number}@s.whatsapp.net`;
+        logger.info(
+          `[LID-FROMME] Contato encontrado pelo LID ${lid} → usando número ${existingContact.number}`
+        );
+      } else {
+        logger.info(
+          `[LID-FROMME] Contato não encontrado pelo LID ${lid} → mantendo LID como identificador`
+        );
+      }
+    }
+    remoteJid = resolvedJid;
+  } else {
+    remoteJid = senderPn !== null ? senderPn : lid;
+  }
   // console.log("[LUCAS MATHEUS] remoteJid", remoteJid);
   // Usa o identificador normalizado que considera o lid
   // const normalizedId = normalizeContactIdentifier(msg);
@@ -4146,7 +4168,7 @@ const handleMessage = async (
         return;
     }
 
-    msgContact = await getContactMessage(msg, wbot);
+    msgContact = await getContactMessage(msg, wbot, companyId);
 
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
 
@@ -5732,7 +5754,7 @@ const verifyCampaignMessageAndCloseTicket = async (
 
   if (message.key.fromMe && isCampaign) {
     let msgContact: IMe;
-    msgContact = await getContactMessage(message, wbot);
+    msgContact = await getContactMessage(message, wbot, companyId);
     const contact = await verifyContact(msgContact, wbot, companyId);
 
     const messageRecord = await Message.findOne({
