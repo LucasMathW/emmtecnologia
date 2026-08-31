@@ -12,7 +12,7 @@ export function getJidOf(reference: string | Contact | Ticket): string {
   if (reference instanceof Contact) {
     isGroup = reference.isGroup;
 
-    if (reference.remoteJid && reference.remoteJid.includes("@")) {
+    if (reference.remoteJid && reference.remoteJid.includes("@") && !reference.remoteJid.includes("@lid")) {
       if (ENABLE_LID_DEBUG) {
         logger.info(`[RDS-LID] getJidOf - Usando remoteJid do contato: ${reference.remoteJid}`);
       }
@@ -23,7 +23,7 @@ export function getJidOf(reference: string | Contact | Ticket): string {
   } else if (reference instanceof Ticket) {
     isGroup = reference.isGroup;
 
-    if (reference.contact?.remoteJid && reference.contact.remoteJid.includes("@")) {
+    if (reference.contact?.remoteJid && reference.contact.remoteJid.includes("@") && !reference.contact.remoteJid.includes("@lid")) {
       if (ENABLE_LID_DEBUG) {
         logger.info(`[RDS-LID] getJidOf - Usando remoteJid do ticket.contact: ${reference.contact.remoteJid}`);
       }
