@@ -546,6 +546,22 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
                 : "";
               wsocket.myJid = normalizedUser;
 
+              // Disable tcToken for profile picture IQs permanently.
+              // Baileys defaults profilePicPrivacyToken=true (AB prop 9666), which causes
+              // buildTcTokenFromJid → getLIDForPN to run before every profilePictureUrl
+              // query for user JIDs. Without a stored tcToken the WA server silently drops
+              // the IQ (no response → 10s timeout → pic=null). Groups work because @g.us
+              // is !isUserJid and skips this block entirely.
+              // We use Object.defineProperty so that Baileys' async fetchProps() (which
+              // fires after this handler and would set it back to true) is silently ignored.
+              if ((wsocket as any).serverProps) {
+                Object.defineProperty((wsocket as any).serverProps, "profilePicPrivacyToken", {
+                  get: () => false,
+                  set: () => { /* intentionally ignored — keep false permanently */ },
+                  configurable: true,
+                });
+              }
+
               console.log("=== DEBUG WHATSAPP CONNECT ===");
               console.log("rawUserId:", rawUserId);
               console.log("normalizedUser:", normalizedUser);

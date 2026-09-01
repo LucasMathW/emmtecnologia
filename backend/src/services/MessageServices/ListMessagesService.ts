@@ -1,11 +1,9 @@
 import AppError from "../../errors/AppError";
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
-import ShowTicketService from "../TicketServices/ShowTicketService";
 import { Op } from "sequelize";
 import { intersection } from "lodash";
 import User from "../../models/User";
-import isQueueIdHistoryBlocked from "../UserServices/isQueueIdHistoryBlocked";
 import Contact from "../../models/Contact";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
@@ -33,7 +31,12 @@ const ListMessagesService = async ({
   queues = [],
   user
 }: Request): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /messages/:ticketId
+  const __perfServiceStart = Date.now();
+  const __origTicketId = ticketId;
+
   if (!isNaN(Number(ticketId))) {
+    const __t_uuid = Date.now();
     const uuid = await Ticket.findOne({
       where: {
         id: ticketId,
@@ -41,22 +44,33 @@ const ListMessagesService = async ({
       },
       attributes: ["uuid"]
     });
+    console.log(
+      `[PERF][ListMessagesService] Ticket.findOne (uuid lookup): ${
+        Date.now() - __t_uuid
+      }ms (ticketId=${__origTicketId})`
+    );
     ticketId = uuid.uuid;
   }
+
+  const __t_ticket = Date.now();
   const ticket = await Ticket.findOne({
     where: {
       uuid: ticketId,
       companyId
     }
   });
+  console.log(
+    `[PERF][ListMessagesService] Ticket.findOne (main ticket): ${
+      Date.now() - __t_ticket
+    }ms (ticketId=${__origTicketId})`
+  );
 
   const ticketsFilter: any[] | null = [];
 
-  const isAllHistoricEnabled = await isQueueIdHistoryBlocked({
-    userRequest: user.id
-  });
+  const isAllHistoricEnabled = user.allHistoric === "enabled";
 
   let ticketIds = [];
+  const __t_siblingTickets = Date.now();
   if (!isAllHistoricEnabled) {
     ticketIds = await Ticket.findAll({
       where: {
@@ -88,6 +102,13 @@ const ListMessagesService = async ({
       attributes: ["id"]
     });
   }
+  console.log(
+    `[PERF][ListMessagesService] Ticket.findAll (tickets irmãos, ${
+      ticketIds.length
+    } encontrados): ${
+      Date.now() - __t_siblingTickets
+    }ms (ticketId=${__origTicketId})`
+  );
 
   if (ticketIds) {
     ticketsFilter.push(ticketIds.map(t => t.id));
@@ -104,6 +125,7 @@ const ListMessagesService = async ({
   const limit = 20;
   const offset = limit * (+pageNumber - 1);
 
+  const __t_messages = Date.now();
   const { count, rows: messages } = await Message.findAndCountAll({
     where: { ticketId: tickets, companyId },
     attributes: [
@@ -182,11 +204,31 @@ const ListMessagesService = async ({
     subQuery: false,
     order: [["createdAt", "DESC"]]
   });
+  console.log(
+    `[PERF][ListMessagesService] Message.findAndCountAll (query principal com 4 JOINs, ${
+      messages.length
+    } mensagens de ${count} total): ${
+      Date.now() - __t_messages
+    }ms (ticketId=${__origTicketId})`
+  );
 
+  const __t_reverse = Date.now();
   const hasMore = count > offset + messages.length;
+  const reversedMessages = messages.reverse();
+  console.log(
+    `[PERF][ListMessagesService] messages.reverse() (processamento JS): ${
+      Date.now() - __t_reverse
+    }ms (ticketId=${__origTicketId})`
+  );
+
+  console.log(
+    `[PERF][ListMessagesService] TOTAL service: ${
+      Date.now() - __perfServiceStart
+    }ms (ticketId=${__origTicketId})`
+  );
 
   return {
-    messages: messages.reverse(),
+    messages: reversedMessages,
     ticket,
     count,
     hasMore

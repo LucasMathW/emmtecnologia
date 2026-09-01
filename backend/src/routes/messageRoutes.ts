@@ -14,7 +14,24 @@ messageRoutes.get("/messages/:ticketId", isAuth, MessageController.index);
 messageRoutes.post(
   "/messages/:ticketId",
   isAuth,
+  // [PERF] instrumentação temporária: mede o tempo do multer (recebimento do
+  // upload + escrita em disco), separado do processamento no controller.
+  (req, _res, next) => {
+    (req as any).__t_upload_start = Date.now();
+    next();
+  },
   upload.array("medias"),
+  (req, _res, next) => {
+    const files = (req.files as Express.Multer.File[]) || [];
+    console.log(
+      `[PERF][messageRoutes] upload.array (multer, recebimento + escrita em disco): ${
+        Date.now() - (req as any).__t_upload_start
+      }ms (${files.length} arquivo(s), ${files
+        .map(f => `${f.originalname}=${f.size}b`)
+        .join(", ")})`
+    );
+    next();
+  },
   MessageController.store
 );
 

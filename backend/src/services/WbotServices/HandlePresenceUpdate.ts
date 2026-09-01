@@ -5,6 +5,7 @@ import Ticket from "../../models/Ticket";
 import Queue from "../../models/Queue";
 import User from "../../models/User";
 import Whatsapp from "../../models/Whatsapp";
+import WhatsappLidMap from "../../models/WhatsapplidMap";
 import { warnLog, debugLog } from "../../utils/logger";
 
 interface PresencePayload {
@@ -109,16 +110,86 @@ export const handlePresenceUpdate = async ({
     if (rawNumber.length === 12)
       numberVariants.push(rawNumber.slice(0, 4) + "9" + rawNumber.slice(4));
 
-    contact = await Contact.findOne({
-      where: {
-        companyId,
-        [Op.or]: [
-          { remoteJid },
-          { lid: remoteJid },
-          { number: { [Op.in]: numberVariants } }
-        ]
+    // [PRESENCE-DEBUG] log de diagnóstico (não altera comportamento) — mostra
+    // exatamente o que chega para o caso individual, antes de qualquer query.
+    // TEMPORÁRIO: console.log puro (em vez de debugLog) só para este
+    // diagnóstico, para garantir que apareça independente de config de log.
+    console.log(
+      `[PRESENCE-DEBUG] fluxo individual | remoteJid: ${remoteJid} | rawNumber: ${rawNumber} | isLidJid: ${remoteJid.endsWith(
+        "@lid"
+      )} | numberVariants: ${JSON.stringify(numberVariants)}`
+    );
+
+    // ─── Resolve @lid → contato real via WhatsappLidMap ───────────────────
+    // Mesmo padrão usado em GetGroupParticipantsService.ts e verifyContact.ts.
+    // O remoteJid da presença pode chegar como "<lid>@lid" (identidade LID do
+    // WhatsApp), mas o ticket ativo está associado ao contato pelo
+    // número/JID tradicional. Sem essa resolução, o Contact.findOne abaixo
+    // pode não achar o contato correto (ou achar um contato "sombra" sem
+    // ticket), e o presence:update nunca chega ao ticket real
+    // (log "[PRESENCE] nenhum ticket ativo" mesmo com ticket aberto).
+    const isLidJid = remoteJid.endsWith("@lid");
+    if (isLidJid) {
+      const lidNumber = rawNumber.replace(/\D/g, "");
+      const lidMap = await WhatsappLidMap.findOne({
+        where: { companyId, lid: lidNumber },
+        include: [{ model: Contact, as: "contact" }]
+      });
+
+      if (lidMap?.contact) {
+        contact = lidMap.contact;
+        // TEMPORÁRIO: console.log puro para este diagnóstico.
+        console.log(
+          `[PRESENCE] @lid resolvido via WhatsappLidMap: ${remoteJid} → contato ${contact.id} (${contact.name})`
+        );
+      } else {
+        // [PRESENCE-DEBUG] diagnóstico: não achou mapeamento em WhatsappLidMap
+        // (contato pode não ter sido sincronizado ainda) — cai no fallback.
+        // TEMPORÁRIO: console.log puro para este diagnóstico.
+        console.log(
+          `[PRESENCE-DEBUG] WhatsappLidMap sem entrada para lid=${lidNumber} (companyId=${companyId}) — tentando fallback Contact.findOne`
+        );
       }
-    });
+    }
+
+    if (!contact) {
+      // ─── Fallback em duas camadas, por prioridade ────────────────────────
+      // Antes, remoteJid/lid/number eram tentados num único Op.or. Quando
+      // duas linhas de Contact existem para a mesma pessoa (ex: um contato
+      // "fantasma" cujo number é, por engano, os dígitos do LID — ver
+      // correção em verifyContact.ts), o Op.or podia casar com QUALQUER uma
+      // das duas, sem preferência — e o Postgres podia devolver a errada.
+      // Agora: primeiro tenta o identificador forte (remoteJid/lid, que só
+      // deveria bater no contato certo); só cai para "number" (mais fraco e
+      // ambíguo — pode ser dígitos de um LID gravados por engano) se a busca
+      // forte não achar nada.
+      contact = await Contact.findOne({
+        where: {
+          companyId,
+          [Op.or]: [{ remoteJid }, { lid: remoteJid }]
+        }
+      });
+
+      if (!contact) {
+        contact = await Contact.findOne({
+          where: {
+            companyId,
+            number: { [Op.in]: numberVariants }
+          }
+        });
+      }
+
+      // [PRESENCE-DEBUG] diagnóstico: mostra se o fallback achou o contato e
+      // qual contactId/número, para comparar com o ticket que deveria bater.
+      // TEMPORÁRIO: console.log puro para este diagnóstico.
+      console.log(
+        `[PRESENCE-DEBUG] fallback Contact.findOne (remoteJid/lid → number) | remoteJid: ${remoteJid} | resultado: ${
+          contact
+            ? `contato ${contact.id} (${contact.name}), number=${contact.number}, lid=${contact.lid}`
+            : "null"
+        }`
+      );
+    }
 
     if (!contact) {
       warnLog(`[PRESENCE] contato não encontrado: ${remoteJid}`);

@@ -64,6 +64,7 @@ import CallHistory from "../models/CallHistory";
 import CompanyKanbanConfig from "../models/CompanyKanbanConfig";
 import MessageApi from "../models/MessageApi";
 import MessageReaction from "../models/MessageReaction";
+import UserSticker from "../models/UserSticker";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -135,7 +136,8 @@ const models = [
   CallHistory,
   CompanyKanbanConfig,
   MessageApi,
-  MessageReaction
+  MessageReaction,
+  UserSticker
 ];
 
 sequelize.addModels(models);

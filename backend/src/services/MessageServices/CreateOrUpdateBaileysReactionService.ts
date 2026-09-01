@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { getIO } from "../../libs/socket";
 import Message from "../../models/Message";
 import MessageReaction from "../../models/MessageReaction";
@@ -6,7 +7,9 @@ import User from "../../models/User";
 import Ticket from "../../models/Ticket";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
+import WhatsappLidMap from "../../models/WhatsapplidMap";
 import { normalizeJid } from "../../utils/";
+import { getJidOf } from "../WbotServices/getJidOf";
 import { WAMessageSafe } from "../../@types/WAMessageSafe";
 import { WbotSession } from "../../@types/WbotSession";
 import cacheLayer from "../../libs/cache";
@@ -24,6 +27,8 @@ interface ParsedReactionPayload {
   normalizedJid: string;
   number: string;
   isFromMe: boolean;
+  isLid: boolean;
+  lidDigits: string | null;
 }
 
 interface ReactionActor {
@@ -60,13 +65,28 @@ const parseReactionPayload = (
   const normalizedJid = normalizeJid(rawJid);
   const number = normalizedJid.replace(/\D/g, "");
 
+  // [FIX-LID-GROUP] Em grupos, o participant de quem reagiu pode chegar
+  // como "<dígitos>@lid" (identidade LID do WhatsApp) em vez do número de
+  // telefone real. normalizeJid() só troca o domínio desse jid (vira
+  // "<dígitos>@s.whatsapp.net"), então `number` acima ainda fica com os
+  // dígitos do LID — que não batem com Contact.number (telefone real).
+  // Guardamos isso aqui, a partir do rawJid original (antes da
+  // normalização), para resolveReactionActor poder buscar o contato via
+  // Contact.lid / WhatsappLidMap em vez de por number.
+  const isLid = rawJid.includes("@lid");
+  const lidDigits = isLid
+    ? rawJid.split("@")[0].split(":")[0].replace(/\D/g, "")
+    : null;
+
   return {
     reactedMsgWid,
     emoji,
     rawJid,
     normalizedJid,
     number,
-    isFromMe: message.key.fromMe
+    isFromMe: message.key.fromMe,
+    isLid,
+    lidDigits
   };
 };
 
@@ -163,7 +183,9 @@ const resolveReactionActor = async ({
   number,
   companyId,
   reactedMsgWid,
-  emoji
+  emoji,
+  isLid,
+  lidDigits
 }: {
   isFromMe: boolean;
   ticketId: number;
@@ -172,6 +194,8 @@ const resolveReactionActor = async ({
   companyId: number;
   reactedMsgWid: string;
   emoji: string;
+  isLid: boolean;
+  lidDigits: string | null;
 }): Promise<ReactionActor | null> => {
   if (isFromMe) {
     const ticket = await Ticket.findByPk(ticketId, {
@@ -223,15 +247,58 @@ const resolveReactionActor = async ({
     };
   }
 
-  const contact = await Contact.findOne({
-    where: { number, companyId }
-  });
+  // [FIX-LID-GROUP] Reator de grupo identificado por @lid: o `number`
+  // (dígitos do LID) não bate com Contact.number (telefone real), então a
+  // reação era descartada aqui (contact === null → actor === null →
+  // CreateOrUpdateBaileysReactionService faz early return). Resolve
+  // primeiro via Contact.lid e WhatsappLidMap — mesmo padrão já usado em
+  // verifyContact.ts / GetGroupParticipantsService.ts — antes de cair no
+  // fallback por number.
+  let contact: Contact | null = null;
+
+  if (isLid && lidDigits) {
+    const lidFullJid = `${lidDigits}@lid`;
+
+    contact = await Contact.findOne({
+      where: {
+        companyId,
+        [Op.or]: [{ lid: lidFullJid }, { lid: lidDigits }]
+      }
+    });
+
+    if (!contact) {
+      const lidMap = await WhatsappLidMap.findOne({
+        where: {
+          companyId,
+          [Op.or]: [{ lid: lidFullJid }, { lid: lidDigits }]
+        },
+        include: [{ model: Contact, as: "contact" }]
+      });
+      contact = lidMap?.contact || null;
+    }
+
+    console.log(
+      contact
+        ? `[REACTION-GROUP-LID] @lid resolvido: ${lidFullJid} → contato ${contact.id} (${contact.name})`
+        : `[REACTION-GROUP-LID] Nenhum contato/WhatsappLidMap encontrado para lid=${lidFullJid} (companyId=${companyId})`
+    );
+  }
+
+  if (!contact) {
+    contact = await Contact.findOne({
+      where: { number, companyId }
+    });
+  }
 
   if (!contact) return null;
 
   return {
     userId: contact.id,
-    fromJid: normalizedJid
+    // Contato resolvido via @lid: usa o JID "de verdade" do contato
+    // (getJidOf prioriza remoteJid válido, senão o number real) em vez do
+    // JID @lid cru, para exibir/gravar a reação com a mesma identidade
+    // usada no fluxo de mensagens individuais.
+    fromJid: isLid ? getJidOf(contact) : normalizedJid
   };
 };
 
@@ -432,7 +499,9 @@ const CreateOrUpdateBaileysReactionService = async ({
     number: parsed.number,
     companyId,
     reactedMsgWid: parsed.reactedMsgWid,
-    emoji: parsed.emoji
+    emoji: parsed.emoji,
+    isLid: parsed.isLid,
+    lidDigits: parsed.lidDigits
   });
 
   if (!actor) return;

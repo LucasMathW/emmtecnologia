@@ -25,8 +25,8 @@ export const initIO = (httpServer: Server): SocketIO => {
       instrument(io, {
         auth: {
           type: "basic",
-          username: adminUser.email,
-          password: adminUser.passwordHash
+          username: adminUser?.email,
+          password: adminUser?.passwordHash
         },
         mode: "development"
       });

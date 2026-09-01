@@ -15,11 +15,20 @@ const ShowWhatsAppService = async (
     include: [
       {
         model: FlowBuilderModel,
+        attributes: ["id", "name", "company_id"]
       },
       {
         model: Queue,
         as: "queues",
-        attributes: ["id", "name", "color", "greetingMessage", "integrationId", "fileListId", "closeTicket"],
+        attributes: [
+          "id",
+          "name",
+          "color",
+          "greetingMessage",
+          "integrationId",
+          "fileListId",
+          "closeTicket"
+        ],
         include: [
           {
             model: Chatbot,
@@ -30,7 +39,7 @@ const ShowWhatsAppService = async (
       },
       {
         model: Prompt,
-        as: "prompt",
+        as: "prompt"
       }
     ],
     order: [
@@ -45,7 +54,7 @@ const ShowWhatsAppService = async (
 
   const whatsapp = await Whatsapp.findByPk(id, findOptions);
 
-  if (whatsapp?.companyId !== companyId) {
+  if (whatsapp.companyId !== companyId) {
     throw new AppError("Não é possível acessar registros de outra empresa");
   }
 

@@ -11,8 +11,8 @@ const CheckContactOpenTickets = async (
   const ticket = await Ticket.findOne({
     where: {
       contactId,
+      whatsappId,
       status: { [Op.or]: ["open", "pending", "chatbot"] }
-      // Removido o filtro por whatsappId — verifica conflito em qualquer conexão
     },
     include: [
       {

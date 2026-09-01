@@ -3,10 +3,8 @@ import { readFile } from "fs";
 import fs from "fs";
 import { promises as fsp } from "fs";
 import * as Sentry from "@sentry/node";
-import { get, isNil, isNull } from "lodash";
+import { isNil, isNull } from "lodash";
 import { REDIS_URI_MSG_CONN } from "../../config/redis";
-import { col } from "sequelize";
-import axios from "axios";
 
 import {
   downloadMediaMessage,
@@ -15,7 +13,6 @@ import {
   GroupMetadata,
   jidNormalizedUser,
   delay,
-  MediaType,
   MessageUpsertType,
   proto,
   WAMessage,
@@ -28,7 +25,6 @@ import {
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
 import Message from "../../models/Message";
-import MessageReaction from "../../models/MessageReaction";
 import { Mutex } from "async-mutex";
 import { getIO } from "../../libs/socket";
 import CreateMessageService from "../MessageServices/CreateMessageService";
@@ -68,7 +64,6 @@ import Whatsapp from "../../models/Whatsapp";
 import QueueIntegrations from "../../models/QueueIntegrations";
 import ShowFileService from "../FileServices/ShowService";
 import { WbotSession } from "../../@types/WbotSession";
-import { normalizeContactToEmit } from "../../utils/ContactPicture";
 
 import OpenAI from "openai";
 import ffmpeg from "fluent-ffmpeg";
@@ -109,10 +104,7 @@ import {
 } from "../../utils/RedisGroupCache";
 import sgpListenerOficial from "../IntegrationsServices/Sgp/sgpListenerOficial";
 import { handlePresenceUpdate } from "./HandlePresenceUpdate";
-import { Console } from "console";
-import { ms } from "date-fns/locale";
 import { WAMessageSafe } from "../../@types/WAMessageSafe";
-import ticketFinalizationReasonRoutes from "../../routes/ticketFinalizationReasonRoutes";
 import CreateOrUpdateBaileysReactionService from "../MessageServices/CreateOrUpdateBaileysReactionService";
 
 let ffmpegPath: string;
@@ -134,15 +126,31 @@ setInterval(() => {
   i = 0;
 }, 5000);
 
+// Evita cadeias de retry concorrentes para o mesmo contato
+
 const ticketMutexMap = new Map<string, Mutex>();
 
+const picInFlight = new Set<string>();
+
 const getTicketMutex = (key: string): Mutex => {
-  if (!ticketMutexMap.has(key)) {
-    ticketMutexMap.set(key, new Mutex());
-    setTimeout(() => ticketMutexMap.delete(key), 30_000);
+  let mutex = ticketMutexMap.get(key);
+  if (!mutex) {
+    mutex = new Mutex();
+    ticketMutexMap.set(key, mutex);
   }
-  return ticketMutexMap.get(key)!;
+  return mutex;
 };
+
+// Limpeza periódica: só remove mutex que NÃO está travado.
+// O setTimeout anterior era agendado na criação e podia remover um mutex
+// ainda em uso, permitindo que dois fluxos entrassem na seção crítica.
+setInterval(() => {
+  for (const [key, mutex] of ticketMutexMap.entries()) {
+    if (!mutex.isLocked()) {
+      ticketMutexMap.delete(key);
+    }
+  }
+}, 60_000);
 
 interface ImessageUpsert {
   messages: WAMessageSafe[];
@@ -471,7 +479,7 @@ const normalizeContactIdentifier = (msg: WAMessageSafe): string => {
   return normalizeJid(msg.key.sender_lid || msg.key.remoteJid);
 };
 
-const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
+const getContactMessage = async (msg: WAMessageSafe, wbot: Session, companyId?: number) => {
   const key: IExtendedMessageKey = msg.key;
 
   const isGroup = msg.key.remoteJid.includes("g.us");
@@ -492,11 +500,33 @@ const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
       ? key.participant_pn
       : null;
   // console.log("[LUCAS MATHEUS] senderPn", senderPn);
-  const remoteJid = !key.remoteJid.includes("@lid")
-    ? key.remoteJid
-    : key.remoteJid.includes("@lid") && senderPn !== null
-    ? senderPn
-    : lid;
+  let remoteJid: string;
+  if (!key.remoteJid.includes("@lid")) {
+    remoteJid = key.remoteJid;
+  } else if (key.fromMe) {
+    // Para mensagens enviadas pelo bot (fromMe=true) com remoteJid em formato LID,
+    // o campo participant_pn pode conter um número incorreto (ex: ACK de figurinhas).
+    // Buscamos o contato pelo LID no banco para obter o número real.
+    let resolvedJid: string = lid;
+    if (companyId && lid) {
+      const existingContact = await Contact.findOne({
+        where: { lid, companyId }
+      });
+      if (existingContact?.number) {
+        resolvedJid = `${existingContact.number}@s.whatsapp.net`;
+        logger.info(
+          `[LID-FROMME] Contato encontrado pelo LID ${lid} → usando número ${existingContact.number}`
+        );
+      } else {
+        logger.info(
+          `[LID-FROMME] Contato não encontrado pelo LID ${lid} → mantendo LID como identificador`
+        );
+      }
+    }
+    remoteJid = resolvedJid;
+  } else {
+    remoteJid = senderPn !== null ? senderPn : lid;
+  }
   // console.log("[LUCAS MATHEUS] remoteJid", remoteJid);
   // Usa o identificador normalizado que considera o lid
   // const normalizedId = normalizeContactIdentifier(msg);
@@ -509,7 +539,7 @@ const getContactMessage = async (msg: WAMessageSafe, wbot: Session) => {
       }
     : {
         id: remoteJid,
-        name: msg.key.fromMe ? rawNumber : msg.pushName,
+        name: msg.key.fromMe ? "" : msg.pushName,
         lid: lid
       };
 };
@@ -1143,28 +1173,30 @@ export const verifyMediaMessage = async (
       // Processamento de áudio
       if (media.mimetype.includes("audio")) {
         const inputFile = path.join(folder, media.filename);
-        let outputFile: string;
+        let outputFile: string | null;
 
         if (inputFile.endsWith(".mpeg")) {
           outputFile = inputFile.replace(".mpeg", ".mp3");
         } else if (inputFile.endsWith(".ogg")) {
           outputFile = inputFile.replace(".ogg", ".mp3");
         } else {
-          // Trate outros formatos de arquivo conforme necessário
-          return;
+          // Formato não convertível: mantém o arquivo original e segue o fluxo
+          outputFile = null;
         }
 
-        await new Promise<void>((resolve, reject) => {
-          ffmpeg(inputFile)
-            .toFormat("mp3")
-            .save(outputFile)
-            .on("end", () => {
-              resolve();
-            })
-            .on("error", (err: any) => {
-              reject(err);
-            });
-        });
+        if (outputFile) {
+          await new Promise<void>((resolve, reject) => {
+            ffmpeg(inputFile)
+              .toFormat("mp3")
+              .save(outputFile)
+              .on("end", () => {
+                resolve();
+              })
+              .on("error", (err: any) => {
+                reject(err);
+              });
+          });
+        }
       }
     } catch (err) {
       Sentry.setExtra("Erro media", {
@@ -1566,6 +1598,7 @@ async function sendDelayedMessages(
   //     await delay(1000);
   //   }
   // }
+
   const sentMessage = await wbot.sendMessage(`${contact.number}@c.us`, {
     text: `\u200e *${queueIntegration?.name}:* ` + message
   });
@@ -1712,7 +1745,7 @@ const verifyQueue = async (
           const optionsMsg = await getMessageOptions(
             messagePath,
             filePath,
-            String(companyId),
+            companyId,
             body
           );
           const debouncedSentgreetingMediaAttachment = debounce(
@@ -2341,9 +2374,10 @@ const verifyQueue = async (
           const optionsMsg = await getMessageOptions(
             messagePath,
             filePath,
-            String(companyId),
+            companyId,
             body
           );
+          //String(companyId),
 
           const debouncedSentgreetingMediaAttachment = debounce(
             async () => {
@@ -2914,7 +2948,6 @@ export const flowbuilderIntegration = async (
       await ticket.update({
         flowWebhook: true, // ✅ IMPORTANTE: Marcar como TRUE imediatamente para evitar execuções simultâneas
         flowStopped: null,
-        lastFlowId: null,
         hashFlowId: null,
         dataWebhook: null,
         isBot: true,
@@ -2967,10 +3000,25 @@ export const flowbuilderIntegration = async (
           return false;
         }
 
+        // ✅ Verificar se contact existe antes de montar dados
+        if (!contact) {
+          console.error(
+            `[CAMPANHAS] ❌ Contacto não encontrado ao executar fluxo ${matchingCampaign.flowId}`
+          );
+
+          // ✅ LIMPAR ESTADO EM CASO DE ERRO
+          await ticket.update({
+            flowWebhook: false,
+            isBot: false
+          });
+
+          return false;
+        }
+
         const mountDataContact = {
           number: contact.number,
           name: contact.name,
-          email: contact.email
+          email: contact?.email
         };
 
         console.log(
@@ -3162,7 +3210,7 @@ export const flowbuilderIntegration = async (
           const mountDataContact = {
             number: contact.number,
             name: contact.name,
-            email: contact.email
+            email: contact?.email
           };
 
           await ActionsWebhookService(
@@ -3229,7 +3277,7 @@ export const flowbuilderIntegration = async (
           const mountDataContact = {
             number: contact.number,
             name: contact.name,
-            email: contact.email
+            email: contact?.email
           };
 
           await ActionsWebhookService(
@@ -3397,7 +3445,7 @@ export const flowbuilderIntegration = async (
           const mountDataContact = {
             number: contact.number,
             name: contact.name,
-            email: contact.email
+            email: contact?.email
           };
 
           logger.info(
@@ -3670,7 +3718,7 @@ const flowBuilderQueue = async (
   const mountDataContact = {
     number: contact.number,
     name: contact.name,
-    email: contact.email
+    email: contact?.email
   };
 
   const nodes: INodes[] = flow.flow["nodes"];
@@ -4120,7 +4168,7 @@ const handleMessage = async (
         return;
     }
 
-    msgContact = await getContactMessage(msg, wbot);
+    msgContact = await getContactMessage(msg, wbot, companyId);
 
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
 
@@ -4214,11 +4262,10 @@ const handleMessage = async (
     if (msg.key.fromMe) {
       await cacheLayer.set(`contacts:${unreadCacheId}:unreads`, "0");
     } else {
-      const unreads = await cacheLayer.get(`contacts:${unreadCacheId}:unreads`);
-      unreadMessages = +unreads + 1;
-      await cacheLayer.set(
-        `contacts:${unreadCacheId}:unreads`,
-        `${unreadMessages}`
+      // INCR é atômico — evita perder incremento em mensagens simultâneas
+      // quando duas mensagens do mesmo contato chegavam simultaneamente.
+      unreadMessages = await cacheLayer.incr(
+        `contacts:${unreadCacheId}:unreads`
       );
     }
 
@@ -5052,7 +5099,7 @@ const handleMessage = async (
             const mountDataContact = {
               number: contact.number,
               name: contact.name,
-              email: contact.email
+              email: contact?.email
             };
 
             await ActionsWebhookService(
@@ -5407,65 +5454,95 @@ const handleMessage = async (
       !isGroup &&
       ticket.status === "pending"
     ) {
-      // Aguardar um pouco para garantir que outros processamentos terminaram
-      // setTimeout(async () => {
-      //   try {
-      //     logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Verificação de campanha/fluxo já ocorreu acima via ticket.integrationId.
+      // Fallback: só cobre o caso da integração vir da conexão (whatsapp.integrationId)
+      // e não do ticket — sem sleep e sem reprocessar o que já rodou.
+      if (!ticket.integrationId && whatsapp.integrationId) {
+        try {
+          await ticket.reload({ include: [{ model: Contact, as: "contact" }] });
+
+          if (!ticket.flowWebhook || !ticket.lastFlowId) {
+            const contactForCampaign = await ShowContactService(
+              ticket.contactId,
+              ticket.companyId
+            );
+            const queueIntegrations = await ShowQueueIntegrationService(
+              whatsapp.integrationId,
+              companyId
+            );
+
+            await flowbuilderIntegration(
+              msg,
+              wbot,
+              companyId,
+              queueIntegrations,
+              ticket,
+              contactForCampaign
+            );
+          }
+        } catch (integrationError) {
+          logger.error(
+            "[HANDLE MESSAGE] Erro ao processar integração da conexão:",
+            integrationError
+          );
+        }
+      }
+
+      // try {
+      //   logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
+      //   logger.info(
+      //     `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+      //   );
+
+      //   await ticket.reload({
+      //     include: [{ model: Contact, as: "contact" }]
+      //   });
+
+      //   logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
+      //   logger.info(
+      //     `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+      //   );
+
+      //   // Só verificar se não entrou em fluxo
+      //   if (!ticket.flowWebhook || !ticket.lastFlowId) {
       //     logger.info(
-      //       `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
+      //       `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
+      //     );
+      //   } else {
+      //     logger.info(
+      //       `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
+      //     );
+      //     logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
+      //     return;
+      //   }
+
+      //   if (!ticket.flowWebhook || !ticket.lastFlowId) {
+      //     const contactForCampaign = await ShowContactService(
+      //       ticket.contactId,
+      //       ticket.companyId
       //     );
 
-      //     await ticket.reload({
-      //       include: [{ model: Contact, as: "contact" }]
-      //     });
-
-      //     logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
-      //     logger.info(
-      //       `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
-      //     );
-
-      //     // Só verificar se não entrou em fluxo
-      //     if (!ticket.flowWebhook || !ticket.lastFlowId) {
-      //       logger.info(
-      //         `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
-      //       );
-      //     } else {
-      //       logger.info(
-      //         `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
-      //       );
-      //       logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
-      //       return;
-      //     }
-
-      //     if (!ticket.flowWebhook || !ticket.lastFlowId) {
-      //       const contactForCampaign = await ShowContactService(
-      //         ticket.contactId,
-      //         ticket.companyId
-      //       );
-
-      //       // Verificar se existe integrationId antes de prosseguir
-      //       try {
-      //         if (!whatsapp.integrationId) {
-      //           logger.info(
-      //             "[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: " +
-      //               whatsapp.id
-      //           );
-      //           return; // Encerrar execução se não houver integrationId
-      //         }
-
+      //     try {
+      //       if (!whatsapp.integrationId) {
+      //         logger.info(
+      //           `[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: ${whatsapp.id}. Ignorando fluxo e seguindo processamento normal da mensagem.`
+      //         );
+      //         // REMOVIDO O 'return' PARA PERMITIR QUE A MENSAGEM SEJA SALVA E EXIBIDA
+      //       } else {
+      //         // Só executa a lógica de integração se ela existir
       //         const queueIntegrations = await ShowQueueIntegrationService(
       //           whatsapp.integrationId,
       //           companyId
       //         );
 
-      //         // DEBUG - Verificar tipo de integração para diagnóstico
       //         logger.info(
       //           `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
       //             ticket.id
       //           }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
       //         );
 
-      //         // ✅ VERIFICAÇÃO FINAL APENAS SE NECESSÁRIO
       //         await flowbuilderIntegration(
       //           msg,
       //           wbot,
@@ -5474,111 +5551,25 @@ const handleMessage = async (
       //           ticket,
       //           contactForCampaign
       //         );
-
       //         await ticket.reload();
 
-      //         // DEBUG - Verificar se flowbuilder foi executado com sucesso
       //         logger.info(
       //           `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
       //         );
-      //       } catch (integrationError) {
-      //         logger.error(
-      //           "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
-      //           integrationError
-      //         );
       //       }
+      //     } catch (integrationError) {
+      //       logger.error(
+      //         "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
+      //         integrationError
+      //       );
       //     }
-      //   } catch (error) {
-      //     logger.error(
-      //       "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
-      //       error
-      //     );
       //   }
-      // }, 1000);
-
-      // Aguarda 1 segundo (1000ms) antes de continuar a execução
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      try {
-        logger.info(`[TICKET RELOAD] ========== ANTES DO RELOAD ==========`);
-        logger.info(
-          `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
-        );
-
-        await ticket.reload({
-          include: [{ model: Contact, as: "contact" }]
-        });
-
-        logger.info(`[TICKET RELOAD] ========== DEPOIS DO RELOAD ==========`);
-        logger.info(
-          `[TICKET RELOAD] Ticket ${ticket.id} - flowWebhook: ${ticket.flowWebhook}, lastFlowId: ${ticket.lastFlowId}, hashFlowId: ${ticket.hashFlowId}`
-        );
-
-        // Só verificar se não entrou em fluxo
-        if (!ticket.flowWebhook || !ticket.lastFlowId) {
-          logger.info(
-            `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = TRUE - vai executar flowbuilderIntegration`
-          );
-        } else {
-          logger.info(
-            `[TICKET RELOAD] Condição (!flowWebhook || !lastFlowId) = FALSE - NÃO vai executar flowbuilderIntegration`
-          );
-          logger.info(`[TICKET RELOAD] Ticket já está em fluxo - ignorando`);
-          return;
-        }
-
-        if (!ticket.flowWebhook || !ticket.lastFlowId) {
-          const contactForCampaign = await ShowContactService(
-            ticket.contactId,
-            ticket.companyId
-          );
-
-          try {
-            if (!whatsapp.integrationId) {
-              logger.info(
-                `[RDS-4573 - DEBUG] whatsapp.integrationId não está definido para a conexão WhatsApp ID: ${whatsapp.id}. Ignorando fluxo e seguindo processamento normal da mensagem.`
-              );
-              // REMOVIDO O 'return' PARA PERMITIR QUE A MENSAGEM SEJA SALVA E EXIBIDA
-            } else {
-              // Só executa a lógica de integração se ela existir
-              const queueIntegrations = await ShowQueueIntegrationService(
-                whatsapp.integrationId,
-                companyId
-              );
-
-              logger.info(
-                `[RDS-FLOW-DEBUG] Iniciando flowbuilder para ticket ${
-                  ticket.id
-                }, integração tipo: ${queueIntegrations?.type || "indefinido"}`
-              );
-
-              await flowbuilderIntegration(
-                msg,
-                wbot,
-                companyId,
-                queueIntegrations,
-                ticket,
-                contactForCampaign
-              );
-              await ticket.reload();
-
-              logger.info(
-                `[RDS-FLOW-DEBUG] flowbuilderIntegration executado para ticket ${ticket.id}`
-              );
-            }
-          } catch (integrationError) {
-            logger.error(
-              "[RDS-4573 - INTEGRATION ERROR] Erro ao processar integração:",
-              integrationError
-            );
-          }
-        }
-      } catch (error) {
-        logger.error(
-          "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
-          error
-        );
-      }
+      // } catch (error) {
+      //   logger.error(
+      //     "[RDS-4573 - CAMPAIGN MESSAGE] Erro ao verificar campanhas:",
+      //     error
+      //   );
+      // }
     }
   } catch (err) {
     Sentry.captureException(err);
@@ -5763,7 +5754,7 @@ const verifyCampaignMessageAndCloseTicket = async (
 
   if (message.key.fromMe && isCampaign) {
     let msgContact: IMe;
-    msgContact = await getContactMessage(message, wbot);
+    msgContact = await getContactMessage(message, wbot, companyId);
     const contact = await verifyContact(msgContact, wbot, companyId);
 
     const messageRecord = await Message.findOne({
@@ -5824,6 +5815,15 @@ const handleBaileysReaction = async (
   companyId: number
 ): Promise<void> => {
   try {
+    // [TEMP-DEBUG][REACTION-GROUP] investigação: reações de grupo não aparecem
+    if (message.key.remoteJid?.includes("@g.us")) {
+      console.log("[REACTION-GROUP] Reação recebida:", {
+        remoteJid: message.key.remoteJid,
+        participant: message.key.participant,
+        reaction: message.message?.reactionMessage
+      });
+    }
+
     await CreateOrUpdateBaileysReactionService({
       message,
       wbot,
@@ -6214,12 +6214,19 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
   });
 
   wbot.ev.on("presence.update", async data => {
-    console.log(`[PRESENCE FLOW][1] Loop1-raw`);
-
     const chatJid = data.id;
     const isGroupPresence = chatJid?.endsWith("@g.us");
 
     const presences = data.presences || {};
+
+    // [PRESENCE-DEBUG] log enriquecido (só dados, sem alterar comportamento) —
+    // permite ver exatamente qual remoteJid/formato chega do Baileys para
+    // cada evento, essencial para diagnosticar o caso individual (@lid).
+    console.log(
+      `[PRESENCE FLOW][1] Loop1-raw | chatJid: ${chatJid} | isGroupPresence: ${isGroupPresence} | presencesKeys: ${JSON.stringify(
+        Object.keys(presences)
+      )}`
+    );
 
     for (const remoteJid in presences) {
       const presence = presences[remoteJid];
@@ -6280,6 +6287,19 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         }
 
         const io = getIO();
+
+        // ── Guard de reentrância ─────────────────────────────────────────────
+        // O WhatsApp dispara contacts.update várias vezes para o mesmo contato
+        // (sync/reconexão). Sem isso, duas cadeias de retry rodam em paralelo,
+        // escrevem no mesmo arquivo e a mais lenta sobrescreve a mais recente.
+        const inFlightKey = `${companyId}:${contact.id}`;
+        if (picInFlight.has(inFlightKey)) {
+          console.log(
+            `[PIC-EVENT] Já em processamento, ignorando duplicata: ${contact.id}`
+          );
+          continue;
+        }
+        picInFlight.add(inFlightKey);
 
         // ── Resolve número e JID para busca de foto ──────────────────────────
         let number: string;
@@ -6388,8 +6408,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         }
 
         let profilePicUrl: string | null = null;
-        const delays = [5000, 10000, 20000, 30000, 45000]; // backoff maior para LID
-
+        const delays = [3000, 8000, 15000]; // 26s total (era 110s)
         for (let attempt = 0; attempt < delays.length; attempt++) {
           // Aguarda antes de buscar (WA precisa de tempo para propagar)
           await new Promise(r => setTimeout(r, delays[attempt]));
@@ -6410,10 +6429,7 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
 
             try {
               profilePicUrl = await Promise.race([
-                currentWbot.profilePictureUrl(
-                  jidParaBuscarFoto,
-                  isLid ? "preview" : "image"
-                ),
+                currentWbot.profilePictureUrl(jidParaBuscarFoto, "image"),
                 new Promise<null>(resolve =>
                   setTimeout(() => resolve(null), 15000)
                 )
@@ -6470,6 +6486,33 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           profilePicUrl = null;
         }
 
+        // ── Fallback: tenta @s.whatsapp.net quando @lid falhou ───────────────
+        if (!profilePicUrl && isLid && number) {
+          const fallbackJid = `${number}@s.whatsapp.net`;
+          console.log(
+            `[PIC-EVENT] 🔄 Tentando fallback @s.whatsapp.net para ${number}`
+          );
+          try {
+            const currentWbot = (await getWbot(wbot.id)) as Session;
+            profilePicUrl = await Promise.race([
+              currentWbot.profilePictureUrl(fallbackJid, "image"),
+              new Promise<null>(r => setTimeout(() => r(null), 10000))
+            ]);
+            if (profilePicUrl && profilePicUrl.includes("nopicture")) {
+              profilePicUrl = null;
+            }
+            if (profilePicUrl) {
+              console.log(
+                `[PIC-EVENT] ✅ Foto obtida via fallback @s.whatsapp.net para ${number}`
+              );
+            }
+          } catch (e: any) {
+            console.log(
+              `[PIC-EVENT] Fallback @s.whatsapp.net também falhou para ${number}: ${e?.message}`
+            );
+          }
+        }
+
         if (!profilePicUrl) {
           console.log(
             `[PIC-EVENT] ❌ Foto não obtida após todas as tentativas para ${number}`
@@ -6486,7 +6529,8 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
           remoteJid: jidParaBuscarFoto,
           profilePicUrl,
           whatsappId: wbot.id,
-          wbot
+          wbot,
+          forceUpdatePic: true
         });
 
         // Atualiza cache de foto com nova URL
@@ -6515,6 +6559,10 @@ const wbotMessageListener = (wbot: WbotSession, companyId: number): void => {
         logger.error(
           `[PIC-EVENT] Erro ao processar contato ${contact?.id}: ${error?.message}\n${error?.stack}`
         );
+      } finally {
+        if (contact?.id) {
+          picInFlight.delete(`${companyId}:${contact.id}`);
+        }
       }
     }
   });

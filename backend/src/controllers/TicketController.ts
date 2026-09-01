@@ -73,6 +73,8 @@ interface TicketData {
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /tickets
+  const __perfStart = Date.now();
   const {
     pageNumber,
     status,
@@ -121,6 +123,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     statusFilters = JSON.parse(statusStringfied);
   }
 
+  const __t_service = Date.now();
   const { tickets, count, hasMore } = await ListTicketsService({
     searchParam,
     tags: tagsIds,
@@ -141,6 +144,17 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     sortTickets,
     searchOnMessages
   });
+  console.log(
+    `[PERF][TicketController.index] ListTicketsService total: ${
+      Date.now() - __t_service
+    }ms (status=${status}, showAll=${showAll})`
+  );
+
+  console.log(
+    `[PERF][TicketController.index] TOTAL rota /tickets: ${
+      Date.now() - __perfStart
+    }ms (status=${status}, showAll=${showAll})`
+  );
 
   return res.status(200).json({ tickets, count, hasMore });
 };
@@ -705,5 +719,5 @@ export const markAsRead = async (
     unreadMessages: 0
   });
 
-  return res.send();
+  return res.status(204).send();
 };

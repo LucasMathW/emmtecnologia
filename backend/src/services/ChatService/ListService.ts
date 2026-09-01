@@ -25,9 +25,18 @@ const ListService = async ({
   companyId,
   pageNumber = "1"
 }: Request): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /chats
+  const __perfStart = Date.now();
+
+  const __t_chatUsers = Date.now();
   const chatUsers = await ChatUser.findAll({
     where: { userId: ownerId }
   });
+  console.log(
+    `[PERF][ChatService.ListService] ChatUser.findAll: ${
+      Date.now() - __t_chatUsers
+    }ms (${chatUsers.length} chats do usuário)`
+  );
 
   const chatIds = chatUsers.map(chat => chat.chatId);
 
@@ -43,6 +52,7 @@ const ListService = async ({
     whereClause.companyId = companyId;
   }
 
+  const __t_mainQuery = Date.now();
   const { count, rows: records } = await Chat.findAndCountAll({
     where: whereClause,
     include: [
@@ -76,7 +86,13 @@ const ListService = async ({
     offset,
     order: [["updatedAt", "DESC"]]
   });
+  console.log(
+    `[PERF][ChatService.ListService] Chat.findAndCountAll (JOIN com users+messages+replyTo, sem distinct/limit no include hasMany -> risco de multiplicação de linhas; ${
+      records.length
+    } registros de ${count} total): ${Date.now() - __t_mainQuery}ms`
+  );
 
+  const __t_filter = Date.now();
   // Filter out chats where any user no longer exists
   const validRecords = records.filter(chat => {
     // Check if owner exists
@@ -96,7 +112,15 @@ const ListService = async ({
 
     return true;
   });
+  console.log(
+    `[PERF][ChatService.ListService] filter validRecords (JS): ${
+      Date.now() - __t_filter
+    }ms (${validRecords.length} de ${records.length} válidos)`
+  );
 
+  // [PERF] N+1: 1 query (com 2 JOINs) por chat, disparadas em paralelo via Promise.all.
+  // Com limit=100 isso pode disparar até 100 queries concorrentes, saturando o pool de conexões do DB.
+  const __t_n1 = Date.now();
   const recordsWithLastMessage = await Promise.all(
     validRecords.map(async chat => {
       const lastMessage = await ChatMessage.findOne({
@@ -124,6 +148,17 @@ const ListService = async ({
       });
       return { ...chat.toJSON(), lastMessage };
     })
+  );
+  console.log(
+    `[PERF][ChatService.ListService] Promise.all ChatMessage.findOne (N+1, ${
+      validRecords.length
+    } queries concorrentes): ${Date.now() - __t_n1}ms`
+  );
+
+  console.log(
+    `[PERF][ChatService.ListService] TOTAL service: ${
+      Date.now() - __perfStart
+    }ms`
   );
 
   const hasMore = count > offset + records.length;

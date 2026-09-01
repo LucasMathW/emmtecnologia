@@ -13,16 +13,26 @@ import { IMe } from "./wbotMessageListener";
 import { Session } from "../../libs/wbot";
 import cacheLayer from "../../libs/cache";
 import { getIO } from "../../libs/socket";
+import { stripWaSigning } from "../../utils/picUrl";
 
 // ─── Mutex por contato (aumentado para 60s) ──────────────────────────────────
 const mutexMap = new Map<string, Mutex>();
 const getMutex = (key: string): Mutex => {
-  if (!mutexMap.has(key)) {
-    mutexMap.set(key, new Mutex());
-    setTimeout(() => mutexMap.delete(key), 60_000); // ⬆️ 30s → 60s
+  let mutex = mutexMap.get(key);
+  if (!mutex) {
+    mutex = new Mutex();
+    mutexMap.set(key, mutex);
   }
-  return mutexMap.get(key)!;
+  return mutex;
 };
+
+setInterval(() => {
+  for (const [key, mutex] of mutexMap.entries()) {
+    if (!mutex.isLocked()) {
+      mutexMap.delete(key);
+    }
+  }
+}, 60_000);
 
 // ─── Helper: remove domínio do JID ───────────────────────────────────────────
 const stripDomain = (jid: string): string =>
@@ -60,11 +70,23 @@ const smartUpdateContact = async (
 ): Promise<Contact> => {
   // Filtra apenas campos que realmente mudaram
   const changedFields: Record<string, any> = {};
+  // for (const [key, value] of Object.entries(updates)) {
+  //   if (value === undefined || value === null) continue;
+
+  //   const currentValue = (contact as any)[key];
+  //   if (currentValue !== value) {
+  //     changedFields[key] = value;
+  //   }
+  // }
+
   for (const [key, value] of Object.entries(updates)) {
     if (value === undefined || value === null) continue;
-
     const currentValue = (contact as any)[key];
-    if (currentValue !== value) {
+    const changed =
+      key === "profilePicUrl"
+        ? stripWaSigning(currentValue) !== stripWaSigning(value)
+        : currentValue !== value;
+    if (changed) {
       changedFields[key] = value;
     }
   }
@@ -229,7 +251,19 @@ export async function verifyContact(
   const extractedPhone = extractedId.split(":")[0];
 
   let number = extractedPhone;
-  let originalLid = msgContact.lid || null;
+  // ─── CORREÇÃO: propaga o LID embutido no próprio ID quando msgContact.lid
+  // não vem preenchido ────────────────────────────────────────────────────
+  // Quando o evento chega com identidade LID (isLid=true), o Baileys nem
+  // sempre popula msgContact.lid separadamente — a informação já está no
+  // próprio msgContact.id (ex: "101756516184214@lid"). Sem este fallback,
+  // originalLid ficava null e CreateOrUpdateContactService pulava a busca
+  // por "lid" (só busca por "number", que aqui é só o dígito do LID) —
+  // criando um contato "fantasma" (number=<dígitos do LID>, lid=null) toda
+  // vez que essa identidade aparecia antes do número de telefone real ser
+  // conhecido. Quando o evento com o número real chegava minutos depois,
+  // outro contato era criado do zero (duplicidade), em vez de reaproveitar
+  // este via o campo "lid".
+  let originalLid = msgContact.lid || (isLid ? msgContact.id : null);
 
   if (isWhatsappNet && extractedId.includes(":")) {
     logger.info(
@@ -243,58 +277,9 @@ export async function verifyContact(
     }, número: ${number}, LID: ${originalLid || "não"}`
   );
 
-  // ─── Foto de perfil com cache (mantido, mas otimizado) ─────────────────────
+  // Foto é buscada só depois do cache de contato (ver bloco dentro do mutex)
   let profilePicUrl: string | undefined;
-  if (!isGroup && wbot) {
-    // Para @lid, usa o LID original pois o Baileys usa o tctoken armazenado pelo LID
-    // Usar o número de telefone (@s.whatsapp.net) falha pois getLIDForPN não mapeia corretamente
-    const jidParaFoto = isLid
-      ? msgContact.id // usa o @lid diretamente (ex: 101756516184214@lid)
-      : msgContact.id;
-
-    const picCacheKey = `pic:${companyId}:${jidParaFoto}`;
-    try {
-      const cachedPic = await cacheLayer.get(picCacheKey);
-
-      if (cachedPic === "none") {
-        // Já sabemos que não tem foto, não busca
-      } else if (cachedPic) {
-        profilePicUrl = cachedPic;
-      } else {
-        let fetched: string | null = null;
-        try {
-          fetched = await Promise.race([
-            wbot.profilePictureUrl(jidParaFoto, "image"),
-            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
-          ]);
-        } catch (e) {
-          const msg = e?.message || "";
-          await cacheLayer.set(
-            picCacheKey,
-            "none",
-            "EX",
-            msg.includes("item-not-found") ? 3600 : 1800
-          );
-          logger.warn(
-            `[PIC-VERIFY] Erro ao buscar foto para ${jidParaFoto}: ${msg}`
-          );
-        }
-
-        if (fetched && !fetched.includes("nopicture")) {
-          profilePicUrl = fetched;
-          await cacheLayer.set(picCacheKey, fetched, "EX", 3600);
-        } else if (fetched !== null) {
-          await cacheLayer.set(picCacheKey, "none", "EX", 3600);
-        } else {
-          await cacheLayer.set(picCacheKey, "none", "EX", 300);
-        }
-      }
-    } catch (e) {
-      logger.error(`[PIC-VERIFY] Erro inesperado: ${e?.message}`);
-    }
-  }
-
-  const picUpdate = profilePicUrl !== undefined ? { profilePicUrl } : {};
+  let picUpdate: { profilePicUrl?: string } = {};
 
   const contactData = {
     name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
@@ -397,6 +382,60 @@ export async function verifyContact(
         isNewRecord: false
       }) as Contact;
     }
+
+    // ─── Foto de perfil com cache (só chega aqui em cache miss) ─────────────
+    if (!isGroup && wbot) {
+      // Para @lid, usa o LID original pois o Baileys usa o tctoken armazenado pelo LID
+      // Usar o número de telefone (@s.whatsapp.net) falha pois getLIDForPN não mapeia corretamente
+      const jidParaFoto = isLid
+        ? msgContact.id // usa o @lid diretamente (ex: 101756516184214@lid)
+        : msgContact.id;
+
+      const picCacheKey = `pic:${companyId}:${jidParaFoto}`;
+      try {
+        const cachedPic = await cacheLayer.get(picCacheKey);
+
+        if (cachedPic === "none") {
+          // Já sabemos que não tem foto, não busca
+        } else if (cachedPic) {
+          profilePicUrl = cachedPic;
+        } else {
+          let fetched: string | null = null;
+          try {
+            fetched = await Promise.race([
+              wbot.profilePictureUrl(jidParaFoto, "image"),
+              new Promise<null>(resolve =>
+                setTimeout(() => resolve(null), 5000)
+              )
+            ]);
+          } catch (e) {
+            const msg = e?.message || "";
+            await cacheLayer.set(
+              picCacheKey,
+              "none",
+              "EX",
+              msg.includes("item-not-found") ? 3600 : 1800
+            );
+            logger.warn(
+              `[PIC-VERIFY] Erro ao buscar foto para ${jidParaFoto}: ${msg}`
+            );
+          }
+
+          if (fetched && !fetched.includes("nopicture")) {
+            profilePicUrl = fetched;
+            await cacheLayer.set(picCacheKey, fetched, "EX", 3600);
+          } else if (fetched !== null) {
+            await cacheLayer.set(picCacheKey, "none", "EX", 3600);
+          } else {
+            await cacheLayer.set(picCacheKey, "none", "EX", 300);
+          }
+        }
+      } catch (e) {
+        logger.error(`[PIC-VERIFY] Erro inesperado: ${e?.message}`);
+      }
+    }
+    picUpdate = profilePicUrl !== undefined ? { profilePicUrl } : {};
+    contactData.profilePicUrl = profilePicUrl;
 
     let foundContact: Contact | null = null;
 
@@ -539,130 +578,10 @@ export async function verifyContact(
         },
         "existente"
       );
-    }
-
-    // ─── Contato novo ────────────────────────────────────────────────────────
-    // else if (!isGroup && !foundContact) {
-    //   let newContact: Contact | null = null;
-    //   try {
-    //     const owResult = await onWhatsAppCached(wbot, msgContact.id, companyId);
-
-    //     if (!owResult?.[0]?.exists) {
-    //       if (originalLid && !contactData.lid) contactData.lid = originalLid;
-    //       newContact = await CreateOrUpdateContactService(contactData);
-    //       populateCache(newContact);
-    //       return newContact;
-    //     }
-
-    //     const owItem = owResult[0] as any;
-    //     const lid: string = owItem?.lid || originalLid || "";
-
-    //     if (lid) {
-    //       const lidContact = await Contact.findOne({
-    //         where: {
-    //           companyId,
-    //           number: { [Op.or]: [lid, stripDomain(lid)] }
-    //         },
-    //         include: ["tags", "extraInfo"]
-    //       });
-
-    //       if (lidContact) {
-    //         await lidContact.update({ lid });
-    //         await WhatsappLidMap.findOrCreate({
-    //           where: { companyId, lid },
-    //           defaults: { companyId, lid, contactId: lidContact.id }
-    //         });
-    //         populateCache(lidContact);
-    //         return smartUpdateContact(
-    //           lidContact,
-    //           {
-    //             number: contactData.number,
-    //             name: msgContact.name || undefined,
-    //             ...picUpdate
-    //           },
-    //           "novo-com-lid-existente"
-    //         );
-    //       }
-
-    //       newContact = await CreateOrUpdateContactService({
-    //         ...contactData,
-    //         lid
-    //       });
-    //       if (newContact.lid !== lid) await newContact.update({ lid });
-    //       await WhatsappLidMap.findOrCreate({
-    //         where: { companyId, lid },
-    //         defaults: { companyId, lid, contactId: newContact.id }
-    //       });
-    //       populateCache(newContact);
-    //       return newContact;
-    //     }
-    //   } catch (error) {
-    //     logger.error(
-    //       `[RDS CONTATO] Erro ao verificar ${msgContact.id}: ${error.message}`
-    //     );
-    //     newContact = await CreateOrUpdateContactService(contactData);
-    //     populateCache(newContact);
-    //     logger.info(`[RDS CONTATO] Contato criado sem LID: ${newContact.id}`);
-
-    //     try {
-    //       await queues["lidRetryQueue"].add(
-    //         "RetryLidLookup",
-    //         {
-    //           contactId: newContact.id,
-    //           whatsappId: wbot.id || null,
-    //           companyId,
-    //           number: msgContact.id,
-    //           lid: originalLid ?? msgContact.id,
-    //           retryCount: 1,
-    //           maxRetries: 5
-    //         },
-    //         { delay: 60_000, attempts: 1, removeOnComplete: true }
-    //       );
-    //     } catch (queueError) {
-    //       logger.error(`[RDS CONTATO] Erro na fila: ${queueError.message}`);
-    //     }
-    //     return newContact;
-    //   }
-    // }
-
-    // ─── Contato novo (MODO TURBO: Cria na hora, busca LID no background) ────────────────────────────────────────────────────────
-    else if (!isGroup && !foundContact) {
+    } else if (!isGroup && !foundContact) {
       console.log(
         `[VERIFY-CONTACT] 🚀 MODO TURBO ATIVADO: Criando contato imediatamente para ${number} (sem esperar onWhatsApp)`
       );
-
-      // ─── Busca foto antes de criar o contato ─────────────────────────────
-      if (!contactData.profilePicUrl && wbot) {
-        // Usa o LID quando disponível pois o Baileys armazena tctoken pelo LID
-        const jidFoto = originalLid ? originalLid : `${number}@s.whatsapp.net`;
-        const picCacheKey = `pic:${companyId}:${jidFoto}`;
-        try {
-          const cachedPic = await cacheLayer.get(picCacheKey);
-          if (cachedPic && cachedPic !== "none") {
-            contactData.profilePicUrl = cachedPic;
-          } else if (cachedPic !== "none") {
-            const fetched = await Promise.race([
-              wbot.profilePictureUrl(jidFoto, "image"),
-              new Promise<null>(resolve =>
-                setTimeout(() => resolve(null), 5000)
-              )
-            ]).catch(() => null);
-            if (fetched && !fetched.includes("nopicture")) {
-              contactData.profilePicUrl = fetched;
-              await cacheLayer.set(picCacheKey, fetched, "EX", 3600);
-              logger.info(
-                `[VERIFY-CONTACT] 📸 Foto obtida para novo contato ${number}`
-              );
-            } else {
-              await cacheLayer.set(picCacheKey, "none", "EX", 300);
-            }
-          }
-        } catch (picErr: any) {
-          logger.warn(
-            `[VERIFY-CONTACT] Erro ao buscar foto para ${number}: ${picErr?.message}`
-          );
-        }
-      }
 
       let newContact: Contact | null = null;
 
@@ -696,7 +615,6 @@ export async function verifyContact(
             ? originalLid
             : `${number}@s.whatsapp.net`;
           const jidLid = originalLid || null;
-          const contactId = newContact.id;
           const companyIdBg = companyId;
 
           // Fire-and-forget: não bloqueia o fluxo principal
@@ -755,7 +673,8 @@ export async function verifyContact(
                   number,
                   companyId: companyIdBg,
                   profilePicUrl: fetched,
-                  isGroup: false
+                  isGroup: false,
+                  wbot
                 });
               } else {
                 logger.warn(

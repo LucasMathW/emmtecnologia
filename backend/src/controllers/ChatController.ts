@@ -95,15 +95,29 @@ type FindParams = {
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /chats
+  const __perfStart = Date.now();
   const { pageNumber } = req.query as unknown as IndexQuery;
   const ownerId = +req.user.id;
   const companyId = +req.user.companyId;
 
+  const __t_service = Date.now();
   const { records, count, hasMore } = await ListService({
     ownerId,
     companyId,
     pageNumber
   });
+  console.log(
+    `[PERF][ChatController.index] ListService total: ${
+      Date.now() - __t_service
+    }ms`
+  );
+
+  console.log(
+    `[PERF][ChatController.index] TOTAL rota /chats: ${
+      Date.now() - __perfStart
+    }ms`
+  );
 
   return res.json({ records, count, hasMore });
 };

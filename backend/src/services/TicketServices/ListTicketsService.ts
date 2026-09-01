@@ -5,10 +5,12 @@ import {
   col,
   Filterable,
   Includeable,
-  literal
+  literal,
+  QueryTypes
 } from "sequelize";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
+import sequelize from "../../database";
 import Ticket from "../../models/Ticket";
 import Contact from "../../models/Contact";
 import Message from "../../models/Message";
@@ -21,8 +23,6 @@ import { intersection } from "lodash";
 import Whatsapp from "../../models/Whatsapp";
 import ContactTag from "../../models/ContactTag";
 import ContactWallet from "../../models/ContactWallet";
-
-import MessageReaction from "../../models/MessageReaction";
 
 import removeAccents from "remove-accents";
 
@@ -82,7 +82,16 @@ const ListTicketsService = async ({
   sortTickets = "DESC",
   searchOnMessages = "false"
 }: Request): Promise<Response> => {
+  // [PERF] instrumentação temporária para diagnosticar latência da rota GET /tickets
+  const __perfStart = Date.now();
+
+  const __t_user = Date.now();
   const user = await ShowUserService(userId, companyId);
+  console.log(
+    `[PERF][ListTicketsService] ShowUserService: ${
+      Date.now() - __t_user
+    }ms (status=${status})`
+  );
 
   const showTicketAllQueues = user.allHistoric === "enabled";
   const showTicketWithoutQueue = user.allTicket === "enable";
@@ -90,10 +99,16 @@ const ListTicketsService = async ({
   const isAdmin = user.profile === "admin";
   const canUseShowAll = isAdmin || user.allUserChat === "enabled";
 
+  const __t_settings = Date.now();
   const showPendingNotification = await FindCompanySettingOneService({
     companyId,
     column: "showNotificationPending"
   });
+  console.log(
+    `[PERF][ListTicketsService] FindCompanySettingOneService: ${
+      Date.now() - __t_settings
+    }ms (status=${status})`
+  );
 
   const showNotificationPendingValue =
     showPendingNotification[0].showNotificationPending;
@@ -181,6 +196,10 @@ const ListTicketsService = async ({
       attributes: ["id", "name", "expiresTicket", "groupAsTicket", "color"]
     }
   ];
+
+  // [PERF] mede todo o bloco de montagem condicional do whereCondition
+  // (inclui as sub-queries de status=pending/closed/search, tags, etc.)
+  const __t_prequery = Date.now();
 
   if (status === "open") {
     whereCondition = {
@@ -587,10 +606,16 @@ const ListTicketsService = async ({
     ...whereCondition,
     companyId
   };
+  console.log(
+    `[PERF][ListTicketsService] montagem condicional do whereCondition (inclui sub-queries de pending/closed/search/tags): ${
+      Date.now() - __t_prequery
+    }ms (status=${status})`
+  );
 
   const limit = 40;
   const offset = limit * (+pageNumber - 1);
 
+  const __t_mainQuery = Date.now();
   const { count, rows: tickets } = await Ticket.findAndCountAll({
     where: whereCondition,
     include: includeCondition,
@@ -614,58 +639,148 @@ const ListTicketsService = async ({
     order: [["updatedAt", sortTickets]],
     subQuery: false
   });
+  console.log(
+    `[PERF][ListTicketsService] Ticket.findAndCountAll (query principal, ${
+      tickets.length
+    } tickets de ${count} total): ${
+      Date.now() - __t_mainQuery
+    }ms (status=${status})`
+  );
 
+  // [PERF] CORRIGIDO: loop N+1 (até 3 queries sequenciais por ticket) substituído por
+  // 2 queries em batch (WHERE ticketId IN (...) / JOIN ... WHERE ticketId IN (...)),
+  // independente de quantos tickets vieram na página.
+  const __t_n1loop = Date.now();
+
+  const previewTicketIds = tickets.map(t => t.id);
+
+  // Batch 1: última mensagem de cada ticket, em uma única query (Postgres DISTINCT ON).
+  const __t_batchLastMessages = Date.now();
+  const lastMessageRows: Array<{
+    ticketId: number;
+    id: number;
+    body: string;
+    updatedAt: Date;
+  }> = previewTicketIds.length
+    ? await sequelize.query(
+        `
+          SELECT DISTINCT ON ("ticketId") "ticketId", "id", "body", "updatedAt"
+          FROM "Messages"
+          WHERE "ticketId" IN (:ticketIds)
+          ORDER BY "ticketId", "updatedAt" DESC
+        `,
+        {
+          replacements: { ticketIds: previewTicketIds },
+          type: QueryTypes.SELECT
+        }
+      )
+    : [];
+  console.log(
+    `[PERF][ListTicketsService] batch última mensagem por ticket (1 query no lugar de até ${
+      previewTicketIds.length
+    }): ${Date.now() - __t_batchLastMessages}ms (${
+      lastMessageRows.length
+    } tickets com mensagem)`
+  );
+
+  const lastMessageByTicketId = new Map<
+    number,
+    { id: number; body: string; updatedAt: Date }
+  >();
+  lastMessageRows.forEach(row => {
+    lastMessageByTicketId.set(row.ticketId, row);
+  });
+
+  // Batch 2: última reação (com o body da mensagem reagida já via JOIN) de cada ticket,
+  // em uma única query. Elimina também a 3ª query redundante do código original
+  // (que buscava de novo, separadamente, uma mensagem já trazida pelo JOIN acima).
+  const __t_batchLastReactions = Date.now();
+  const lastReactionRows: Array<{
+    ticketId: number;
+    emoji: string;
+    userId: number;
+    reactionUpdatedAt: Date;
+    messageBody: string;
+  }> = previewTicketIds.length
+    ? await sequelize.query(
+        `
+          SELECT DISTINCT ON (m."ticketId")
+            m."ticketId" AS "ticketId",
+            mr."emoji" AS "emoji",
+            mr."userId" AS "userId",
+            mr."updatedAt" AS "reactionUpdatedAt",
+            m."body" AS "messageBody"
+          FROM "MessageReactions" mr
+          INNER JOIN "Messages" m ON m."id" = mr."messageId"
+          WHERE m."ticketId" IN (:ticketIds)
+          ORDER BY m."ticketId", mr."updatedAt" DESC
+        `,
+        {
+          replacements: { ticketIds: previewTicketIds },
+          type: QueryTypes.SELECT
+        }
+      )
+    : [];
+  console.log(
+    `[PERF][ListTicketsService] batch última reação por ticket (1 query no lugar de até ${
+      previewTicketIds.length
+    }): ${Date.now() - __t_batchLastReactions}ms (${
+      lastReactionRows.length
+    } tickets com reação)`
+  );
+
+  const lastReactionByTicketId = new Map<
+    number,
+    {
+      emoji: string;
+      userId: number;
+      reactionUpdatedAt: Date;
+      messageBody: string;
+    }
+  >();
+  lastReactionRows.forEach(row => {
+    lastReactionByTicketId.set(row.ticketId, row);
+  });
+
+  // Loop agora é 100% em memória (sem I/O de banco) — mesma lógica de negócio de antes.
   for (const ticket of tickets) {
-    const lastMessage = await Message.findOne({
-      where: { ticketId: ticket.id },
-      order: [["updatedAt", "DESC"]],
-      attributes: ["id", "body", "updatedAt"]
-    });
+    const lastMessage = lastMessageByTicketId.get(ticket.id);
 
     if (!lastMessage) {
       (ticket as any).setDataValue("reactionPreview", null);
       continue;
     }
 
-    const lastReaction = await MessageReaction.findOne({
-      attributes: ["id", "emoji", "userId", "updatedAt", "messageId"],
-      include: [
-        {
-          model: Message,
-          as: "message",
-          attributes: ["body", "updatedAt"],
-          required: true,
-          where: { ticketId: ticket.id }
-        }
-      ],
-      order: [["updatedAt", "DESC"]]
-    });
+    const lastReaction = lastReactionByTicketId.get(ticket.id);
 
     if (!lastReaction) {
       (ticket as any).setDataValue("reactionPreview", null);
       continue;
     }
 
-    const lastMessageReaction = await Message.findOne({
-      where: { id: lastReaction.messageId },
-      attributes: ["id", "body", "updatedAt"]
-    });
-
-    if (!lastMessageReaction) {
-      (ticket as any).setDataValue("reactionPreview", null);
-      continue;
-    }
-
-    if (lastReaction.updatedAt > lastMessage.updatedAt) {
+    if (
+      new Date(lastReaction.reactionUpdatedAt) > new Date(lastMessage.updatedAt)
+    ) {
       (ticket as any).setDataValue("reactionPreview", {
         emoji: lastReaction.emoji,
-        messagePreview: lastMessageReaction.body,
+        messagePreview: lastReaction.messageBody,
         reactionUserId: lastReaction.userId
       });
     } else {
       (ticket as any).setDataValue("reactionPreview", null);
     }
   }
+  console.log(
+    `[PERF][ListTicketsService] loop N+1 pós-query (reactionPreview) [AGORA BATCH: 2 queries totais em vez de até 3x${
+      tickets.length
+    } sequenciais]: ${Date.now() - __t_n1loop}ms (status=${status})`
+  );
+
+  console.log(
+    `[PERF][ListTicketsService] TOTAL service: ${
+      Date.now() - __perfStart
+    }ms (status=${status})`
+  );
 
   const hasMore = count > offset + tickets.length;
 
