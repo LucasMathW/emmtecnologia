@@ -1091,13 +1091,6 @@ const MessagesList = ({
   }, []);
 
   useEffect(() => {
-    pageNumberRef.current = 1; // síncrono, imediato
-    setPageNumber(1); // para forçar re-render
-    dispatch({ type: "RESET" });
-    currentTicketId.current = ticketId;
-  }, [ticketId, selectedQueuesMessage]);
-
-  useEffect(() => {
     const handleVisibilityChange = () => {
       setIsTabActive(document.visibilityState === "visible");
     };
@@ -1112,9 +1105,10 @@ const MessagesList = ({
   const loadingTicketRef = useRef(null);
 
   useEffect(() => {
-    dispatch({ type: "RESET" });
+    pageNumberRef.current = 1; // síncrono, imediato
     setPageNumber(1);
     setHasMore(false);
+    dispatch({ type: "RESET" });
     currentTicketId.current = ticketId;
     loadingTicketRef.current = ticketId; // marca qual ticket deve carregar
   }, [ticketId, selectedQueuesMessage]);

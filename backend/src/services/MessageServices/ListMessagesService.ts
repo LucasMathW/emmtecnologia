@@ -1,11 +1,9 @@
 import AppError from "../../errors/AppError";
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
-import ShowTicketService from "../TicketServices/ShowTicketService";
 import { Op } from "sequelize";
 import { intersection } from "lodash";
 import User from "../../models/User";
-import isQueueIdHistoryBlocked from "../UserServices/isQueueIdHistoryBlocked";
 import Contact from "../../models/Contact";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
@@ -69,15 +67,7 @@ const ListMessagesService = async ({
 
   const ticketsFilter: any[] | null = [];
 
-  const __t_historyBlocked = Date.now();
-  const isAllHistoricEnabled = await isQueueIdHistoryBlocked({
-    userRequest: user.id
-  });
-  console.log(
-    `[PERF][ListMessagesService] isQueueIdHistoryBlocked (User.findByPk redundante): ${
-      Date.now() - __t_historyBlocked
-    }ms (ticketId=${__origTicketId})`
-  );
+  const isAllHistoricEnabled = user.allHistoric === "enabled";
 
   let ticketIds = [];
   const __t_siblingTickets = Date.now();
