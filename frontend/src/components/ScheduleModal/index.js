@@ -224,18 +224,15 @@ const ScheduleModal = ({
 
       // console.log("🔗 URL de download:", downloadUrl);
 
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const relativePath = downloadUrl.includes("/public/")
+        ? downloadUrl.split("/public/")[1]
+        : downloadUrl;
+      const response = await api.get("/media-proxy", {
+        params: { path: relativePath },
+        responseType: "blob",
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro ao baixar mídia: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = response.data;
       const file = new File([blob], mediaName, {
         type: blob.type || getMediaTypeFromExtension(mediaName, mediaType)
       });

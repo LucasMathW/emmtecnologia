@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { makeStyles } from "@material-ui/core/styles";
+import api from "../../services/api";
 
 const useStyles = makeStyles((theme) => ({
   messageMedia: {
@@ -223,8 +224,14 @@ const ModalImageCors = ({ imageUrl, onDimensions }) => {
   const handleDownload = async (e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      const relativePath = imageUrl.includes("/public/")
+        ? imageUrl.split("/public/")[1]
+        : imageUrl;
+      const response = await api.get("/media-proxy", {
+        params: { path: relativePath },
+        responseType: "blob",
+      });
+      const blob = response.data;
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;

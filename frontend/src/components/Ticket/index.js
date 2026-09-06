@@ -216,26 +216,22 @@ const Ticket = () => {
 
   // [ticketId, user, history];
 
+  const ticketRef = useRef(ticket);
   useEffect(() => {
-    if (
-      // !ticket &&
-      // !ticket.id &&
-      // ticket.uuid !== ticketId &&
-      // ticketId === "undefined"
-      !ticket?.id ||
-      ticketId === "undefined"
-    ) {
+    ticketRef.current = ticket;
+  }, [ticket]);
+
+  useEffect(() => {
+    if (!ticket?.id || ticketId === "undefined" || ticket?.uuid !== ticketId) {
       return;
     }
 
     const onConnectTicket = () => {
-      socket.emit("joinChatBox", `${ticket.id}`);
+      socket.emit("joinChatBox", `${ticketRef.current.id}`);
     };
 
     const onCompanyTicket = (data) => {
-      if (data.action === "update" && data.ticket.id === ticket?.id) {
-        setTicket(data.ticket);
-
+      if (data.action === "update" && data.ticket.id === ticketRef.current?.id) {
         // ✅ Preservar a foto mais recente ao atualizar o ticket
         const freshPic = latestContactPic.current;
 
@@ -268,18 +264,13 @@ const Ticket = () => {
         });
       }
 
-      if (data.action === "delete" && data.ticketId === ticket?.id) {
+      if (data.action === "delete" && data.ticketId === ticketRef.current?.id) {
         history.push("/tickets");
       }
     };
 
     const onCompanyContactTicket = (data) => {
       if (data.action === "update") {
-        console.log(
-          "[CONTACT UPDATE] Dados recebidos:",
-          data.contact?.urlPicture,
-        );
-
         setContact((prevState) => {
           const matchById = prevState.id === data.contact?.id;
           const normalizeNumber = (n) => n?.replace(/\D/g, "");
@@ -296,7 +287,7 @@ const Ticket = () => {
               latestContactPic.current = updatedContact.urlPicture;
             } else {
               updatedContact.urlPicture = null;
-              latestContactPic.current = null; // limpa a ref
+              latestContactPic.current = null;
 
               try {
                 const store = JSON.parse(
@@ -305,9 +296,6 @@ const Ticket = () => {
                 delete store[`${companyId}-${updatedContact.number}`];
                 delete store[`${companyId}-${updatedContact.id}`];
                 localStorage.setItem("contactPics", JSON.stringify(store));
-                console.log(
-                  "[CONTACT UPDATE] ✅ Cache limpo para contato sem foto",
-                );
               } catch (e) {
                 console.error(
                   "[CONTACT UPDATE] Erro ao limpar localStorage:",
@@ -337,13 +325,12 @@ const Ticket = () => {
     socket.on(`company-${companyId}-contact`, onCompanyContactTicket);
 
     return () => {
-      socket.emit("joinChatBoxLeave", `${ticket.id}`);
+      socket.emit("joinChatBoxLeave", `${ticketRef.current.id}`);
       socket.off("connect", onConnectTicket);
       socket.off(`company-${companyId}-ticket`, onCompanyTicket);
       socket.off(`company-${companyId}-contact`, onCompanyContactTicket);
     };
-    // }
-  }, [ticketId, ticket, history]);
+  }, [ticketId, ticket?.id]);
 
   const handleDrawerOpen = useCallback(() => {
     setDrawerOpen(true);

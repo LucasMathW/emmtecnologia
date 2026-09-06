@@ -103,6 +103,12 @@ const SendWhatsAppOficialMessage = async ({
       bodyTicket = "📷 Arquivo de Imagem";
       mediaType = 'image';
       break;
+    case 'sticker':
+      options.type = 'sticker';
+      options.fileName = media?.originalname?.replace('/', '-') || 'sticker.webp';
+      bodyTicket = "🎭 Figurinha";
+      mediaType = 'stickerMessage';
+      break;
     case 'text':
       options.body_text = { body: bodyMsg };
       mediaType = 'conversation';

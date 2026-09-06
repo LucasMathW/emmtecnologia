@@ -594,6 +594,26 @@ const MessageInput = ({
     if (stickerData.type === "sticker") {
       if (!ticketId) return;
 
+      // Exibe a figurinha imediatamente na tela (ack=0 → reloginho)
+      // enquanto aguarda o servidor confirmar o envio.
+      const blobUrl = URL.createObjectURL(stickerData.file);
+      window.dispatchEvent(
+        new CustomEvent("optimistic-message", {
+          detail: {
+            id: `temp-${Date.now()}`,
+            body: "sticker",
+            fromMe: true,
+            mediaUrl: blobUrl,
+            mediaType: "sticker",
+            createdAt: new Date().toISOString(),
+            ack: 0,
+            isDeleted: false,
+            reactions: [],
+            _isMediaOptimistic: true,
+          },
+        })
+      );
+
       setLoading(true);
       try {
         const formData = new FormData();
@@ -611,6 +631,7 @@ const MessageInput = ({
         toastError(err);
       } finally {
         setLoading(false);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
       }
     }
   };

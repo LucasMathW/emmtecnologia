@@ -9,6 +9,8 @@ userStickerRoutes.get("/user-stickers", isAuth, UserStickerController.index);
 
 userStickerRoutes.post("/user-stickers", isAuth, UserStickerController.store);
 
+userStickerRoutes.get("/media-proxy", isAuth, UserStickerController.mediaProxy);
+
 userStickerRoutes.delete(
   "/user-stickers/:id",
   isAuth,

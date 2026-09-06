@@ -654,7 +654,9 @@ const ListTicketsService = async ({
 
   const previewTicketIds = tickets.map(t => t.id);
 
-  // Batch 1: última mensagem de cada ticket, em uma única query (Postgres DISTINCT ON).
+  // Batch 1: última mensagem de cada ticket — LATERAL JOIN + LIMIT 1 por ticketId.
+  // Usa o índice idx_messages_ticket_updated_at ("ticketId", "updatedAt" DESC),
+  // evitando o Sort em memória que o DISTINCT ON causava (~250ms em grupos grandes).
   const __t_batchLastMessages = Date.now();
   const lastMessageRows: Array<{
     ticketId: number;
@@ -664,10 +666,15 @@ const ListTicketsService = async ({
   }> = previewTicketIds.length
     ? await sequelize.query(
         `
-          SELECT DISTINCT ON ("ticketId") "ticketId", "id", "body", "updatedAt"
-          FROM "Messages"
-          WHERE "ticketId" IN (:ticketIds)
-          ORDER BY "ticketId", "updatedAt" DESC
+          SELECT t."ticketId", m."id", m."body", m."updatedAt"
+          FROM unnest(ARRAY[:ticketIds]::integer[]) AS t("ticketId")
+          CROSS JOIN LATERAL (
+            SELECT "id", "body", "updatedAt"
+            FROM "Messages" msg
+            WHERE msg."ticketId" = t."ticketId"
+            ORDER BY msg."updatedAt" DESC
+            LIMIT 1
+          ) m
         `,
         {
           replacements: { ticketIds: previewTicketIds },

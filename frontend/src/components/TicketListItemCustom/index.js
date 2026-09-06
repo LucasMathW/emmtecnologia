@@ -536,13 +536,6 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
 
   // Função para renderizar a mensagem com base na permissão - MOVIDA PARA DEPOIS DE TODAS AS FUNÇÕES
   const renderLastMessage = () => {
-    console.log(
-      "ticket.mediaType:",
-      ticket.mediaType,
-      "lastMessage:",
-      ticket.lastMessage
-    );
-
     if (ticket.presence === "typing") {
       return (
         <Typography style={{ color: "green", fontSize: 16 }}>
@@ -1343,7 +1336,9 @@ const TicketListItemCustom = ({ setTabOpen, ticket }) => {
           !ticket.contact.urlPicture.includes("nopicture") ? (
             <img
               src={`${ticket.contact.urlPicture}?t=${
-                ticket.contact._picCachedBust || Date.now()
+                ticket.contact.updatedAt
+                  ? new Date(ticket.contact.updatedAt).getTime()
+                  : 0
               }`}
               alt={ticket?.contact?.name || "Foto do contato"}
               className={classes.expandedImage}

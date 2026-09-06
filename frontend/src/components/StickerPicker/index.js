@@ -178,12 +178,17 @@ const fileToDataUrl = (file) =>
   });
 
 // Salva uma figurinha recebida na galeria pessoal do usuário (chamado a partir do MessagesList)
+const _savingUrls = new Set();
 export const saveStickerFromMessage = async (mediaUrl) => {
+  if (_savingUrls.has(mediaUrl)) return;
+  _savingUrls.add(mediaUrl);
   try {
     await api.post("/user-stickers", { mediaUrl });
     toast.success("Figurinha salva na sua galeria! 🎉");
   } catch {
     toast.error("Erro ao salvar figurinha");
+  } finally {
+    _savingUrls.delete(mediaUrl);
   }
 };
 
@@ -246,8 +251,24 @@ const StickerPicker = ({ anchorEl, open, onClose, onSend }) => {
     async (url) => {
       setSending(true);
       try {
-        const response = await fetch(url, { credentials: "include" });
-        const blob = await response.blob();
+        let blob;
+
+        if (url.startsWith("data:")) {
+          // data: URLs são same-origin, fetch direto funciona
+          const response = await fetch(url);
+          blob = await response.blob();
+        } else {
+          // URLs do servidor: usa API autenticada para evitar ORB cross-origin
+          const relativePath = url.includes("/public/")
+            ? url.split("/public/")[1]
+            : url;
+          const response = await api.get("/media-proxy", {
+            params: { path: relativePath },
+            responseType: "blob",
+          });
+          blob = response.data;
+        }
+
         const mimeType = blob.type || "image/webp";
         const ext = mimeType.split("/")[1] || "webp";
         const file = new File([blob], `sticker.${ext}`, { type: mimeType });

@@ -235,7 +235,9 @@ export const initIO = (httpServer: Server): SocketIO => {
     });
 
     socket.on("joinChatBoxLeave", (ticketId: string) => {
-      socket.leave(ticketId);
+      const companyId = socket.nsp.name.split("/")[1];
+      const room = `company-${companyId}-chat-${ticketId}`;
+      socket.leave(room);
     });
 
     socket.on("receivedMessageWhatsAppOficial", (data: any) => {
