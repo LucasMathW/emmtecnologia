@@ -39,8 +39,8 @@ class SocketWorker {
       console.log("Conectado ao servidor Socket.IO");
     });
 
-    this.socket.on("disconnect", () => {
-      console.log("Desconectado do servidor Socket.IO");
+    this.socket.on("disconnect", (reason) => {
+      console.log("Desconectado do servidor Socket.IO | motivo:", reason);
       this.reconnectAfterDelay();
     });
   }

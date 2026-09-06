@@ -273,7 +273,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
         if (isSticker === "true") {
           // Send as sticker
           if (ticket.channel === "whatsapp") {
-            await SendMessageSticker(
+            const sentMsg = await SendMessageSticker(
               ticket.whatsappId,
               {
                 number: ticket.contactId,
@@ -281,6 +281,33 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
               },
               ticket.isGroup
             );
+            // Cria o registro no ticket correto ANTES que o echo do Baileys
+            // chegue em handleMessage (que usa contactId e pode escolher o
+            // ticket errado). handleMessage ignora mensagens cujo wid já
+            // existe no banco, então não haverá duplicata.
+            const wid = sentMsg?.key?.id ?? `sticker_${ticket.id}_${Date.now()}`;
+            await CreateMessageService({
+              messageData: {
+                wid,
+                ticketId: ticket.id,
+                body: media.filename,
+                fromMe: true,
+                mediaUrl: media.filename,
+                mediaType: "sticker",
+                read: true,
+                ack: 1
+              },
+              companyId: ticket.companyId
+            });
+          }
+          if (ticket.channel === "whatsapp_oficial") {
+            await SendWhatsAppOficialMessage({
+              media,
+              body: "",
+              ticket,
+              type: "sticker",
+              quotedMsg
+            });
           }
           console.log(
             `[PERF][MessageController.store] mídia ${index + 1} (sticker, ${

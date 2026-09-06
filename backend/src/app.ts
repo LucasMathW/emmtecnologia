@@ -88,6 +88,13 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(Sentry.Handlers.requestHandler());
+// Pixel GIF transparente 1×1 — retornado quando arquivo público não existe.
+// O MIME type image/gif está na safelist do ORB, impedindo o erro no browser.
+const TRANSPARENT_GIF = Buffer.from(
+  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+  "base64"
+);
+
 app.use(
   "/public",
   express.static(uploadConfig.directory, {
@@ -96,8 +103,12 @@ app.use(
     lastModified: true, // usa Last-Modified como fallback
     immutable: false // não é imutável (foto de perfil pode mudar)
   }),
-  (req: Request, res: Response) => {
-    res.status(404).json({ error: "File not found" });
+  (_req: Request, res: Response) => {
+    res
+      .status(404)
+      .set("Content-Type", "image/gif")
+      .set("Cache-Control", "no-store")
+      .end(TRANSPARENT_GIF);
   }
 );
 

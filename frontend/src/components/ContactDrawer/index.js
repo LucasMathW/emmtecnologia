@@ -1770,7 +1770,7 @@ const ContactDrawer = ({
               src={`${contact.urlPicture}?t=${
                 contact.updatedAt
                   ? new Date(contact.updatedAt).getTime()
-                  : Date.now()
+                  : 0
               }`}
               alt={contact?.name || "Foto do contato"}
               className={classes.expandedImage}

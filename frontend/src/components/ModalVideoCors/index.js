@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
+import api from "../../services/api";
 
 const useStyles = makeStyles((theme) => ({
   videoThumb: {
@@ -332,8 +333,14 @@ const ModalVideoCors = ({ videoUrl, message }) => {
   const handleDownload = async (e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(videoUrl);
-      const blob = await response.blob();
+      const relativePath = videoUrl.includes("/public/")
+        ? videoUrl.split("/public/")[1]
+        : videoUrl;
+      const response = await api.get("/media-proxy", {
+        params: { path: relativePath },
+        responseType: "blob",
+      });
+      const blob = response.data;
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;

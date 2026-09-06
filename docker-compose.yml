@@ -1,0 +1,72 @@
+services:
+  redis-emmtecnologia:
+    image: redis:7-alpine
+    container_name: redis-emmtecnologia
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_emmtecnologia_data:/data
+    networks:
+      - web
+
+  emmtecnologia-backend:
+    container_name: emmtecnologia-backend
+    build: ./backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    volumes:
+      - ./backend/public:/app/public
+    depends_on:
+      - redis-emmtecnologia
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.emmtecnologia-backend.rule=Host(`api.emmtecnologia.com.br`)"
+      - "traefik.http.routers.emmtecnologia-backend.entrypoints=websecure"
+      - "traefik.http.routers.emmtecnologia-backend.tls.certresolver=le"
+      - "traefik.http.services.emmtecnologia-backend.loadbalancer.server.port=4099"
+
+  emmtecnologia-apioficial:
+    container_name: emmtecnologia-apioficial
+    build: ./api_oficial
+    restart: always
+    env_file:
+      - ./api_oficial/.env
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.emmtecnologia-apioficial.rule=Host(`apioficial.emmtecnologia.com.br`)"
+      - "traefik.http.routers.emmtecnologia-apioficial.entrypoints=websecure"
+      - "traefik.http.routers.emmtecnologia-apioficial.tls.certresolver=le"
+      - "traefik.http.services.emmtecnologia-apioficial.loadbalancer.server.port=6000"
+
+  emmtecnologia-frontend:
+    container_name: emmtecnologia-frontend
+    build: ./frontend
+    restart: always
+    env_file:
+      - ./frontend/.env
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.emmtecnologia-frontend.rule=Host(`app.emmtecnologia.com.br`)"
+      - "traefik.http.routers.emmtecnologia-frontend.entrypoints=websecure"
+      - "traefik.http.routers.emmtecnologia-frontend.tls.certresolver=le"
+      - "traefik.http.services.emmtecnologia-frontend.loadbalancer.server.port=3099"
+
+networks:
+  web:
+    external: true
+
+volumes:
+  redis_emmtecnologia_data:
