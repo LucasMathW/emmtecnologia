@@ -601,6 +601,7 @@ const MessageInput = ({
         new CustomEvent("optimistic-message", {
           detail: {
             id: `temp-${Date.now()}`,
+            ticketId,
             body: "sticker",
             fromMe: true,
             mediaUrl: blobUrl,
@@ -741,10 +742,8 @@ const MessageInput = ({
       if (presenceDebounceRef.current) {
         clearTimeout(presenceDebounceRef.current);
       }
-      if (!isTicketPending()) {
-        setPrivateMessage(false);
-        setPrivateMessageInputVisible(false);
-      }
+      setPrivateMessage(false);
+      setPrivateMessageInputVisible(false);
       setEditingMessage(null);
     };
   }, [ticketId, setReplyingMessage, setEditingMessage]);
