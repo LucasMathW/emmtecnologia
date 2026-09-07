@@ -957,6 +957,17 @@ const MessageBubble = React.memo(function MessageBubble({ render }) {
   return render();
 }, messageBubblePropsAreEqual);
 
+// Cache de módulo: sobrevive ao unmount/remount do componente.
+// Limita a 30 entradas para evitar consumo excessivo de memória.
+const _messagesCache = new Map();
+const _maxMessagesCacheSize = 30;
+const _setMessagesCache = (ticketId, value) => {
+  if (_messagesCache.size >= _maxMessagesCacheSize) {
+    _messagesCache.delete(_messagesCache.keys().next().value);
+  }
+  _messagesCache.set(ticketId, value);
+};
+
 const MessagesList = ({
   isGroup,
   onDrop,
@@ -981,7 +992,7 @@ const MessagesList = ({
   const pageNumberRef = useRef(1);
   const messageRef = useRef(null);
   const messageRight = useRef(null);
-  const messagesCacheRef = useRef(new Map());
+  // cache de módulo — não precisa de useRef
   const presenceTimeoutRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState({});
   const { setReplyingMessage } = useContext(ReplyMessageContext);
@@ -1134,7 +1145,7 @@ const MessagesList = ({
       return;
     }
 
-    const cached = messagesCacheRef.current.get(ticketId);
+    const cached = _messagesCache.get(ticketId);
     if (cached && pageNumber === 1) {
       dispatch({ type: "LOAD_MESSAGES", payload: cached.messages });
       setHasMore(cached.hasMore);
@@ -1173,7 +1184,7 @@ const MessagesList = ({
 
           dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
           if (pageNumber === 1) {
-            messagesCacheRef.current.set(ticketId, {
+            _setMessagesCache(ticketId, {
               messages: data.messages,
               hasMore: data.hasMore,
             });

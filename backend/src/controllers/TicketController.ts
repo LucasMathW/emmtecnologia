@@ -378,11 +378,11 @@ export const showFromUUID = async (
     SetTicketMessagesAsRead(ticket);
   }
 
-  await CreateLogTicketService({
+  CreateLogTicketService({
     userId,
     ticketId: ticket.id,
     type: "access"
-  });
+  }).catch(err => console.error("[showFromUUID] CreateLogTicketService error:", err));
 
   return res.status(200).json(ticket);
 };
