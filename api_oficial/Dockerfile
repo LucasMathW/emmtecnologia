@@ -7,5 +7,6 @@ RUN npm install --legacy-peer-deps
 COPY . .
 RUN npx prisma generate
 RUN npm run build
-EXPOSE 6001
+ARG APIOFICIAL_PORT=6000
+EXPOSE ${APIOFICIAL_PORT}
 CMD ["node", "dist/main.js"]

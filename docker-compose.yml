@@ -11,7 +11,10 @@ services:
       - web
   backend:
     container_name: ${APP_PREFIX}-backend
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        - BACKEND_PORT=${BACKEND_PORT}
     restart: always
     env_file:
       - ./backend/.env
@@ -35,7 +38,10 @@ services:
       - "traefik.http.services.${APP_PREFIX}-backend.loadbalancer.server.port=${BACKEND_PORT}"
   apioficial:
     container_name: ${APP_PREFIX}-apioficial
-    build: ./api_oficial
+    build:
+      context: ./api_oficial
+      args:
+        - APIOFICIAL_PORT=${APIOFICIAL_PORT}
     restart: always
     env_file:
       - ./api_oficial/.env
@@ -49,7 +55,10 @@ services:
       - "traefik.http.services.${APP_PREFIX}-apioficial.loadbalancer.server.port=${APIOFICIAL_PORT}"
   frontend:
     container_name: ${APP_PREFIX}-frontend
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - FRONTEND_PORT=${FRONTEND_PORT}
     restart: always
     env_file:
       - ./frontend/.env
