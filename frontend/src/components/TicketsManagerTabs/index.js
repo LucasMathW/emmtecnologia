@@ -496,7 +496,6 @@ const TicketsManagerTabs = () => {
   };
 
   const handleChangeTabOpen = (e, newValue) => {
-    handleBack();
     setTabOpen(newValue);
   };
 

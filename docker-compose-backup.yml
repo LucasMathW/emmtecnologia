@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+
+  redis-kbv:
+    image: redis:7-alpine
+    container_name: redis-kbv
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_kbv_data:/data
+    networks:
+      - web
+
+  kbv-backend:
+    container_name: kbv-backend
+    build: ./backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/public:/app/public
+    depends_on:
+      - redis-kbv
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kbv-backend.rule=Host(`kbvapi.boxchatt.com`)"
+      - "traefik.http.routers.kbv-backend.entrypoints=websecure"
+      - "traefik.http.routers.kbv-backend.tls.certresolver=le"
+      - "traefik.http.services.kbv-backend.loadbalancer.server.port=4001"
+
+  kbv-apioficial:
+    container_name: kbv-apioficial
+    build: ./api_oficial
+    restart: always
+    env_file:
+      - ./api_oficial/.env
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kbv-apioficial.rule=Host(`kbvapioficial.boxchatt.com`)"
+      - "traefik.http.routers.kbv-apioficial.entrypoints=websecure"
+      - "traefik.http.routers.kbv-apioficial.tls.certresolver=le"
+      - "traefik.http.services.kbv-apioficial.loadbalancer.server.port=6001"
+
+  kbv-frontend:
+    container_name: kbv-frontend
+    build: ./frontend
+    restart: always
+    env_file:
+      - ./frontend/.env
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kbv-frontend.rule=Host(`kbv.boxchatt.com`)"
+      - "traefik.http.routers.kbv-frontend.entrypoints=websecure"
+      - "traefik.http.routers.kbv-frontend.tls.certresolver=le"
+      - "traefik.http.services.kbv-frontend.loadbalancer.server.port=3001"
+
+networks:
+  web:
+    external: true
+
+volumes:
+  redis_kbv_data:

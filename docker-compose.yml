@@ -1,16 +1,16 @@
+version: "3.8"
 services:
-  redis-emmtecnologia:
+  redis:
     image: redis:7-alpine
-    container_name: redis-emmtecnologia
+    container_name: redis-${APP_PREFIX}
     restart: always
     command: redis-server --appendonly yes
     volumes:
-      - redis_emmtecnologia_data:/data
+      - redis_data:/data
     networks:
       - web
-
-  emmtecnologia-backend:
-    container_name: emmtecnologia-backend
+  backend:
+    container_name: ${APP_PREFIX}-backend
     build: ./backend
     restart: always
     env_file:
@@ -24,18 +24,17 @@ services:
     volumes:
       - ./backend/public:/app/public
     depends_on:
-      - redis-emmtecnologia
+      - redis
     networks:
       - web
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.emmtecnologia-backend.rule=Host(`api.emmtecnologia.com.br`)"
-      - "traefik.http.routers.emmtecnologia-backend.entrypoints=websecure"
-      - "traefik.http.routers.emmtecnologia-backend.tls.certresolver=le"
-      - "traefik.http.services.emmtecnologia-backend.loadbalancer.server.port=4099"
-
-  emmtecnologia-apioficial:
-    container_name: emmtecnologia-apioficial
+      - "traefik.http.routers.${APP_PREFIX}-backend.rule=Host(`${BACKEND_HOST}`)"
+      - "traefik.http.routers.${APP_PREFIX}-backend.entrypoints=websecure"
+      - "traefik.http.routers.${APP_PREFIX}-backend.tls.certresolver=le"
+      - "traefik.http.services.${APP_PREFIX}-backend.loadbalancer.server.port=${BACKEND_PORT}"
+  apioficial:
+    container_name: ${APP_PREFIX}-apioficial
     build: ./api_oficial
     restart: always
     env_file:
@@ -44,13 +43,12 @@ services:
       - web
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.emmtecnologia-apioficial.rule=Host(`apioficial.emmtecnologia.com.br`)"
-      - "traefik.http.routers.emmtecnologia-apioficial.entrypoints=websecure"
-      - "traefik.http.routers.emmtecnologia-apioficial.tls.certresolver=le"
-      - "traefik.http.services.emmtecnologia-apioficial.loadbalancer.server.port=6000"
-
-  emmtecnologia-frontend:
-    container_name: emmtecnologia-frontend
+      - "traefik.http.routers.${APP_PREFIX}-apioficial.rule=Host(`${APIOFICIAL_HOST}`)"
+      - "traefik.http.routers.${APP_PREFIX}-apioficial.entrypoints=websecure"
+      - "traefik.http.routers.${APP_PREFIX}-apioficial.tls.certresolver=le"
+      - "traefik.http.services.${APP_PREFIX}-apioficial.loadbalancer.server.port=${APIOFICIAL_PORT}"
+  frontend:
+    container_name: ${APP_PREFIX}-frontend
     build: ./frontend
     restart: always
     env_file:
@@ -59,14 +57,13 @@ services:
       - web
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.emmtecnologia-frontend.rule=Host(`app.emmtecnologia.com.br`)"
-      - "traefik.http.routers.emmtecnologia-frontend.entrypoints=websecure"
-      - "traefik.http.routers.emmtecnologia-frontend.tls.certresolver=le"
-      - "traefik.http.services.emmtecnologia-frontend.loadbalancer.server.port=3099"
-
+      - "traefik.http.routers.${APP_PREFIX}-frontend.rule=Host(`${FRONTEND_HOST}`)"
+      - "traefik.http.routers.${APP_PREFIX}-frontend.entrypoints=websecure"
+      - "traefik.http.routers.${APP_PREFIX}-frontend.tls.certresolver=le"
+      - "traefik.http.services.${APP_PREFIX}-frontend.loadbalancer.server.port=${FRONTEND_PORT}"
 networks:
   web:
     external: true
-
 volumes:
-  redis_emmtecnologia_data:
+  redis_data:
+    name: "redis_${APP_PREFIX}_data"

@@ -5,6 +5,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
+import ReactDOM from "react-dom";
 import { useParams, useHistory } from "react-router-dom";
 
 import clsx from "clsx";
@@ -28,6 +29,16 @@ import { TagsContainer } from "../TagsContainer";
 import { isNil } from "lodash";
 import { EditMessageProvider } from "../../context/EditingMessage/EditingMessageContext";
 import { TicketsContext } from "../../context/Tickets/TicketsContext";
+
+// Cache de módulo: sobrevive ao unmount/remount do componente.
+const _ticketCache = new Map();
+const _maxTicketCacheSize = 50;
+const _setTicketCache = (ticketId, value) => {
+  if (_ticketCache.size >= _maxTicketCacheSize) {
+    _ticketCache.delete(_ticketCache.keys().next().value);
+  }
+  _ticketCache.set(ticketId, value);
+};
 
 const drawerWidth = 320;
 
@@ -88,7 +99,7 @@ const Ticket = () => {
   const [ticket, setTicket] = useState({});
   const [dragDropFiles, setDragDropFiles] = useState([]);
   const latestContactPic = useRef("");
-  const ticketCacheRef = useRef(new Map()); // ticketId -> { contact, ticket }
+  // cache de módulo — não precisa de useRef
   const { companyId } = user;
 
   // Restaurar fotos do localStorage
@@ -137,15 +148,18 @@ const Ticket = () => {
 
   useEffect(() => {
     let isMounted = true;
+    latestContactPic.current = ""; // reset ao trocar de ticket
 
-    const cached = ticketCacheRef.current.get(ticketId);
+    const cached = _ticketCache.get(ticketId);
     if (cached) {
-      setContact(cached.contact);
-      setTicket(cached.ticket);
-      setLoading(false);
-      if (["pending", "open", "group"].includes(cached.ticket.status)) {
-        setTabOpen(cached.ticket.status);
-      }
+      ReactDOM.unstable_batchedUpdates(() => {
+        setContact(cached.contact);
+        setTicket(cached.ticket);
+        setLoading(false);
+        if (["pending", "open", "group"].includes(cached.ticket.status)) {
+          setTabOpen(cached.ticket.status);
+        }
+      });
     } else {
       setLoading(true);
     }
@@ -187,18 +201,20 @@ const Ticket = () => {
               };
             }
 
-            setContact(contactData);
-            // setWhatsapp(data.whatsapp);
-            // setQueueId(data.queueId);
-            setTicket(data);
-            ticketCacheRef.current.set(ticketId, {
+            _setTicketCache(ticketId, {
               contact: contactData,
               ticket: data,
             });
-            if (["pending", "open", "group"].includes(data.status)) {
-              setTabOpen(data.status);
-            }
-            setLoading(false);
+            ReactDOM.unstable_batchedUpdates(() => {
+              setContact(contactData);
+              // setWhatsapp(data.whatsapp);
+              // setQueueId(data.queueId);
+              setTicket(data);
+              if (["pending", "open", "group"].includes(data.status)) {
+                setTabOpen(data.status);
+              }
+              setLoading(false);
+            });
           }
         } catch (err) {
           if (!isMounted) return;
