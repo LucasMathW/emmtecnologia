@@ -286,6 +286,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
             // ticket errado). handleMessage ignora mensagens cujo wid já
             // existe no banco, então não haverá duplicata.
             const wid = sentMsg?.key?.id ?? `sticker_${ticket.id}_${Date.now()}`;
+            const remoteJid = sentMsg?.key?.remoteJid;
             await CreateMessageService({
               messageData: {
                 wid,
@@ -295,7 +296,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
                 mediaUrl: media.filename,
                 mediaType: "sticker",
                 read: true,
-                ack: 1
+                ack: 1,
+                remoteJid
               },
               companyId: ticket.companyId
             });

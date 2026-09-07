@@ -23,6 +23,7 @@ export interface MessageData {
   isPrivate?: boolean;
   ticketImported?: any;
   isForwarded?: boolean;
+  remoteJid?: string;
 }
 interface Request {
   messageData: MessageData;
