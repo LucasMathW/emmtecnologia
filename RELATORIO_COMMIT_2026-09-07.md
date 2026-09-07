@@ -263,3 +263,33 @@ ReactDOM.unstable_batchedUpdates(() => {
 ## Conclusão
 
 As mudanças desta sessão entregam uma redução líquida de ~600 linhas de código (remoção de código morto e fallbacks não utilizados), três melhorias mensuráveis de performance no frontend (cache persistente + batching), uma melhoria de throughput no backend (log não-bloqueante) e a migração completa de infraestrutura para a identidade KBV/boxchatt.com.
+
+---
+
+## Atualização — Parametrização do docker-compose.yml
+
+**Data:** 07/09/2026
+
+### Problema
+
+O `docker-compose.yml` continha valores hardcoded de hosts, portas e nomes de contêiner específicos de cada ambiente (prod/homolog). Qualquer merge entre `main` e `homolog` gerava conflitos nesses valores.
+
+### Solução
+
+O `docker-compose.yml` foi refatorado para usar variáveis de ambiente via arquivo `.env` na raiz do projeto (ignorado pelo git).
+
+| Variável | Descrição |
+|---|---|
+| `APP_PREFIX` | Prefixo dos contêineres e routers Traefik |
+| `BACKEND_HOST` / `BACKEND_PORT` | Host e porta do backend |
+| `APIOFICIAL_HOST` / `APIOFICIAL_PORT` | Host e porta da API oficial |
+| `FRONTEND_HOST` / `FRONTEND_PORT` | Host e porta do frontend |
+
+O volume do Redis usa `name: "redis_${APP_PREFIX}_data"` para manter compatibilidade com volumes existentes em cada ambiente.
+
+**Prod (`main`):** `.env` com `APP_PREFIX=kbv`, hosts `boxchatt.com`, portas 4001/6001/3001.  
+**Homolog:** `.env` local com `APP_PREFIX=emmtecnologia`, hosts `emmtecnologia.com.br`, portas 4099/6000/3099.
+
+### Resultado
+
+`docker-compose.yml` agora é idêntico em `main` e `homolog` — zero conflito de merge em futuros pulls.
