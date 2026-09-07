@@ -9,6 +9,8 @@ COPY . .
 
 RUN npm run build
 
-EXPOSE 3001	
+ARG FRONTEND_PORT
+ENV PORT=${FRONTEND_PORT}
+EXPOSE ${FRONTEND_PORT}
 
 CMD ["node", "server.js"]

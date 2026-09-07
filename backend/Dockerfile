@@ -8,5 +8,6 @@ COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
 RUN npm run build
-EXPOSE 4001
+ARG BACKEND_PORT
+EXPOSE ${BACKEND_PORT}
 CMD ["node", "dist/server.js"]
